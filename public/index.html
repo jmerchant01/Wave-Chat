@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WAVE — Live Voice Rooms</title>
+<script src="/socket.io/socket.io.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #050508;
+  --surface: #0d0d14;
+  --surface2: #13131e;
+  --border: #1e1e2e;
+  --accent: #6c63ff;
+  --accent2: #ff6584;
+  --accent3: #43e97b;
+  --text: #e8e8f0;
+  --muted: #6b6b80;
+  --host: #ffd700;
+  --danger: #ff4757;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;min-height:100vh;overflow-x:hidden;}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 80% 50% at 20% 20%,rgba(108,99,255,.08) 0%,transparent 60%),radial-gradient(ellipse 60% 40% at 80% 80%,rgba(255,101,132,.06) 0%,transparent 60%),radial-gradient(ellipse 40% 60% at 50% 50%,rgba(67,233,123,.03) 0%,transparent 70%);pointer-events:none;z-index:0;}
+#app{position:relative;z-index:1;}
+
+/* ── LANDING ── */
+#landing{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem;text-align:center;}
+.logo{font-family:'Syne',sans-serif;font-size:clamp(3rem,10vw,7rem);font-weight:800;letter-spacing:-.04em;background:linear-gradient(135deg,#6c63ff 0%,#ff6584 50%,#43e97b 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1;margin-bottom:.5rem;}
+.tagline{color:var(--muted);font-size:.85rem;letter-spacing:.15em;text-transform:uppercase;margin-bottom:3rem;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:2.5rem;width:100%;max-width:480px;position:relative;overflow:hidden;}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent),var(--accent2),var(--accent3));}
+.tabs{display:flex;background:var(--surface2);border-radius:10px;padding:4px;margin-bottom:2rem;}
+.tab{flex:1;padding:.6rem 1rem;border:none;background:transparent;color:var(--muted);font-family:'DM Mono',monospace;font-size:.8rem;cursor:pointer;border-radius:7px;transition:all .2s;letter-spacing:.05em;}
+.tab.active{background:var(--accent);color:white;}
+.field{margin-bottom:1.2rem;}
+.field label{display:block;font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:.5rem;}
+.field input{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.75rem 1rem;color:var(--text);font-family:'DM Mono',monospace;font-size:.9rem;outline:none;transition:border-color .2s;}
+.field input:focus{border-color:var(--accent);}
+.field input::placeholder{color:var(--muted);}
+.btn{width:100%;padding:.9rem;border:none;border-radius:10px;font-family:'Syne',sans-serif;font-weight:700;font-size:.95rem;letter-spacing:.05em;cursor:pointer;transition:all .2s;}
+.btn-primary{background:linear-gradient(135deg,var(--accent),#8b5cf6);color:white;}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 8px 30px rgba(108,99,255,.4);}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed;transform:none;}
+.btn-sm{width:auto;padding:.4rem .9rem;font-size:.75rem;border-radius:7px;}
+.btn-ghost{background:var(--surface2);border:1px solid var(--border);color:var(--text);}
+.btn-ghost:hover{border-color:var(--accent);color:var(--accent);}
+
+/* ── ROOM ── */
+#room{display:none;min-height:100vh;padding:1rem;max-width:1200px;margin:0 auto;}
+.room-header{display:flex;align-items:center;justify-content:space-between;padding:1rem 1.5rem;background:var(--surface);border:1px solid var(--border);border-radius:14px;margin-bottom:1rem;flex-wrap:wrap;gap:.75rem;}
+.room-info h2{font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:700;}
+.room-meta{font-size:.7rem;color:var(--muted);letter-spacing:.05em;margin-top:2px;}
+.room-id-badge{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.4rem .8rem;font-size:.75rem;color:var(--accent);cursor:pointer;transition:all .2s;}
+.room-id-badge:hover{border-color:var(--accent);}
+.room-body{display:grid;grid-template-columns:320px 1fr;gap:1rem;height:calc(100vh - 140px);}
+@media(max-width:768px){.room-body{grid-template-columns:1fr;height:auto;}}
+
+/* Participants */
+.participants-panel{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;display:flex;flex-direction:column;}
+.panel-header{padding:1rem 1.5rem;border-bottom:1px solid var(--border);font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;justify-content:space-between;}
+.participant-count{background:var(--accent);color:white;border-radius:999px;padding:.1rem .6rem;font-size:.65rem;font-weight:600;}
+.participants-list{flex:1;overflow-y:auto;padding:1rem;display:flex;flex-direction:column;gap:.5rem;}
+.participants-list::-webkit-scrollbar{width:4px;}
+.participants-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+.participant-card{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:.8rem 1rem;display:flex;align-items:center;gap:.75rem;transition:all .2s;position:relative;overflow:hidden;}
+.participant-card.speaking{border-color:var(--accent3);box-shadow:0 0 0 1px rgba(67,233,123,.3),inset 0 0 20px rgba(67,233,123,.05);}
+.participant-card.speaking::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(67,233,123,.05),transparent);pointer-events:none;}
+.avatar{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:800;font-size:.9rem;flex-shrink:0;position:relative;}
+.avatar.speaking-ring::after{content:'';position:absolute;inset:-3px;border-radius:50%;border:2px solid var(--accent3);animation:speakPulse 1s ease-in-out infinite;}
+@keyframes speakPulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.5;transform:scale(1.15);}}
+.participant-name{flex:1;font-size:.85rem;font-weight:500;}
+.participant-controls{display:flex;gap:.35rem;}
+.icon-btn{width:28px;height:28px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.75rem;transition:all .15s;}
+.icon-btn:hover{border-color:var(--accent);color:var(--accent);}
+.icon-btn.muted-on{border-color:var(--danger);color:var(--danger);background:rgba(255,71,87,.1);}
+
+/* Sidebar */
+.sidebar{display:flex;flex-direction:column;gap:1rem;overflow-y:auto;}
+.sidebar::-webkit-scrollbar{width:3px;}
+.sidebar::-webkit-scrollbar-thumb{background:var(--border);}
+.my-controls{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.5rem;}
+.section-title{font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:1.2rem;}
+.mic-btn{width:100%;height:70px;border-radius:12px;border:2px solid var(--accent);background:rgba(108,99,255,.1);color:var(--accent);font-family:'Syne',sans-serif;font-weight:700;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:.5rem;transition:all .2s;letter-spacing:.05em;position:relative;overflow:hidden;}
+.mic-btn:hover{background:rgba(108,99,255,.2);}
+.mic-btn.muted{border-color:var(--danger);background:rgba(255,71,87,.1);color:var(--danger);}
+.mic-btn .pulse-ring{position:absolute;inset:0;border-radius:10px;border:2px solid var(--accent3);opacity:0;}
+.mic-btn.speaking-active .pulse-ring{opacity:1;animation:micPulse .8s ease-in-out infinite;}
+@keyframes micPulse{0%,100%{opacity:.8;}50%{opacity:.3;}}
+.volume-bar{height:3px;background:var(--border);border-radius:2px;margin-top:.8rem;overflow:hidden;}
+.volume-fill{height:100%;background:linear-gradient(90deg,var(--accent3),var(--accent));width:0%;transition:width .1s;}
+
+/* Host Panel */
+.host-panel{background:var(--surface);border:1px solid var(--host);border-radius:14px;padding:1.5rem;position:relative;overflow:hidden;}
+.host-panel::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--host),transparent);}
+.host-title{font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:var(--host);margin-bottom:1.2rem;}
+.host-actions{display:flex;flex-direction:column;gap:.5rem;}
+.host-btn{width:100%;padding:.6rem 1rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:'DM Mono',monospace;font-size:.78rem;cursor:pointer;text-align:left;transition:all .2s;display:flex;align-items:center;gap:.5rem;}
+.host-btn:hover{border-color:var(--host);color:var(--host);}
+.host-btn.danger:hover{border-color:var(--danger);color:var(--danger);}
+.invite-box{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:1rem;margin-top:1rem;}
+.invite-box p{font-size:.7rem;color:var(--muted);margin-bottom:.5rem;}
+.invite-url{font-size:.7rem;color:var(--accent);word-break:break-all;cursor:pointer;}
+
+/* Chat */
+.chat-panel{background:var(--surface);border:1px solid var(--border);border-radius:14px;display:flex;flex-direction:column;overflow:hidden;flex:1;min-height:250px;}
+.chat-messages{flex:1;overflow-y:auto;padding:1rem;display:flex;flex-direction:column;gap:.5rem;}
+.chat-messages::-webkit-scrollbar{width:3px;}
+.chat-messages::-webkit-scrollbar-thumb{background:var(--border);}
+/* Delete message */
+.chat-msg{font-size:.78rem;line-height:1.5;padding:.5rem .75rem;background:var(--surface2);border-radius:8px;border-left:2px solid transparent;animation:msgIn .2s ease;position:relative;}
+.chat-msg:hover .delete-msg-btn{opacity:1;}
+.delete-msg-btn{position:absolute;top:6px;right:6px;width:20px;height:20px;border-radius:5px;border:none;background:rgba(255,71,87,.15);color:var(--danger);cursor:pointer;font-size:.65rem;opacity:0;transition:opacity .15s;display:flex;align-items:center;justify-content:center;line-height:1;}
+.delete-msg-btn:hover{background:rgba(255,71,87,.3);}
+.chat-msg.deleted{opacity:.4;font-style:italic;color:var(--muted);}
+
+@keyframes msgIn{from{opacity:0;transform:translateY(5px);}to{opacity:1;transform:translateY(0);}}
+.chat-msg.system{color:var(--muted);border-left-color:var(--border);font-style:italic;}
+.chat-msg.mine{border-left-color:var(--accent);}
+.chat-msg.host-chat{border-left-color:var(--host);}
+.chat-msg.other{border-left-color:var(--muted);}
+.msg-name{font-weight:600;}
+.msg-name.is-host{color:var(--host);}
+.chat-input-wrap{padding:.75rem;border-top:1px solid var(--border);display:flex;gap:.5rem;}
+.chat-input{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.6rem .9rem;color:var(--text);font-family:'DM Mono',monospace;font-size:.8rem;outline:none;transition:border-color .2s;}
+.chat-input:focus{border-color:var(--accent);}
+.send-btn{width:36px;height:36px;border-radius:8px;border:none;background:var(--accent);color:white;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s;}
+.send-btn:hover{background:#7c74ff;}
+
+/* Image in chat */
+.chat-img{max-width:100%;max-height:300px;border-radius:8px;margin-top:.4rem;cursor:pointer;display:block;border:1px solid var(--border);}
+.chat-img:hover{opacity:.9;}
+.img-preview-wrap{position:relative;margin-top:.5rem;display:inline-block;}
+.img-preview-wrap img{max-height:80px;max-width:180px;border-radius:6px;border:1px solid var(--accent);display:block;}
+.img-preview-wrap .remove-img{position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:var(--danger);color:white;border:none;cursor:pointer;font-size:.7rem;display:flex;align-items:center;justify-content:center;line-height:1;}
+.chat-input-wrap.drag-over{border-color:var(--accent);background:rgba(108,99,255,.05);}
+.img-attach-btn{width:36px;height:36px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s;font-size:.9rem;}
+.img-attach-btn:hover{border-color:var(--accent);color:var(--accent);}
+.lightbox{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:999;display:flex;align-items:center;justify-content:center;cursor:pointer;}
+.lightbox img{max-width:90vw;max-height:90vh;border-radius:10px;}
+
+/* Connection status */
+.conn-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:5px;}
+.conn-dot.connected{background:var(--accent3);animation:blink 2s infinite;}
+.conn-dot.connecting{background:var(--host);animation:blink .5s infinite;}
+.conn-dot.disconnected{background:var(--danger);}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:.3;}}
+
+/* Toast */
+.toast-wrap{position:fixed;bottom:2rem;left:50%;transform:translateX(-50%);z-index:1000;display:flex;flex-direction:column;gap:.5rem;align-items:center;}
+.toast{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:.6rem 1.2rem;font-size:.78rem;animation:msgIn .3s ease;white-space:nowrap;pointer-events:none;}
+.hidden{display:none!important;}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- LANDING -->
+<div id="landing">
+  <div class="logo">WAVE</div>
+  <div class="tagline">Real-time voice rooms &bull; Any device &bull; No limits</div>
+  <div class="card">
+    <div class="tabs">
+      <button class="tab active" id="tab-btn-create" onclick="switchTab('create')">Create Room</button>
+      <button class="tab" id="tab-btn-join" onclick="switchTab('join')">Join Room</button>
+    </div>
+    <div id="tab-create">
+      <div class="field"><label>Your Name</label><input id="create-name" type="text" placeholder="Display name" maxlength="24"/></div>
+      <div class="field"><label>Room Name</label><input id="room-name-in" type="text" placeholder="My awesome room" maxlength="32"/></div>
+      <button class="btn btn-primary" id="create-btn" onclick="createRoom()">🎙️ Create & Host Room</button>
+    </div>
+    <div id="tab-join" class="hidden">
+      <div class="field"><label>Your Name</label><input id="join-name" type="text" placeholder="Display name" maxlength="24"/></div>
+      <div class="field"><label>Room Code</label><input id="join-code" type="text" placeholder="Paste room code" style="text-transform:uppercase"/></div>
+      <button class="btn btn-primary" id="join-btn" onclick="joinRoom()">🔊 Join Room</button>
+    </div>
+  </div>
+  <p style="margin-top:1.5rem;font-size:.72rem;color:var(--muted);max-width:400px;line-height:1.6;">
+    ⚡ WebRTC peer-to-peer audio over Socket.io signaling.<br>
+    Works across any device on the network. Host controls everything.
+  </p>
+</div>
+
+<!-- ROOM -->
+<div id="room">
+  <div class="room-header">
+    <div class="room-info">
+      <h2 id="room-title">Room</h2>
+      <div class="room-meta">
+        <span class="conn-dot connected" id="conn-dot"></span>
+        LIVE &bull; <span id="p-count-header">0</span> participant(s)
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;">
+      <div class="room-id-badge" onclick="copyInvite()" id="code-badge">📋 Copy Invite</div>
+      <button class="btn btn-sm btn-ghost" onclick="leaveRoom()">Leave →</button>
+    </div>
+  </div>
+
+  <div class="room-body">
+    <!-- Sidebar (left) -->
+    <div class="sidebar">
+      <!-- Mic -->
+      <div class="my-controls">
+        <div class="section-title">🎤 My Microphone</div>
+        <button class="mic-btn" id="mic-btn" onclick="toggleMic()">
+          <div class="pulse-ring"></div>
+          <span id="mic-icon">🎙️</span>
+          <span id="mic-label">MIC ON</span>
+        </button>
+        <div class="volume-bar"><div class="volume-fill" id="vol-fill"></div></div>
+        <div style="font-size:.65rem;color:var(--muted);margin-top:.4rem;text-align:center;">Voice activity level</div>
+      </div>
+
+      <!-- Participants -->
+      <div class="participants-panel" style="flex:1;min-height:0;">
+        <div class="panel-header">
+          <span>Participants</span>
+          <span class="participant-count" id="p-count">0</span>
+        </div>
+        <div class="participants-list" id="p-list"></div>
+      </div>
+
+      <!-- Host panel -->
+      <div class="host-panel hidden" id="host-panel">
+        <div class="host-title">👑 Host Controls</div>
+        <div class="host-actions">
+          <button class="host-btn" onclick="hostMuteAll()">🔇 Mute All Participants</button>
+          <button class="host-btn" onclick="hostUnmuteAll()">🔊 Unmute All</button>
+          <button class="host-btn" id="lock-btn" onclick="toggleLock()">🔒 Lock Room</button>
+          <button class="host-btn danger" onclick="endRoom()">⛔ End Room for Everyone</button>
+        </div>
+        <div class="invite-box">
+          <p>📨 Share invite link:</p>
+          <div class="invite-url" id="invite-url" onclick="copyInvite()">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chat (right, large) -->
+    <div class="chat-panel" id="chat-panel-drop">
+      <div class="panel-header">💬 Room Chat <span style="font-size:.65rem;color:var(--muted);margin-left:.5rem;">· paste or drag images</span></div>
+      <div class="chat-messages" id="chat-messages"></div>
+      <div id="img-preview-area" style="padding:0 .75rem;display:none;">
+        <div class="img-preview-wrap">
+          <img id="img-preview-thumb" src="" alt="preview"/>
+          <button class="remove-img" onclick="clearImage()" title="Remove">✕</button>
+        </div>
+      </div>
+      <div class="chat-input-wrap" id="chat-input-wrap">
+        <input type="file" id="img-file-input" accept="image/*" style="display:none" onchange="handleFileSelect(event)"/>
+        <button class="img-attach-btn" onclick="document.getElementById('img-file-input').click()" title="Attach image">🖼️</button>
+        <input class="chat-input" id="chat-in" placeholder="Type a message… or paste/drop an image" maxlength="500"
+          onkeydown="if(event.key==='Enter'&&!event.shiftKey)sendChat()"/>
+        <button class="send-btn" onclick="sendChat()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast-wrap" id="toasts"></div>
+</div>
+
+<script>
+// ═══════════════════════════════════════
+//  WAVE CLIENT — WebRTC + Socket.io
+// ═══════════════════════════════════════
+
+let socket = null;
+let myId = null;
+let myName = '';
+let roomId = '';
+let isHost = false;
+let isMuted = false;
+let isSpeaking = false;
+let isLocked = false;
+
+// participants: id -> { name, muted, isHost, speaking, stream }
+let participants = new Map();
+
+// WebRTC
+let localStream = null;
+let peers = new Map(); // peerId -> RTCPeerConnection
+
+// Audio analysis
+let audioCtx = null, analyser = null, volTimer = null;
+
+const ICE_SERVERS = {
+  iceServers: [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' }
+  ]
+};
+
+const COLORS = ['#6c63ff','#ff6584','#43e97b','#f7971e','#2193b0','#ee0979','#56ab2f','#f953c6'];
+function colorFor(id){ return COLORS[id.split('').reduce((a,c)=>a+c.charCodeAt(0),0) % COLORS.length]; }
+function initials(n){ return n.trim().split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2)||'?'; }
+function esc(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ── TAB SWITCH ──
+function switchTab(t){
+  ['create','join'].forEach(x=>{
+    document.getElementById(`tab-btn-${x}`).classList.toggle('active',x===t);
+    document.getElementById(`tab-${x}`).classList.toggle('hidden',x!==t);
+  });
+}
+
+// ── URL PARAMS ──
+window.onload = ()=>{
+  const p = new URLSearchParams(location.search);
+  const rc = p.get('room');
+  if(rc){ switchTab('join'); document.getElementById('join-code').value=rc; }
+};
+
+// ── CONNECT SOCKET ──
+function connectSocket(){
+  socket = io();
+  myId = null;
+
+  socket.on('connect', ()=>{
+    myId = socket.id;
+    console.log('Connected:', myId);
+  });
+
+  socket.on('room_joined', ({ roomId: rid, isHost: ih, state }) => {
+    roomId = rid;
+    isHost = ih;
+
+    // Populate participants from server state
+    participants.clear();
+    state.participants.forEach(p => {
+      participants.set(p.id, { name: p.name, muted: p.muted, isHost: p.isHost, speaking: false });
+    });
+
+    showRoom(state.name);
+    renderParticipants();
+
+    // Initiate WebRTC offers to all existing peers (not self)
+    state.participants.forEach(p => {
+      if(p.id !== socket.id) initiateOffer(p.id);
+    });
+  });
+
+  socket.on('participant_joined', ({ id, name, muted, isHost: ih })=>{
+    if(id === socket.id) return;
+    participants.set(id, { name, muted, isHost: ih, speaking: false });
+    renderParticipants();
+    // New joiner — they'll send us an offer, we just wait
+  });
+
+  socket.on('participant_left', ({ id })=>{
+    participants.delete(id);
+    closePeer(id);
+    renderParticipants();
+  });
+
+  socket.on('participant_mute_changed', ({ id, muted })=>{
+    const p = participants.get(id);
+    if(p){ p.muted = muted; renderParticipants(); }
+  });
+
+  socket.on('participant_speaking', ({ id, active })=>{
+    const p = participants.get(id);
+    if(p){ p.speaking = active; renderParticipants(); }
+  });
+
+  socket.on('room_state_update', (state)=>{
+    participants.clear();
+    state.participants.forEach(p => {
+      participants.set(p.id, { name: p.name, muted: p.muted, isHost: p.isHost, speaking: false });
+    });
+    renderParticipants();
+  });
+
+  socket.on('room_locked', ({ locked })=>{
+    isLocked = locked;
+    const btn = document.getElementById('lock-btn');
+    if(btn) btn.textContent = locked ? '🔓 Unlock Room' : '🔒 Lock Room';
+  });
+
+  socket.on('force_mute', ()=>{
+    if(!isMuted){ isMuted=true; applyMute(); toast('🔇 You were muted by the host'); }
+  });
+
+  socket.on('force_unmute', ()=>{
+    if(isMuted){ isMuted=false; applyMute(); toast('🔊 You were unmuted by the host'); }
+  });
+
+  socket.on('kicked', ({ reason })=>{
+    toast(`⛔ ${reason}`);
+    setTimeout(()=>leaveRoom(true), 1500);
+  });
+
+  socket.on('room_ended', ()=>{
+    toast('⛔ The host ended the room.');
+    setTimeout(()=>leaveRoom(true), 1500);
+  });
+
+  socket.on('promoted_to_host', ()=>{
+    isHost = true;
+    document.getElementById('host-panel').classList.remove('hidden');
+    toast('👑 You are now the host!');
+    const p = participants.get(socket.id);
+    if(p) p.isHost = true;
+    renderParticipants();
+  });
+
+  socket.on('chat_message', ({ type, from, name, text, image, isHost: ih, msgId })=>{
+    if(type === 'system'){ addChat('system','',text); return; }
+    if(from === socket.id) return;
+    addChat(ih ? 'host-chat' : 'other', name, text, ih, image, msgId, from);
+  });
+
+  socket.on('message_deleted', ({ msgId })=>{
+    const el = document.getElementById(msgId);
+    if(el) el.remove();
+  });
+
+  socket.on('error_msg', (msg)=>{
+    toast(`❌ ${msg}`);
+    enableForms();
+  });
+
+  // ── WebRTC signaling ──
+  socket.on('webrtc_offer', async ({ from, sdp })=>{
+    const pc = getOrCreatePeer(from);
+    await pc.setRemoteDescription(new RTCSessionDescription(sdp));
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+    socket.emit('webrtc_answer', { target: from, sdp: pc.localDescription });
+  });
+
+  socket.on('webrtc_answer', async ({ from, sdp })=>{
+    const pc = peers.get(from);
+    if(pc) await pc.setRemoteDescription(new RTCSessionDescription(sdp));
+  });
+
+  socket.on('webrtc_ice', async ({ from, candidate })=>{
+    const pc = peers.get(from);
+    if(pc && candidate){
+      try { await pc.addIceCandidate(new RTCIceCandidate(candidate)); } catch(e){}
+    }
+  });
+
+  socket.on('disconnect', ()=>{
+    updateConnDot('disconnected');
+    toast('⚠️ Disconnected from server. Reconnecting…');
+  });
+
+  socket.on('reconnect', ()=>{
+    updateConnDot('connected');
+    toast('✅ Reconnected!');
+  });
+}
+
+// ── CREATE ROOM ──
+async function createRoom(){
+  myName = document.getElementById('create-name').value.trim() || 'Host';
+  const rName = document.getElementById('room-name-in').value.trim() || 'My Room';
+  const rId = Math.random().toString(36).slice(2,9).toUpperCase();
+
+  disableForms();
+  await initMic();
+  connectSocket();
+  socket.on('connect', ()=>{ socket.emit('create_room', { roomId: rId, roomName: rName, userName: myName }); });
+}
+
+// ── JOIN ROOM ──
+async function joinRoom(){
+  myName = document.getElementById('join-name').value.trim() || 'Guest';
+  const code = document.getElementById('join-code').value.trim().toUpperCase();
+  if(!code){ toast('Enter a room code'); return; }
+
+  disableForms();
+  await initMic();
+  connectSocket();
+  socket.on('connect', ()=>{ socket.emit('join_room', { roomId: code, userName: myName }); });
+}
+
+function disableForms(){
+  document.getElementById('create-btn').disabled = true;
+  document.getElementById('join-btn').disabled = true;
+}
+function enableForms(){
+  document.getElementById('create-btn').disabled = false;
+  document.getElementById('join-btn').disabled = false;
+}
+
+// ── MIC ──
+async function initMic(){
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation:true, noiseSuppression:true, autoGainControl:true }, video: false });
+    setupAnalyser();
+  } catch(e){
+    toast('⚠️ Mic access denied — you can chat but not speak.');
+    localStream = null;
+  }
+}
+
+function setupAnalyser(){
+  if(!localStream) return;
+  audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+  analyser = audioCtx.createAnalyser();
+  analyser.fftSize = 256;
+  const src = audioCtx.createMediaStreamSource(localStream);
+  src.connect(analyser);
+  const data = new Uint8Array(analyser.frequencyBinCount);
+
+  volTimer = setInterval(()=>{
+    if(isMuted){ document.getElementById('vol-fill').style.width='0%'; return; }
+    analyser.getByteFrequencyData(data);
+    const avg = data.reduce((a,b)=>a+b,0)/data.length;
+    document.getElementById('vol-fill').style.width = Math.min(100,avg*2.5)+'%';
+    const speaking = avg > 15;
+    if(speaking !== isSpeaking){
+      isSpeaking = speaking;
+      document.getElementById('mic-btn').classList.toggle('speaking-active', speaking && !isMuted);
+      if(socket) socket.emit('speaking', { active: speaking && !isMuted });
+      const me = participants.get(socket?.id);
+      if(me){ me.speaking = speaking && !isMuted; renderParticipants(); }
+    }
+  }, 100);
+}
+
+function toggleMic(){
+  isMuted = !isMuted;
+  applyMute();
+  if(socket) socket.emit('mute_status', { muted: isMuted });
+  const me = participants.get(socket?.id);
+  if(me){ me.muted = isMuted; renderParticipants(); }
+}
+
+function applyMute(){
+  if(localStream) localStream.getAudioTracks().forEach(t=>t.enabled=!isMuted);
+  const btn = document.getElementById('mic-btn');
+  btn.classList.toggle('muted', isMuted);
+  document.getElementById('mic-icon').textContent = isMuted ? '🔇' : '🎙️';
+  document.getElementById('mic-label').textContent = isMuted ? 'MIC OFF' : 'MIC ON';
+  if(isMuted){ btn.classList.remove('speaking-active'); document.getElementById('vol-fill').style.width='0%'; }
+}
+
+// ── WEBRTC ──
+function getOrCreatePeer(peerId){
+  if(peers.has(peerId)) return peers.get(peerId);
+  const pc = new RTCPeerConnection(ICE_SERVERS);
+  peers.set(peerId, pc);
+
+  // Add local tracks
+  if(localStream) localStream.getTracks().forEach(t=>pc.addTrack(t, localStream));
+
+  // ICE candidates
+  pc.onicecandidate = ({ candidate })=>{
+    if(candidate) socket.emit('webrtc_ice', { target: peerId, candidate });
+  };
+
+  // Remote audio
+  pc.ontrack = ({ streams })=>{
+    const stream = streams[0];
+    // Create hidden audio element
+    let audio = document.getElementById(`audio-${peerId}`);
+    if(!audio){
+      audio = document.createElement('audio');
+      audio.id = `audio-${peerId}`;
+      audio.autoplay = true;
+      audio.style.display = 'none';
+      document.body.appendChild(audio);
+    }
+    audio.srcObject = stream;
+    const p = participants.get(peerId);
+    if(p) p.stream = stream;
+  };
+
+  pc.onconnectionstatechange = ()=>{
+    if(['disconnected','failed','closed'].includes(pc.connectionState)){
+      closePeer(peerId);
+    }
+  };
+
+  return pc;
+}
+
+async function initiateOffer(peerId){
+  const pc = getOrCreatePeer(peerId);
+  const offer = await pc.createOffer();
+  await pc.setLocalDescription(offer);
+  socket.emit('webrtc_offer', { target: peerId, sdp: pc.localDescription });
+}
+
+function closePeer(peerId){
+  const pc = peers.get(peerId);
+  if(pc){ pc.close(); peers.delete(peerId); }
+  const el = document.getElementById(`audio-${peerId}`);
+  if(el) el.remove();
+}
+
+// ── SHOW ROOM ──
+function showRoom(name){
+  document.getElementById('landing').style.display = 'none';
+  document.getElementById('room').style.display = 'block';
+  document.getElementById('room-title').textContent = name || 'Voice Room';
+  if(isHost) document.getElementById('host-panel').classList.remove('hidden');
+  updateInvite();
+  updateConnDot('connected');
+}
+
+function updateInvite(){
+  const url = `${location.origin}${location.pathname}?room=${roomId}`;
+  document.getElementById('invite-url').textContent = url;
+}
+
+function updateConnDot(state){
+  const d = document.getElementById('conn-dot');
+  if(d){ d.className = `conn-dot ${state}`; }
+}
+
+// ── RENDER PARTICIPANTS ──
+function renderParticipants(){
+  const list = document.getElementById('p-list');
+  const count = participants.size;
+  document.getElementById('p-count').textContent = count;
+  document.getElementById('p-count-header').textContent = count;
+  list.innerHTML = '';
+
+  participants.forEach((p, id)=>{
+    const isMine = id === socket?.id;
+    const color = colorFor(id);
+    const card = document.createElement('div');
+    card.className = `participant-card${p.speaking?' speaking':''}`;
+
+    const avClass = `avatar${p.speaking?' speaking-ring':''}`;
+    const hostTag = p.isHost ? ' <span style="color:var(--host);font-size:.7rem">👑</span>' : '';
+    const muteTag = p.muted ? ' <span style="color:var(--danger);font-size:.7rem">🔇</span>' : '';
+    const youTag = isMine ? ' <span style="font-size:.65rem;color:var(--muted)">(you)</span>' : '';
+
+    let ctrl = '';
+    if(isHost && !isMine){
+      ctrl = `<div class="participant-controls">
+        <button class="icon-btn${p.muted?' muted-on':''}" onclick="hostMute('${id}')" title="${p.muted?'Unmute':'Mute'}">${p.muted?'🔇':'🔊'}</button>
+        <button class="icon-btn" onclick="hostKick('${id}')" title="Remove">✕</button>
+      </div>`;
+    }
+
+    card.innerHTML = `
+      <div class="${avClass}" style="background:${color}22;color:${color};border:1.5px solid ${color}55">${initials(p.name)}</div>
+      <div class="participant-name">${esc(p.name)}${hostTag}${muteTag}${youTag}</div>
+      ${ctrl}`;
+    list.appendChild(card);
+  });
+}
+
+// ── CHAT ──
+let pendingImage = null; // base64 data URL
+
+function sendChat(){
+  const inp = document.getElementById('chat-in');
+  const text = inp.value.trim();
+  if(!text && !pendingImage) return;
+  inp.value = '';
+
+  const image = pendingImage;
+  clearImage();
+
+  const msgId = `msg-${++msgCounter}`;
+  addChat(isHost?'host-chat':'mine', myName, text, isHost, image, msgId, socket?.id);
+  if(socket) socket.emit('chat_message', { text, image, msgId });
+}
+
+let msgCounter = 0;
+
+function addChat(cls, name, text, ih=false, image=null, msgId=null, fromId=null){
+  const c = document.getElementById('chat-messages');
+  const d = document.createElement('div');
+  const id = msgId || `msg-${++msgCounter}`;
+  d.id = id;
+  d.className = `chat-msg ${cls}`;
+  d.dataset.from = fromId || socket?.id || '';
+
+  if(cls==='system'){
+    d.textContent = text;
+  } else {
+    // Show delete button if: it's your own message OR you're the host
+    const canDelete = (fromId === socket?.id) || (!fromId && cls==='mine') || isHost;
+    const deleteBtn = canDelete
+      ? `<button class="delete-msg-btn" onclick="deleteMessage('${id}')" title="Delete">✕</button>`
+      : '';
+
+    let html = `<span class="msg-name${ih?' is-host':''}">${esc(name)}${ih?' 👑':''}</span>`;
+    if(text) html += `: ${esc(text)}`;
+    if(image){
+      html += `<br><img class="chat-img" src="${image}" alt="image" onclick="openLightbox('${image.replace(/'/g,"\\'")}')"/>`;
+    }
+    html += deleteBtn;
+    d.innerHTML = html;
+  }
+  c.appendChild(d);
+  c.scrollTop = c.scrollHeight;
+  return id;
+}
+
+// ── IMAGE HANDLING ──
+function handleFileSelect(e){
+  const file = e.target.files[0];
+  if(file) loadImageFile(file);
+  e.target.value = '';
+}
+
+function loadImageFile(file){
+  if(!file.type.startsWith('image/')){ toast('Only image files supported'); return; }
+  if(file.size > 2500000){ toast('Image too large — max ~2MB'); return; }
+  const reader = new FileReader();
+  reader.onload = (e)=>{
+    pendingImage = e.target.result;
+    document.getElementById('img-preview-thumb').src = pendingImage;
+    document.getElementById('img-preview-area').style.display = 'block';
+    document.getElementById('chat-in').focus();
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearImage(){
+  pendingImage = null;
+  document.getElementById('img-preview-area').style.display = 'none';
+  document.getElementById('img-preview-thumb').src = '';
+}
+
+// ── DELETE MESSAGE ──
+function deleteMessage(msgId){
+  const el = document.getElementById(msgId);
+  if(!el) return;
+  // Check permission: own message or host
+  const fromId = el.dataset.from;
+  if(fromId !== socket?.id && !isHost){ toast('You can only delete your own messages'); return; }
+  // Remove locally
+  el.remove();
+  // Tell server to broadcast deletion
+  if(socket) socket.emit('delete_message', { msgId });
+}
+
+function openLightbox(src){
+  const lb = document.createElement('div');
+  lb.className = 'lightbox';
+  lb.innerHTML = `<img src="${src}" alt="image"/>`;
+  lb.onclick = ()=>lb.remove();
+  document.body.appendChild(lb);
+}
+
+// Paste image from clipboard
+document.addEventListener('paste', (e)=>{
+  if(!document.getElementById('room').style.display || document.getElementById('room').style.display==='none') return;
+  const items = e.clipboardData?.items;
+  if(!items) return;
+  for(const item of items){
+    if(item.type.startsWith('image/')){
+      e.preventDefault();
+      loadImageFile(item.getAsFile());
+      return;
+    }
+  }
+});
+
+// Drag and drop
+document.addEventListener('DOMContentLoaded', ()=>{
+  const wrap = document.getElementById('chat-input-wrap');
+  if(!wrap) return;
+  wrap.addEventListener('dragover', (e)=>{ e.preventDefault(); wrap.classList.add('drag-over'); });
+  wrap.addEventListener('dragleave', ()=>wrap.classList.remove('drag-over'));
+  wrap.addEventListener('drop', (e)=>{
+    e.preventDefault();
+    wrap.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if(file) loadImageFile(file);
+  });
+});
+
+// ── HOST CONTROLS ──
+function hostMute(id){
+  const p = participants.get(id);
+  if(!p) return;
+  if(!p.muted){ socket.emit('host_mute',{target:id}); p.muted=true; toast(`🔇 Muted ${p.name}`); }
+  else { socket.emit('host_unmute',{target:id}); p.muted=false; toast(`🔊 Unmuted ${p.name}`); }
+  renderParticipants();
+}
+
+function hostKick(id){
+  const p = participants.get(id);
+  if(!p||!confirm(`Remove ${p.name}?`)) return;
+  socket.emit('host_kick',{target:id});
+}
+
+function hostMuteAll(){ socket.emit('host_mute',{target:'all'}); participants.forEach((p,id)=>{ if(id!==socket.id) p.muted=true; }); renderParticipants(); toast('🔇 Muted everyone'); }
+function hostUnmuteAll(){ socket.emit('host_unmute',{target:'all'}); participants.forEach((p,id)=>{ if(id!==socket.id) p.muted=false; }); renderParticipants(); toast('🔊 Unmuted everyone'); }
+
+function toggleLock(){
+  isLocked = !isLocked;
+  socket.emit('host_lock',{locked:isLocked});
+  document.getElementById('lock-btn').textContent = isLocked ? '🔓 Unlock Room' : '🔒 Lock Room';
+}
+
+function endRoom(){
+  if(!confirm('End the room for everyone?')) return;
+  socket.emit('end_room');
+  leaveRoom(true);
+}
+
+// ── LEAVE ──
+function leaveRoom(forced=false){
+  peers.forEach((_,id)=>closePeer(id));
+  if(localStream){ localStream.getTracks().forEach(t=>t.stop()); localStream=null; }
+  if(volTimer){ clearInterval(volTimer); volTimer=null; }
+  if(audioCtx){ audioCtx.close(); audioCtx=null; }
+  if(socket){ socket.disconnect(); socket=null; }
+  participants.clear();
+  isMuted=false; isSpeaking=false; isLocked=false; isHost=false; roomId='';
+  document.getElementById('room').style.display='none';
+  document.getElementById('landing').style.display='flex';
+  document.getElementById('p-list').innerHTML='';
+  document.getElementById('chat-messages').innerHTML='';
+  document.getElementById('host-panel').classList.add('hidden');
+  document.getElementById('mic-btn').classList.remove('muted','speaking-active');
+  document.getElementById('mic-icon').textContent='🎙️';
+  document.getElementById('mic-label').textContent='MIC ON';
+  enableForms();
+  history.replaceState(null,'',location.pathname);
+}
+
+// ── INVITE ──
+function copyInvite(){
+  const url = `${location.origin}${location.pathname}?room=${roomId}`;
+  navigator.clipboard.writeText(url).then(()=>toast('✅ Invite link copied!')).catch(()=>toast(`Code: ${roomId}`));
+}
+
+// ── TOAST ──
+function toast(msg, dur=3500){
+  const c = document.getElementById('toasts');
+  const t = document.createElement('div');
+  t.className='toast'; t.textContent=msg;
+  c.appendChild(t);
+  setTimeout(()=>{ t.style.opacity='0'; t.style.transition='opacity .4s'; setTimeout(()=>t.remove(),400); }, dur);
+}
+</script>
+</body>
+</html>
