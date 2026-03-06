@@ -35,16 +35,18 @@ io.on('connection', (socket) => {
 
   socket.on('create_room', ({ roomId, roomName, userName }) => {
     if (rooms.has(roomId)) { socket.emit('error_msg', 'Room ID already exists.'); return; }
+    const cleanName = userName.trim().toLowerCase();
+    if (!cleanName) { socket.emit('error_msg', 'Please enter a display name.'); return; }
     const room = {
       name: roomName, hostId: socket.id,
       locked: false, chatLocked: false, allMuted: false,
       participants: new Map()
     };
-    room.participants.set(socket.id, { name: userName, muted: false, isHost: true });
+    room.participants.set(socket.id, { name: userName.trim(), muted: false, isHost: true });
     rooms.set(roomId, room);
     socket.join(roomId);
     socket.data.roomId = roomId;
-    socket.data.name = userName;
+    socket.data.name = userName.trim();
     socket.data.isHost = true;
     socket.emit('room_joined', { roomId, isHost: true, state: getRoomPublicState(room) });
     console.log(`[R] Room "${roomName}" (${roomId}) created by ${userName}`);
@@ -54,6 +56,17 @@ io.on('connection', (socket) => {
     const room = rooms.get(roomId);
     if (!room) { socket.emit('error_msg', 'Room not found. Check the code.'); return; }
     if (room.locked) { socket.emit('error_msg', 'This room is locked by the host.'); return; }
+
+    // Check for duplicate or reserved names
+    const cleanName = userName.trim().toLowerCase();
+    if (!cleanName) { socket.emit('error_msg', 'Please enter a display name.'); return; }
+
+    const nameTaken = Array.from(room.participants.values())
+      .some(p => p.name.trim().toLowerCase() === cleanName);
+    if (nameTaken) {
+      socket.emit('error_msg', `The name "${userName.trim()}" is already taken in this room. Please choose a different name.`);
+      return;
+    }
     const joinMuted = room.allMuted;
     room.participants.set(socket.id, { name: userName, muted: joinMuted, isHost: false });
     socket.join(roomId);
