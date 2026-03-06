@@ -567,6 +567,11 @@ function sendChat(){
   if(socket)socket.emit('chat_message',{text,image,msgId});
 }
 
+function linkify(text){
+  const urlRegex=/(https?:\/\/[^\s<>"{}|\\^`[\]]+)/gi;
+  return esc(text).replace(urlRegex, url=>`<a href="${url}" target="_blank" rel="noopener noreferrer" style="color:var(--accent);text-decoration:underline;word-break:break-all;">${url}</a>`);
+}
+
 function addChat(cls,name,text,ih=false,image=null,msgId=null,fromId=null){
   const c=document.getElementById('chat-messages');
   const d=document.createElement('div');
@@ -580,7 +585,7 @@ function addChat(cls,name,text,ih=false,image=null,msgId=null,fromId=null){
     const canDelete=(fromId===socket?.id)||(cls==='mine')||isHost;
     const delBtn=canDelete?`<button class="delete-msg-btn" onclick="deleteMessage('${id}')" title="Delete">✕</button>`:'';
     let html=`<span class="msg-name${ih?' is-host':''}">${esc(name)}${ih?' 👑':''}</span>`;
-    if(text)html+=`: ${esc(text)}`;
+    if(text)html+=`: ${linkify(text)}`;
     if(image)html+=`<br><img class="chat-img" src="${image}" alt="image" onclick="openLightbox(this.src)"/>`;
     html+=delBtn;
     d.innerHTML=html;
