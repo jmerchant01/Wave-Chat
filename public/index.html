@@ -340,9 +340,14 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
           <span>📷 Video</span>
           <div style="display:flex;align-items:center;gap:.65rem;">
             <span id="cam-count" style="font-size:.63rem;color:var(--accent);">0 cameras</span>
-            <div id="cam-selector-wrap" style="display:none;align-items:center;gap:.3rem;font-size:.63rem;color:var(--muted);">
-              Showing:
-              <select id="cam-selector" onchange="updateVisibleCams()" onclick="event.stopPropagation()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'DM Mono',monospace;font-size:.63rem;border-radius:5px;padding:.12rem .35rem;outline:none;"></select>
+            <!-- Dropdown to pick which cameras to show — visible whenever 2+ cams -->
+            <div id="cam-selector-wrap" style="display:none;position:relative;">
+              <button id="cam-dropdown-btn" onclick="event.stopPropagation();toggleCamDropdown()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'DM Mono',monospace;font-size:.63rem;border-radius:5px;padding:.18rem .5rem;cursor:pointer;display:flex;align-items:center;gap:.3rem;">
+                <span id="cam-dropdown-label">All</span> ▾
+              </button>
+              <div id="cam-dropdown-menu" style="display:none;position:absolute;right:0;top:110%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:.4rem;z-index:50;min-width:140px;box-shadow:0 8px 24px rgba(0,0,0,.4);" onclick="event.stopPropagation()">
+                <div id="cam-checkbox-list" style="display:flex;flex-direction:column;gap:.25rem;"></div>
+              </div>
             </div>
             <span class="collapse-btn" id="cam-collapse-icon">▾</span>
           </div>
@@ -599,10 +604,14 @@ function connectSocket(){
     clearScreenTile(sharerId);
   });
   // When a peer turns on camera, re-initiate offer so we get their track
-  socket.on('cam_active',({from})=>{
+  // When a peer turns off camera, remove their tile immediately
+  socket.on('cam_active',({from, active})=>{
     if(from === socket.id) return;
-    // Small delay to let their addTrack settle before we request
-    setTimeout(()=>initiateOffer(from), 300);
+    if(active){
+      setTimeout(()=>initiateOffer(from), 300);
+    } else {
+      removeCamTile(from);
+    }
   });
 
   // Screen share approval flow
@@ -741,6 +750,7 @@ async function toggleCamera(){
     document.getElementById('cam-btn').classList.remove('active');
     document.getElementById('cam-btn').textContent='📷 Camera';
     toast('📷 Camera off');
+    if(socket) socket.emit('cam_active', {active: false});
   } else {
     try{
       localVideoStream=await navigator.mediaDevices.getUserMedia({video:{width:{ideal:1280},height:{ideal:720}},audio:false});
@@ -866,28 +876,41 @@ function denyShareRequest(){
 }
 
 // ── Video tile management ──
-// camStreams: Map of peerId -> {stream, label, isHostP}
-// activeScreenId: peerId currently sharing screen (only one allowed)
-const camStreams = new Map();
+const camStreams = new Map(); // peerId -> {stream, label, isHostP, muted, visible}
 const MAX_CAMS = 4;
-let visibleCamPage = 0;
 
 function addCamTile(peerId, stream, label, isHostP, muted){
-  camStreams.set(peerId, {stream, label, isHostP, muted});
+  const existing = camStreams.get(peerId);
+  camStreams.set(peerId, {stream, label, isHostP, muted, visible: existing ? existing.visible : true});
   refreshCamPanel();
 }
 
 function removeCamTile(peerId){
+  // Stop the video track cleanly
+  const entry = camStreams.get(peerId);
+  if(entry) entry.stream.getTracks().forEach(t=>t.stop());
   camStreams.delete(peerId);
+  // Remove the tile from DOM immediately
+  const tile = document.getElementById('cam-tile-'+peerId) || document.querySelector(`[data-peer="${peerId}"]`);
+  if(tile) tile.remove();
   refreshCamPanel();
 }
+
+let camDropdownOpen = false;
+function toggleCamDropdown(){
+  camDropdownOpen = !camDropdownOpen;
+  document.getElementById('cam-dropdown-menu').style.display = camDropdownOpen ? 'block' : 'none';
+}
+// Close dropdown when clicking outside
+document.addEventListener('click', ()=>{
+  if(camDropdownOpen){ camDropdownOpen=false; const m=document.getElementById('cam-dropdown-menu'); if(m)m.style.display='none'; }
+});
 
 function refreshCamPanel(){
   const grid = document.getElementById('cam-grid');
   const area = document.getElementById('cam-area');
   const countEl = document.getElementById('cam-count');
   const selectorWrap = document.getElementById('cam-selector-wrap');
-  const selector = document.getElementById('cam-selector');
 
   if(camStreams.size === 0){ area.classList.add('hidden'); return; }
   area.classList.remove('hidden');
@@ -895,42 +918,55 @@ function refreshCamPanel(){
   const keys = Array.from(camStreams.keys());
   countEl.textContent = keys.length + ' camera' + (keys.length !== 1 ? 's' : '');
 
-  // Show selector if > 4 cams
-  if(keys.length > MAX_CAMS){
-    selectorWrap.style.display = 'flex';
-    const groups = Math.ceil(keys.length / MAX_CAMS);
-    const currentVal = selector.value;
-    selector.innerHTML = '';
-    for(let i = 0; i < groups; i++){
-      const start = i * MAX_CAMS + 1;
-      const end = Math.min((i + 1) * MAX_CAMS, keys.length);
-      const opt = document.createElement('option');
-      opt.value = i;
-      opt.textContent = `Cams ${start}–${end}`;
-      selector.appendChild(opt);
-    }
-    if(currentVal && selector.querySelector(`option[value="${currentVal}"]`)) selector.value = currentVal;
-    visibleCamPage = parseInt(selector.value) || 0;
-  } else {
-    selectorWrap.style.display = 'none';
-    visibleCamPage = 0;
+  // Show dropdown if 2+ cameras
+  selectorWrap.style.display = keys.length >= 2 ? 'block' : 'none';
+
+  // Rebuild checkbox list
+  const list = document.getElementById('cam-checkbox-list');
+  if(list){
+    list.innerHTML = '';
+    keys.forEach(pid => {
+      const {label, visible} = camStreams.get(pid);
+      const row = document.createElement('label');
+      row.style.cssText = 'display:flex;align-items:center;gap:.4rem;cursor:pointer;font-size:.67rem;color:var(--text);padding:.15rem .2rem;border-radius:4px;white-space:nowrap;';
+      const cb = document.createElement('input');
+      cb.type = 'checkbox'; cb.checked = visible !== false;
+      cb.style.accentColor = 'var(--accent)'; cb.style.cursor = 'pointer';
+      cb.onchange = ()=>{
+        const s = camStreams.get(pid); if(s){ s.visible = cb.checked; }
+        renderCamTiles();
+        updateCamDropdownLabel();
+      };
+      row.appendChild(cb);
+      row.appendChild(document.createTextNode(label.replace(' 👑','')));
+      list.appendChild(row);
+    });
   }
+  updateCamDropdownLabel();
+  renderCamTiles();
+}
 
-  const start = visibleCamPage * MAX_CAMS;
-  const visible = keys.slice(start, start + MAX_CAMS);
+function updateCamDropdownLabel(){
+  const lbl = document.getElementById('cam-dropdown-label');
+  if(!lbl) return;
+  const total = camStreams.size;
+  const shown = Array.from(camStreams.values()).filter(s=>s.visible!==false).length;
+  lbl.textContent = shown === total ? 'All' : `${shown}/${total}`;
+}
 
-  // Remove tiles for peers no longer visible
+function renderCamTiles(){
+  const grid = document.getElementById('cam-grid');
+  const visible = Array.from(camStreams.entries()).filter(([,s])=>s.visible!==false);
+
+  // Remove tiles for hidden/removed peers
   Array.from(grid.children).forEach(el=>{
     const pid = el.dataset.peer;
-    if(!visible.includes(pid)) el.remove();
+    if(!camStreams.has(pid) || camStreams.get(pid).visible===false) el.remove();
   });
 
   grid.className = 'video-grid' + (visible.length === 1 ? ' single' : '');
 
-  visible.forEach(peerId => {
-    const {stream, label, isHostP, muted} = camStreams.get(peerId);
-
-    // Reuse existing tile if present — avoids re-attaching srcObject (fixes mobile black screen)
+  visible.forEach(([peerId, {stream, label, isHostP, muted}]) => {
     let tile = grid.querySelector(`[data-peer="${peerId}"]`);
     if(!tile){
       tile = document.createElement('div');
@@ -939,13 +975,11 @@ function refreshCamPanel(){
       tile.dataset.peer = peerId;
 
       const vid = document.createElement('video');
-      vid.autoplay = true;
-      vid.playsInline = true;
-      vid.setAttribute('playsinline', '');       // explicit for Safari
-      vid.setAttribute('webkit-playsinline', ''); // older iOS
+      vid.autoplay = true; vid.playsInline = true;
+      vid.setAttribute('playsinline', '');
+      vid.setAttribute('webkit-playsinline', '');
       if(muted) vid.muted = true;
       vid.srcObject = stream;
-      // Force play for mobile (needs to be called after appending)
       vid.onloadedmetadata = ()=>{ vid.play().catch(()=>{}); };
       tile.appendChild(vid);
 
@@ -963,15 +997,12 @@ function refreshCamPanel(){
       tile.appendChild(controls);
 
       grid.appendChild(tile);
-      // Play after in DOM
       vid.play().catch(()=>{});
     }
   });
 }
-function updateVisibleCams(){
-  visibleCamPage = parseInt(document.getElementById('cam-selector').value) || 0;
-  refreshCamPanel();
-}
+
+function updateVisibleCams(){ refreshCamPanel(); } // kept for compat
 
 // ── Multi-screen share management ──
 // screenStreams: Map of peerId -> {stream, name, visible}
