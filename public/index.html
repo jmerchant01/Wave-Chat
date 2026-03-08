@@ -238,6 +238,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .conn-dot.connected{background:var(--accent3);animation:blink 2s infinite;}
 .conn-dot.disconnected{background:var(--danger);}
 @keyframes blink{0%,100%{opacity:1;}50%{opacity:.3;}}
+@keyframes recPulse{0%,100%{box-shadow:0 0 0 0 rgba(255,71,87,.4);}50%{box-shadow:0 0 0 6px rgba(255,71,87,0);}}
 .toast-wrap{position:fixed;bottom:2rem;left:50%;transform:translateX(-50%);z-index:1000;display:flex;flex-direction:column;gap:.5rem;align-items:center;}
 .toast{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:.55rem 1.1rem;font-size:.76rem;animation:msgIn .3s ease;white-space:nowrap;pointer-events:none;}
 .hidden{display:none!important;}
@@ -282,6 +283,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
         LIVE &bull; <span id="p-count-header">0</span> participant(s)
         <span id="chat-lock-badge" style="display:none;margin-left:.5rem;color:var(--danger);font-size:.63rem;">💬 CHAT LOCKED</span>
         <span id="mute-all-badge" style="display:none;margin-left:.5rem;color:var(--danger);font-size:.63rem;">🔇 ALL MUTED</span>
+        <span id="rec-badge" style="display:none;margin-left:.5rem;color:var(--danger);font-size:.63rem;animation:blink 1s infinite;">⏺ REC</span>
       </div>
     </div>
     <div style="display:flex;align-items:center;gap:.65rem;flex-wrap:wrap;">
@@ -415,6 +417,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
           <button class="host-btn" id="screen-requests-btn" onclick="toggleScreenRequests()">🖥️ Block Screen Sharing</button>
           <button class="host-btn" id="chat-lock-btn" onclick="toggleChatLock()">💬 Lock Chat</button>
           <button class="host-btn" id="room-lock-btn" onclick="toggleLock()">🔒 Lock Room</button>
+          <button class="host-btn" id="record-btn" onclick="toggleRecording()" style="border-color:var(--danger);color:var(--danger);">⏺ Start Recording</button>
           <button class="host-btn danger" onclick="endRoom()">⛔ End Room</button>
         </div>
         <div class="invite-box">
@@ -1233,6 +1236,188 @@ function initChatResize(){
   });
 }
 
+// ═══════════════════════════════════════════════════
+//  RECORDING ENGINE
+//  Composites all video tiles onto a canvas + mixes
+//  all audio streams, then encodes via MediaRecorder.
+// ═══════════════════════════════════════════════════
+let isRecording = false;
+let mediaRecorder = null;
+let recordedChunks = [];
+let recCanvas = null, recCtx = null;
+let recAnimFrame = null;
+let recAudioCtx = null, recAudioDest = null;
+let recAudioSources = [];
+let recStartTime = null;
+let recTimerInterval = null;
+
+function toggleRecording(){
+  if(isRecording) stopRecording();
+  else startRecording();
+}
+
+async function startRecording(){
+  recordedChunks = [];
+  recStartTime = Date.now();
+
+  // ── Canvas for video composite ──
+  recCanvas = document.createElement('canvas');
+  recCanvas.width = 1280;
+  recCanvas.height = 720;
+  recCtx = recCanvas.getContext('2d');
+
+  // ── Audio mix ──
+  recAudioCtx = new AudioContext();
+  recAudioDest = recAudioCtx.createMediaStreamDestination();
+
+  // Add local mic
+  if(localStream){
+    const src = recAudioCtx.createMediaStreamSource(localStream);
+    src.connect(recAudioDest);
+    recAudioSources.push(src);
+  }
+  // Add all peer audio elements
+  document.querySelectorAll('audio[id^="audio-"]').forEach(el=>{
+    if(el.srcObject){
+      try{
+        const src = recAudioCtx.createMediaStreamSource(el.srcObject);
+        src.connect(recAudioDest);
+        recAudioSources.push(src);
+      }catch(e){}
+    }
+  });
+
+  // ── Composite video frames ──
+  function drawFrame(){
+    const W = recCanvas.width, H = recCanvas.height;
+    recCtx.fillStyle = '#050508';
+    recCtx.fillRect(0, 0, W, H);
+
+    // Collect all visible video elements (cam tiles + screen tiles)
+    const vids = [];
+    document.querySelectorAll('.video-tile video, .screen-tile video').forEach(v=>{
+      if(v.srcObject && v.readyState >= 2 && !v.paused) vids.push(v);
+    });
+
+    if(vids.length === 0){
+      // No video — just show room name
+      recCtx.fillStyle = '#6c63ff';
+      recCtx.font = 'bold 48px sans-serif';
+      recCtx.textAlign = 'center';
+      recCtx.fillText('WAVE — ' + (document.getElementById('room-title')?.textContent||''), W/2, H/2);
+    } else {
+      // Tile layout
+      const cols = vids.length <= 1 ? 1 : vids.length <= 4 ? 2 : 3;
+      const rows = Math.ceil(vids.length / cols);
+      const tw = W / cols, th = H / rows;
+      const pad = 4;
+      vids.forEach((v, i)=>{
+        const col = i % cols, row = Math.floor(i / cols);
+        const x = col*tw+pad, y = row*th+pad;
+        const w = tw-pad*2, h = th-pad*2;
+        try{
+          // letterbox: maintain aspect ratio
+          const vr = v.videoWidth/v.videoHeight || 16/9;
+          const br = w/h;
+          let dw=w, dh=h, dx=x, dy=y;
+          if(vr>br){ dh=w/vr; dy=y+(h-dh)/2; } else { dw=h*vr; dx=x+(w-dw)/2; }
+          recCtx.drawImage(v, dx, dy, dw, dh);
+        }catch(e){}
+        // Name label from sibling .video-label or .screen-label
+        const tile = v.closest('.video-tile,.screen-tile');
+        const lbl = tile?.querySelector('.video-label,.screen-label');
+        if(lbl){
+          recCtx.fillStyle='rgba(0,0,0,.6)';
+          recCtx.fillRect(x+6, y+h-26, Math.min(lbl.textContent.length*9+12, w-12), 22);
+          recCtx.fillStyle='#fff';
+          recCtx.font='13px monospace';
+          recCtx.textAlign='left';
+          recCtx.fillText(lbl.textContent, x+12, y+h-10);
+        }
+      });
+    }
+
+    // Timestamp
+    const elapsed = Math.floor((Date.now()-recStartTime)/1000);
+    const mm = String(Math.floor(elapsed/60)).padStart(2,'0');
+    const ss = String(elapsed%60).padStart(2,'0');
+    recCtx.fillStyle='rgba(255,71,87,.85)';
+    recCtx.fillRect(W-90, 12, 78, 24);
+    recCtx.fillStyle='#fff';
+    recCtx.font='bold 13px monospace';
+    recCtx.textAlign='center';
+    recCtx.fillText('⏺ '+mm+':'+ss, W-51, 29);
+
+    recAnimFrame = requestAnimationFrame(drawFrame);
+  }
+  drawFrame();
+
+  // ── Combine canvas + audio into MediaRecorder ──
+  const canvasStream = recCanvas.captureStream(30);
+  const audioTrack = recAudioDest.stream.getAudioTracks()[0];
+  if(audioTrack) canvasStream.addTrack(audioTrack);
+
+  const mimeType = ['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'].find(t=>MediaRecorder.isTypeSupported(t)) || '';
+  try{
+    mediaRecorder = new MediaRecorder(canvasStream, mimeType ? {mimeType} : {});
+  }catch(e){
+    mediaRecorder = new MediaRecorder(canvasStream);
+  }
+  mediaRecorder.ondataavailable = e=>{ if(e.data.size>0) recordedChunks.push(e.data); };
+  mediaRecorder.onstop = saveRecording;
+  mediaRecorder.start(1000); // collect chunks every second
+
+  isRecording = true;
+  const btn = document.getElementById('record-btn');
+  btn.textContent = '⏹ Stop Recording';
+  btn.style.borderColor = 'var(--danger)';
+  btn.style.background = 'rgba(255,71,87,.15)';
+  btn.style.animation = 'recPulse 1.2s ease-in-out infinite';
+  document.getElementById('rec-badge').style.display = 'inline';
+
+  // Live timer in button
+  recTimerInterval = setInterval(()=>{
+    const s = Math.floor((Date.now()-recStartTime)/1000);
+    const mm = String(Math.floor(s/60)).padStart(2,'0');
+    const ss = String(s%60).padStart(2,'0');
+    const b = document.getElementById('record-btn');
+    if(b) b.textContent = `⏹ Stop Recording ${mm}:${ss}`;
+  }, 1000);
+
+  toast('⏺ Recording started');
+}
+
+function stopRecording(){
+  if(!isRecording) return;
+  isRecording = false;
+  clearInterval(recTimerInterval);
+  cancelAnimationFrame(recAnimFrame);
+  if(mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+  if(recAudioCtx) recAudioCtx.close().catch(()=>{});
+  recAudioSources = [];
+  const btn = document.getElementById('record-btn');
+  btn.textContent = '⏺ Start Recording';
+  btn.style.background = '';
+  btn.style.animation = '';
+  document.getElementById('rec-badge').style.display = 'none';
+  toast('⏺ Recording stopped — saving…');
+}
+
+function saveRecording(){
+  if(!recordedChunks.length) return;
+  const blob = new Blob(recordedChunks, {type: recordedChunks[0].type || 'video/webm'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const now = new Date();
+  const ts = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}-${String(now.getMinutes()).padStart(2,'0')}`;
+  a.href = url;
+  a.download = `WAVE_recording_${ts}.webm`;
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(url), 10000);
+  recordedChunks = [];
+  toast('✅ Recording saved!');
+}
+
 // ── WebRTC peer management ──
 function getOrCreatePeer(peerId){
   if(peers.has(peerId))return peers.get(peerId);
@@ -1517,6 +1702,7 @@ function endRoom(){
 // ── Leave room ──
 function leaveRoom(forced=false){
   closeFocus();
+  if(isRecording) stopRecording();
   if(isScreenSharing)stopScreenShare();
   if(localVideoStream){localVideoStream.getTracks().forEach(t=>t.stop());localVideoStream=null;}
   peers.forEach((_,id)=>closePeer(id));
