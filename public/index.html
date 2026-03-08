@@ -481,7 +481,12 @@ function toggleTheme(){
 // Apply saved theme immediately
 (function(){
   try{ if(localStorage.getItem('wave-theme')==='light') applyTheme(true); }catch(e){}
-})();, myId=null, myName='', roomId='', isHost=false;
+})();
+
+// ═══════════════════════════════════════════════════
+//  WAVE CLIENT — voice + video + screen share
+// ═══════════════════════════════════════════════════
+let socket=null, myId=null, myName='', roomId='', isHost=false;
 let isMuted=false, isSpeaking=false, isLocked=false, isChatLocked=false;
 let micHostLocked=false, isAllMuted=false;
 let isCameraOn=false, isScreenSharing=false, screenShareAllowed=false, screenRequestsEnabled=true;
