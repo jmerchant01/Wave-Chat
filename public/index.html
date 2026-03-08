@@ -144,6 +144,28 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .screen-pill.active{border-color:var(--accent2);color:var(--accent2);}
 .screen-pill input{accent-color:var(--accent2);cursor:pointer;}
 
+/* ── TILE HOVER CONTROLS ── */
+.video-tile .tile-controls,.screen-tile .tile-controls{position:absolute;top:6px;right:6px;display:flex;gap:.3rem;opacity:0;transition:opacity .15s;z-index:2;}
+.video-tile:hover .tile-controls,.screen-tile:hover .tile-controls{opacity:1;}
+.tile-btn{width:24px;height:24px;border-radius:5px;border:none;background:rgba(0,0,0,.65);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.75rem;backdrop-filter:blur(4px);transition:background .15s;}
+.tile-btn:hover{background:rgba(108,99,255,.75);}
+
+/* ── RESIZE HANDLE ── */
+.resize-handle{height:8px;cursor:ns-resize;background:transparent;display:flex;align-items:center;justify-content:center;transition:background .15s;user-select:none;flex-shrink:0;}
+.resize-handle:hover{background:rgba(108,99,255,.12);}
+.resize-handle::before{content:'';width:36px;height:2px;background:var(--border);border-radius:2px;transition:background .15s;}
+.resize-handle:hover::before{background:var(--accent);}
+
+/* ── FOCUS OVERLAY ── */
+.focus-overlay{position:fixed;inset:0;background:#000;z-index:500;display:none;flex-direction:column;}
+.focus-overlay.visible{display:flex;}
+.focus-vid-wrap{flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;}
+.focus-overlay video{width:100%;height:100%;object-fit:contain;}
+.focus-header{display:flex;align-items:center;justify-content:space-between;padding:.6rem 1rem;background:rgba(5,5,8,.92);flex-shrink:0;}
+.focus-label{font-family:'Syne',sans-serif;font-size:.85rem;font-weight:700;color:#fff;}
+.focus-close-btn{padding:.35rem .9rem;border-radius:7px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.07);color:#fff;font-family:'DM Mono',monospace;font-size:.72rem;cursor:pointer;transition:all .15s;}
+.focus-close-btn:hover{background:rgba(255,71,87,.25);border-color:var(--danger);}
+
 /* ── CONTROLS SIDEBAR (right col) ── */
 .my-controls{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:.9rem;}
 .section-title{font-size:.63rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:.7rem;}
@@ -313,6 +335,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
         <div class="video-area-body" id="cam-body">
           <div class="video-grid" id="cam-grid"></div>
         </div>
+        <div class="resize-handle" id="cam-resize" title="Drag to resize"></div>
       </div>
 
       <!-- SCREEN SHARE PANEL -->
@@ -330,6 +353,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
         <div id="screen-body">
           <div class="screen-grid" id="screen-grid"></div>
         </div>
+        <div class="resize-handle" id="screen-resize" title="Drag to resize"></div>
       </div>
 
     </div>
@@ -380,6 +404,17 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
       </div>
 
     </div>
+  </div>
+</div>
+
+<!-- FOCUS OVERLAY: shows one stream full-viewport -->
+<div class="focus-overlay" id="focus-overlay">
+  <div class="focus-header">
+    <span class="focus-label" id="focus-label">Screen Share</span>
+    <button class="focus-close-btn" onclick="closeFocus()">✕ Exit Focus</button>
+  </div>
+  <div class="focus-vid-wrap">
+    <video id="focus-video" autoplay playsinline></video>
   </div>
 </div>
 
@@ -856,6 +891,14 @@ function refreshCamPanel(){
     lbl.className = 'video-label' + (isHostP ? ' host-label' : '');
     lbl.textContent = label;
     tile.appendChild(lbl);
+    // Tile controls
+    const controls = document.createElement('div');
+    controls.className = 'tile-controls';
+    const maxBtn = document.createElement('button');
+    maxBtn.className = 'tile-btn'; maxBtn.title = 'Focus view'; maxBtn.textContent = '⛶';
+    maxBtn.onclick = (e)=>{ e.stopPropagation(); openFocus(stream, label, false); };
+    controls.appendChild(maxBtn);
+    tile.appendChild(controls);
     grid.appendChild(tile);
   });
 }
@@ -940,6 +983,14 @@ function renderScreenTiles(){
     const badge = document.createElement('div');
     badge.className = 'screen-badge'; badge.textContent = 'SCREEN';
     tile.appendChild(badge);
+    // Tile controls
+    const controls = document.createElement('div');
+    controls.className = 'tile-controls';
+    const maxBtn = document.createElement('button');
+    maxBtn.className = 'tile-btn'; maxBtn.title = 'Focus view'; maxBtn.textContent = '⛶';
+    maxBtn.onclick = (e)=>{ e.stopPropagation(); openFocus(stream, name+' — Screen Share', true); };
+    controls.appendChild(maxBtn);
+    tile.appendChild(controls);
     grid.appendChild(tile);
   });
 }
@@ -970,6 +1021,64 @@ function removeVideoTile(tileId){
   } else {
     removeCamTile(tileId.replace('cam-',''));
   }
+}
+
+// ── Focus mode ──
+function openFocus(stream, label, isScreen){
+  const overlay = document.getElementById('focus-overlay');
+  const vid = document.getElementById('focus-video');
+  const lbl = document.getElementById('focus-label');
+  vid.srcObject = stream;
+  vid.style.objectFit = isScreen ? 'contain' : 'cover';
+  lbl.textContent = label;
+  overlay.classList.add('visible');
+  // Escape key closes
+  document.addEventListener('keydown', focusKeyHandler);
+}
+function closeFocus(){
+  const overlay = document.getElementById('focus-overlay');
+  overlay.classList.remove('visible');
+  document.getElementById('focus-video').srcObject = null;
+  document.removeEventListener('keydown', focusKeyHandler);
+}
+function focusKeyHandler(e){ if(e.key==='Escape') closeFocus(); }
+
+// ── Resize handles ──
+function initResizeHandle(handleId, areaId, bodyId, minH, maxH){
+  const handle = document.getElementById(handleId);
+  const area = document.getElementById(areaId);
+  const body = document.getElementById(bodyId);
+  if(!handle || !area || !body) return;
+  let dragging = false, startY = 0, startH = 0;
+  handle.addEventListener('mousedown', e=>{
+    e.preventDefault();
+    dragging = true;
+    startY = e.clientY;
+    startH = body.offsetHeight;
+    document.body.style.cursor = 'ns-resize';
+    document.body.style.userSelect = 'none';
+  });
+  document.addEventListener('mousemove', e=>{
+    if(!dragging) return;
+    const delta = e.clientY - startY;
+    const newH = Math.min(maxH, Math.max(minH, startH + delta));
+    body.style.maxHeight = newH + 'px';
+    body.style.overflowY = 'auto';
+  });
+  document.addEventListener('mouseup', ()=>{
+    if(dragging){ dragging=false; document.body.style.cursor=''; document.body.style.userSelect=''; }
+  });
+  // Touch support
+  handle.addEventListener('touchstart', e=>{
+    dragging=true; startY=e.touches[0].clientY; startH=body.offsetHeight;
+  },{passive:true});
+  document.addEventListener('touchmove', e=>{
+    if(!dragging)return;
+    const delta=e.touches[0].clientY-startY;
+    const newH=Math.min(maxH,Math.max(minH,startH+delta));
+    body.style.maxHeight=newH+'px'; body.style.overflowY='auto';
+  },{passive:true});
+  document.addEventListener('touchend',()=>{ dragging=false; });
 }
 
 // ── WebRTC peer management ──
@@ -1053,6 +1162,9 @@ function showRoom(name){
   document.getElementById('room-title').textContent=name||'Voice Room';
   if(isHost)document.getElementById('host-panel').classList.remove('hidden');
   updateInvite(); updateConnDot('connected');
+  // Init resize handles once room is visible
+  initResizeHandle('cam-resize','cam-area','cam-body', 80, 600);
+  initResizeHandle('screen-resize','screen-area','screen-body', 80, 700);
 }
 function updateInvite(){
   const url=`${location.origin}${location.pathname}?room=${roomId}`;
@@ -1215,6 +1327,7 @@ function endRoom(){
 
 // ── Leave room ──
 function leaveRoom(forced=false){
+  closeFocus();
   if(isScreenSharing)stopScreenShare();
   if(localVideoStream){localVideoStream.getTracks().forEach(t=>t.stop());localVideoStream=null;}
   peers.forEach((_,id)=>closePeer(id));
