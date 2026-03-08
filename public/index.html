@@ -52,13 +52,13 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 */
 .room-body{
   display:grid;
-  grid-template-columns:260px 1fr 260px;
+  grid-template-columns:260px 6px 1fr 260px;
   grid-template-rows:1fr;
   gap:.65rem;
   height:calc(100vh - 115px);
   overflow:hidden;
 }
-@media(max-width:1000px){.room-body{grid-template-columns:220px 1fr 220px;}}
+@media(max-width:1000px){.room-body{grid-template-columns:220px 6px 1fr 220px;}}
 @media(max-width:750px){.room-body{grid-template-columns:1fr;height:auto;overflow:visible;}}
 
 /* Each column scrolls independently */
@@ -79,9 +79,12 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .panel-box.collapsed .collapse-btn{transform:rotate(-90deg);}
 .panel-body{flex:1;min-height:0;}
 
-/* ── RESIZE HANDLE ── */
-.resize-handle{height:5px;background:transparent;cursor:ns-resize;border-radius:3px;margin:-2px 0;z-index:10;flex-shrink:0;}
-.resize-handle:hover,.resize-handle.dragging{background:var(--accent);opacity:.5;}
+/* ── HORIZONTAL RESIZE (chat width) ── */
+.col-resize-handle{width:6px;cursor:ew-resize;background:transparent;border-radius:3px;flex-shrink:0;transition:background .15s;position:relative;z-index:10;}
+.col-resize-handle:hover,.col-resize-handle.dragging{background:var(--accent);opacity:.5;}
+.col-resize-handle::before{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:2px;height:32px;background:var(--border);border-radius:2px;}
+.col-resize-handle:hover::before{background:var(--accent);}
+@media(max-width:750px){.col-resize-handle{display:none;}}
 
 /* ── CHAT PANEL (left col, full height) ── */
 .chat-col-panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;display:flex;flex-direction:column;flex:1;min-height:200px;overflow:hidden;}
@@ -324,6 +327,9 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
         </div>
       </div>
     </div>
+
+    <!-- CHAT ↔ VIDEO horizontal resize handle -->
+    <div class="col-resize-handle" id="chat-col-resize" title="Drag to resize chat"></div>
 
     <!-- MIDDLE COL: Video (top) + Screen Share (bottom) -->
     <div class="col-mid">
@@ -611,19 +617,34 @@ function connectSocket(){
     document.getElementById('share-request-banner').classList.add('visible');
   });
 
-  // WebRTC
+  // WebRTC — perfect negotiation pattern
   socket.on('webrtc_offer',async({from,sdp})=>{
-    const pc=getOrCreatePeer(from);
-    await pc.setRemoteDescription(new RTCSessionDescription(sdp));
-    const answer=await pc.createAnswer();
-    await pc.setLocalDescription(answer);
-    socket.emit('webrtc_answer',{target:from,sdp:pc.localDescription});
+    const peer=getOrCreatePeer(from);
+    const pc=peer.pc;
+    const offerCollision = sdp.type==='offer' && (peer.makingOffer || pc.signalingState!=='stable');
+    // We are always the "polite" side for incoming offers
+    if(offerCollision){
+      await Promise.all([
+        pc.setLocalDescription({type:'rollback'}),
+        pc.setRemoteDescription(new RTCSessionDescription(sdp))
+      ]);
+    } else {
+      await pc.setRemoteDescription(new RTCSessionDescription(sdp));
+    }
+    if(sdp.type==='offer'){
+      await pc.setLocalDescription(await pc.createAnswer());
+      socket.emit('webrtc_answer',{target:from,sdp:pc.localDescription});
+    }
   });
   socket.on('webrtc_answer',async({from,sdp})=>{
-    const peer=peers.get(from); if(peer)await peer.pc.setRemoteDescription(new RTCSessionDescription(sdp));
+    const peer=peers.get(from);
+    if(peer && peer.pc.signalingState!=='stable'){
+      try{await peer.pc.setRemoteDescription(new RTCSessionDescription(sdp));}catch(e){}
+    }
   });
   socket.on('webrtc_ice',async({from,candidate})=>{
-    const peer=peers.get(from); if(peer&&candidate)try{await peer.pc.addIceCandidate(new RTCIceCandidate(candidate));}catch(e){}
+    const peer=peers.get(from);
+    if(peer&&candidate)try{await peer.pc.addIceCandidate(new RTCIceCandidate(candidate));}catch(e){}
   });
   socket.on('disconnect',()=>updateConnDot('disconnected'));
   socket.on('reconnect',()=>updateConnDot('connected'));
@@ -696,10 +717,8 @@ function applyMute(){
 // ── CAMERA ──
 async function toggleCamera(){
   if(isCameraOn){
-    // Turn off
     if(localVideoStream){localVideoStream.getTracks().forEach(t=>t.stop());localVideoStream=null;}
     removeVideoTile('cam-'+socket.id);
-    // Remove from all peers
     peers.forEach(peer=>{
       if(peer.camSender){try{peer.pc.removeTrack(peer.camSender);}catch(e){}peer.camSender=null;}
     });
@@ -711,16 +730,11 @@ async function toggleCamera(){
     try{
       localVideoStream=await navigator.mediaDevices.getUserMedia({video:{width:{ideal:1280},height:{ideal:720}},audio:false});
       isCameraOn=true;
-      // Show my own tile
       addOrUpdateVideoTile('cam-'+socket.id, localVideoStream, myName+(isHost?' 👑':''), false, true);
-      // Add track to all existing peers
+      // Add track to all peers — onnegotiationneeded fires automatically
       peers.forEach((peer,peerId)=>{
         const track=localVideoStream.getVideoTracks()[0];
-        if(track){
-          try{peer.camSender=peer.pc.addTrack(track,localVideoStream);}catch(e){}
-          // Renegotiate
-          renegotiate(peerId);
-        }
+        if(track){try{peer.camSender=peer.pc.addTrack(track,localVideoStream);}catch(e){}}
       });
       document.getElementById('cam-btn').classList.add('active');
       document.getElementById('cam-btn').textContent='📷 Camera ON';
@@ -773,7 +787,7 @@ async function startScreenShare(){
     addOrUpdateVideoTile('screen-'+socket.id, localScreenStream, myName+' (screen)', true, true);
     peers.forEach((peer,peerId)=>{
       const track=localScreenStream.getVideoTracks()[0];
-      if(track){try{peer.screenSender=peer.pc.addTrack(track,localScreenStream);}catch(e){}renegotiate(peerId);}
+      if(track){try{peer.screenSender=peer.pc.addTrack(track,localScreenStream);}catch(e){}}
     });
     document.getElementById('screen-btn').classList.add('screenshare-active');
     document.getElementById('screen-btn').textContent='🖥️ Stop Share';
@@ -1096,21 +1110,51 @@ function initResizeHandle(handleId, areaId, bodyId, minH, maxH){
   document.addEventListener('touchend',()=>{ dragging=false; });
 }
 
+// ── Horizontal chat column resize ──
+function initChatResize(){
+  const handle = document.getElementById('chat-col-resize');
+  const roomBody = document.querySelector('.room-body');
+  if(!handle || !roomBody) return;
+  let dragging = false, startX = 0, startW = 0;
+  handle.addEventListener('mousedown', e=>{
+    e.preventDefault();
+    dragging = true;
+    startX = e.clientX;
+    startW = document.querySelector('.col-left').offsetWidth;
+    document.body.style.cursor = 'ew-resize';
+    document.body.style.userSelect = 'none';
+    handle.classList.add('dragging');
+  });
+  document.addEventListener('mousemove', e=>{
+    if(!dragging) return;
+    const newW = Math.min(540, Math.max(160, startW + (e.clientX - startX)));
+    const rightW = document.querySelector('.col-right').offsetWidth;
+    roomBody.style.gridTemplateColumns = `${newW}px 6px 1fr ${rightW}px`;
+  });
+  document.addEventListener('mouseup', ()=>{
+    if(!dragging) return;
+    dragging = false;
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+    handle.classList.remove('dragging');
+  });
+}
+
 // ── WebRTC peer management ──
 function getOrCreatePeer(peerId){
   if(peers.has(peerId))return peers.get(peerId);
   const pc=new RTCPeerConnection(ICE);
-  const peer={pc, camSender:null, screenSender:null};
+  const peer={pc, camSender:null, screenSender:null, videoTrackCount:0, makingOffer:false, ignoreOffer:false};
   peers.set(peerId,peer);
 
   // Add audio
   if(localStream)localStream.getTracks().forEach(t=>pc.addTrack(t,localStream));
-  // Add camera if on
+  // Add camera if already on
   if(localVideoStream&&isCameraOn){
     const t=localVideoStream.getVideoTracks()[0];
     if(t)peer.camSender=pc.addTrack(t,localVideoStream);
   }
-  // Add screen if sharing
+  // Add screen if already sharing
   if(localScreenStream&&isScreenSharing){
     const t=localScreenStream.getVideoTracks()[0];
     if(t)peer.screenSender=pc.addTrack(t,localScreenStream);
@@ -1118,10 +1162,18 @@ function getOrCreatePeer(peerId){
 
   pc.onicecandidate=({candidate})=>{if(candidate&&socket)socket.emit('webrtc_ice',{target:peerId,candidate});};
 
-  // Track each video track received from this peer in order
-  peer.videoTrackCount = 0;
+  // Auto-renegotiate when tracks are added/removed
+  pc.onnegotiationneeded=async()=>{
+    try{
+      peer.makingOffer=true;
+      const offer=await pc.createOffer();
+      if(pc.signalingState!=='stable')return;
+      await pc.setLocalDescription(offer);
+      socket.emit('webrtc_offer',{target:peerId,sdp:pc.localDescription});
+    }catch(e){}finally{peer.makingOffer=false;}
+  };
 
-  pc.ontrack=({track, streams})=>{
+  pc.ontrack=({track})=>{
     if(track.kind==='audio'){
       let audio=document.getElementById(`audio-${peerId}`);
       if(!audio){
@@ -1131,26 +1183,21 @@ function getOrCreatePeer(peerId){
         audio.style.display='none';
         document.body.appendChild(audio);
       }
-      // Attach to a fresh stream so audio always plays
-      const audioStream = new MediaStream([track]);
+      const audioStream=new MediaStream([track]);
       audio.srcObject=audioStream;
       return;
     }
-
     if(track.kind==='video'){
       const pInfo=participants.get(peerId);
       const label=pInfo?pInfo.name+(pInfo.isHost?' 👑':''):'Participant';
-
-      // Each video track gets its own dedicated MediaStream
-      const trackStream = new MediaStream([track]);
-      peer.videoTrackCount = (peer.videoTrackCount||0) + 1;
-      const isCamTrack = peer.videoTrackCount === 1;
-
+      const trackStream=new MediaStream([track]);
+      peer.videoTrackCount=(peer.videoTrackCount||0)+1;
+      const isCamTrack=peer.videoTrackCount===1;
       if(isCamTrack){
-        addCamTile(peerId, trackStream, label, pInfo?pInfo.isHost:false, false);
+        addCamTile(peerId,trackStream,label,pInfo?pInfo.isHost:false,false);
         track.onended=()=>removeCamTile(peerId);
       } else {
-        setScreenTile(peerId, trackStream, label);
+        setScreenTile(peerId,trackStream,label);
         track.onended=()=>clearScreenTile(peerId);
       }
     }
@@ -1164,19 +1211,16 @@ function getOrCreatePeer(peerId){
 
 async function initiateOffer(peerId){
   const peer=getOrCreatePeer(peerId);
-  const offer=await peer.pc.createOffer();
-  await peer.pc.setLocalDescription(offer);
-  socket.emit('webrtc_offer',{target:peerId,sdp:peer.pc.localDescription});
-}
-
-async function renegotiate(peerId){
-  const peer=peers.get(peerId); if(!peer)return;
   try{
+    peer.makingOffer=true;
     const offer=await peer.pc.createOffer();
     await peer.pc.setLocalDescription(offer);
     socket.emit('webrtc_offer',{target:peerId,sdp:peer.pc.localDescription});
-  }catch(e){}
+  }catch(e){}finally{peer.makingOffer=false;}
 }
+
+// renegotiate kept for screen share compat but onnegotiationneeded handles it automatically now
+async function renegotiate(peerId){}
 
 function closePeer(peerId){
   const peer=peers.get(peerId);
@@ -1196,6 +1240,7 @@ function showRoom(name){
   // Init resize handles once room is visible
   initResizeHandle('cam-resize','cam-area','cam-body', 80, 600);
   initResizeHandle('screen-resize','screen-area','screen-body', 80, 700);
+  initChatResize();
   // Hide screen share on mobile (not supported by mobile browsers)
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || !navigator.mediaDevices?.getDisplayMedia;
   const screenBtn = document.getElementById('screen-btn');
