@@ -1118,25 +1118,39 @@ function getOrCreatePeer(peerId){
 
   pc.onicecandidate=({candidate})=>{if(candidate&&socket)socket.emit('webrtc_ice',{target:peerId,candidate});};
 
-  pc.ontrack=({track,streams})=>{
-    const stream=streams[0];
+  // Track each video track received from this peer in order
+  peer.videoTrackCount = 0;
+
+  pc.ontrack=({track, streams})=>{
     if(track.kind==='audio'){
-      // Audio element
       let audio=document.getElementById(`audio-${peerId}`);
-      if(!audio){audio=document.createElement('audio');audio.id=`audio-${peerId}`;audio.autoplay=true;audio.style.display='none';document.body.appendChild(audio);}
-      audio.srcObject=stream;
-    } else if(track.kind==='video'){
-      // Determine if this is screen share by checking if more than one video track
-      const existingCam=document.getElementById('cam-tile-'+peerId);
+      if(!audio){
+        audio=document.createElement('audio');
+        audio.id=`audio-${peerId}`;
+        audio.autoplay=true;
+        audio.style.display='none';
+        document.body.appendChild(audio);
+      }
+      // Attach to a fresh stream so audio always plays
+      const audioStream = new MediaStream([track]);
+      audio.srcObject=audioStream;
+      return;
+    }
+
+    if(track.kind==='video'){
       const pInfo=participants.get(peerId);
       const label=pInfo?pInfo.name+(pInfo.isHost?' 👑':''):'Participant';
-      if(!existingCam){
-        // First video = camera
-        addCamTile(peerId, stream, label, pInfo?pInfo.isHost:false, false);
+
+      // Each video track gets its own dedicated MediaStream
+      const trackStream = new MediaStream([track]);
+      peer.videoTrackCount = (peer.videoTrackCount||0) + 1;
+      const isCamTrack = peer.videoTrackCount === 1;
+
+      if(isCamTrack){
+        addCamTile(peerId, trackStream, label, pInfo?pInfo.isHost:false, false);
         track.onended=()=>removeCamTile(peerId);
       } else {
-        // Second video = screen share
-        setScreenTile(peerId, stream, label+' (screen)');
+        setScreenTile(peerId, trackStream, label);
         track.onended=()=>clearScreenTile(peerId);
       }
     }
@@ -1168,6 +1182,8 @@ function closePeer(peerId){
   const peer=peers.get(peerId);
   if(peer){peer.pc.close();peers.delete(peerId);}
   const audio=document.getElementById(`audio-${peerId}`);if(audio)audio.remove();
+  removeCamTile(peerId);
+  clearScreenTile(peerId);
 }
 
 // ── Show room ──
