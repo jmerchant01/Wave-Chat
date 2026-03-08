@@ -83,6 +83,11 @@ io.on('connection', (socket) => {
   socket.on('webrtc_offer', ({ target, sdp }) => { io.to(target).emit('webrtc_offer', { from: socket.id, sdp }); });
   socket.on('webrtc_answer', ({ target, sdp }) => { io.to(target).emit('webrtc_answer', { from: socket.id, sdp }); });
   socket.on('webrtc_ice', ({ target, candidate }) => { io.to(target).emit('webrtc_ice', { from: socket.id, candidate }); });
+  // Relay camera-on signal to all peers so they can request renegotiation
+  socket.on('cam_active', ({ active }) => {
+    const roomId = socket.data.roomId; if(!roomId) return;
+    socket.to(roomId).emit('cam_active', { from: socket.id, active });
+  });
 
   socket.on('chat_message', ({ text, image, msgId }) => {
     const roomId = socket.data.roomId;

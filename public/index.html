@@ -507,6 +507,15 @@ function connectSocket(){
     if(id===socket.id)return;
     participants.set(id,{name,muted,isHost:ih,speaking:false});
     renderParticipants();
+    // If we already have camera on, add our track to the new peer connection
+    // onnegotiationneeded will fire and send the offer
+    if(isCameraOn && localVideoStream){
+      const peer = peers.get(id);
+      if(peer && !peer.camSender){
+        const track = localVideoStream.getVideoTracks()[0];
+        if(track) try{ peer.camSender = peer.pc.addTrack(track, localVideoStream); }catch(e){}
+      }
+    }
   });
   socket.on('participant_left',({id})=>{
     participants.delete(id);
@@ -588,6 +597,12 @@ function connectSocket(){
   });
   socket.on('screenshare_stopped',({sharerId})=>{
     clearScreenTile(sharerId);
+  });
+  // When a peer turns on camera, re-initiate offer so we get their track
+  socket.on('cam_active',({from})=>{
+    if(from === socket.id) return;
+    // Small delay to let their addTrack settle before we request
+    setTimeout(()=>initiateOffer(from), 300);
   });
 
   // Screen share approval flow
@@ -739,6 +754,8 @@ async function toggleCamera(){
       document.getElementById('cam-btn').classList.add('active');
       document.getElementById('cam-btn').textContent='📷 Camera ON';
       toast('📷 Camera on — others can see you');
+      // Tell all peers to expect a video track (triggers renegotiation on their end too)
+      if(socket) socket.emit('cam_active', {active: true});
     }catch(e){toast('⚠️ Camera access denied');}
   }
 }
@@ -881,7 +898,6 @@ function refreshCamPanel(){
   // Show selector if > 4 cams
   if(keys.length > MAX_CAMS){
     selectorWrap.style.display = 'flex';
-    // Rebuild selector options
     const groups = Math.ceil(keys.length / MAX_CAMS);
     const currentVal = selector.value;
     selector.innerHTML = '';
@@ -900,39 +916,58 @@ function refreshCamPanel(){
     visibleCamPage = 0;
   }
 
-  // Determine which cams to show
   const start = visibleCamPage * MAX_CAMS;
   const visible = keys.slice(start, start + MAX_CAMS);
 
-  // Rebuild grid
-  grid.innerHTML = '';
+  // Remove tiles for peers no longer visible
+  Array.from(grid.children).forEach(el=>{
+    const pid = el.dataset.peer;
+    if(!visible.includes(pid)) el.remove();
+  });
+
   grid.className = 'video-grid' + (visible.length === 1 ? ' single' : '');
+
   visible.forEach(peerId => {
     const {stream, label, isHostP, muted} = camStreams.get(peerId);
-    const tile = document.createElement('div');
-    tile.className = 'video-tile';
-    tile.id = 'cam-tile-' + peerId;
-    const vid = document.createElement('video');
-    vid.autoplay = true; vid.playsInline = true;
-    if(muted) vid.muted = true;
-    tile.appendChild(vid);
-    vid.srcObject = stream;
-    const lbl = document.createElement('div');
-    lbl.className = 'video-label' + (isHostP ? ' host-label' : '');
-    lbl.textContent = label;
-    tile.appendChild(lbl);
-    // Tile controls
-    const controls = document.createElement('div');
-    controls.className = 'tile-controls';
-    const maxBtn = document.createElement('button');
-    maxBtn.className = 'tile-btn'; maxBtn.title = 'Focus view'; maxBtn.textContent = '⛶';
-    maxBtn.onclick = (e)=>{ e.stopPropagation(); openFocus(stream, label, false); };
-    controls.appendChild(maxBtn);
-    tile.appendChild(controls);
-    grid.appendChild(tile);
+
+    // Reuse existing tile if present — avoids re-attaching srcObject (fixes mobile black screen)
+    let tile = grid.querySelector(`[data-peer="${peerId}"]`);
+    if(!tile){
+      tile = document.createElement('div');
+      tile.className = 'video-tile';
+      tile.id = 'cam-tile-' + peerId;
+      tile.dataset.peer = peerId;
+
+      const vid = document.createElement('video');
+      vid.autoplay = true;
+      vid.playsInline = true;
+      vid.setAttribute('playsinline', '');       // explicit for Safari
+      vid.setAttribute('webkit-playsinline', ''); // older iOS
+      if(muted) vid.muted = true;
+      vid.srcObject = stream;
+      // Force play for mobile (needs to be called after appending)
+      vid.onloadedmetadata = ()=>{ vid.play().catch(()=>{}); };
+      tile.appendChild(vid);
+
+      const lbl = document.createElement('div');
+      lbl.className = 'video-label' + (isHostP ? ' host-label' : '');
+      lbl.textContent = label;
+      tile.appendChild(lbl);
+
+      const controls = document.createElement('div');
+      controls.className = 'tile-controls';
+      const maxBtn = document.createElement('button');
+      maxBtn.className = 'tile-btn'; maxBtn.title = 'Focus view'; maxBtn.textContent = '⛶';
+      maxBtn.onclick = (e)=>{ e.stopPropagation(); openFocus(stream, label, false); };
+      controls.appendChild(maxBtn);
+      tile.appendChild(controls);
+
+      grid.appendChild(tile);
+      // Play after in DOM
+      vid.play().catch(()=>{});
+    }
   });
 }
-
 function updateVisibleCams(){
   visibleCamPage = parseInt(document.getElementById('cam-selector').value) || 0;
   refreshCamPanel();
@@ -995,33 +1030,55 @@ function refreshScreenPanel(){
 
 function renderScreenTiles(){
   const grid = document.getElementById('screen-grid');
-  grid.innerHTML = '';
+
+  // Remove tiles no longer visible
+  Array.from(grid.children).forEach(el=>{
+    const pid = el.dataset.peer;
+    const s = screenStreams.get(pid);
+    if(!s || !s.visible) el.remove();
+  });
+
   screenStreams.forEach(({stream, name, visible}, peerId)=>{
     if(!visible) return;
-    const tile = document.createElement('div');
-    tile.className = 'screen-tile';
-    tile.id = 'screen-tile-' + peerId;
-    const vid = document.createElement('video');
-    vid.autoplay = true; vid.playsInline = true;
-    vid.muted = (peerId === socket?.id);
-    vid.srcObject = stream;
-    tile.appendChild(vid);
-    const lbl = document.createElement('div');
-    lbl.className = 'screen-label';
-    lbl.textContent = name;
-    tile.appendChild(lbl);
-    const badge = document.createElement('div');
-    badge.className = 'screen-badge'; badge.textContent = 'SCREEN';
-    tile.appendChild(badge);
-    // Tile controls
-    const controls = document.createElement('div');
-    controls.className = 'tile-controls';
-    const maxBtn = document.createElement('button');
-    maxBtn.className = 'tile-btn'; maxBtn.title = 'Focus view'; maxBtn.textContent = '⛶';
-    maxBtn.onclick = (e)=>{ e.stopPropagation(); openFocus(stream, name+' — Screen Share', true); };
-    controls.appendChild(maxBtn);
-    tile.appendChild(controls);
-    grid.appendChild(tile);
+
+    // Reuse existing tile
+    let tile = grid.querySelector(`[data-peer="${peerId}"]`);
+    if(!tile){
+      tile = document.createElement('div');
+      tile.className = 'screen-tile';
+      tile.id = 'screen-tile-' + peerId;
+      tile.dataset.peer = peerId;
+
+      const vid = document.createElement('video');
+      vid.autoplay = true;
+      vid.playsInline = true;
+      vid.setAttribute('playsinline', '');
+      vid.setAttribute('webkit-playsinline', '');
+      vid.muted = (peerId === socket?.id);
+      vid.srcObject = stream;
+      vid.onloadedmetadata = ()=>{ vid.play().catch(()=>{}); };
+      tile.appendChild(vid);
+
+      const lbl = document.createElement('div');
+      lbl.className = 'screen-label';
+      lbl.textContent = name;
+      tile.appendChild(lbl);
+
+      const badge = document.createElement('div');
+      badge.className = 'screen-badge'; badge.textContent = 'SCREEN';
+      tile.appendChild(badge);
+
+      const controls = document.createElement('div');
+      controls.className = 'tile-controls';
+      const maxBtn = document.createElement('button');
+      maxBtn.className = 'tile-btn'; maxBtn.title = 'Focus view'; maxBtn.textContent = '⛶';
+      maxBtn.onclick = (e)=>{ e.stopPropagation(); openFocus(stream, name+' — Screen Share', true); };
+      controls.appendChild(maxBtn);
+      tile.appendChild(controls);
+
+      grid.appendChild(tile);
+      vid.play().catch(()=>{});
+    }
   });
 }
 
