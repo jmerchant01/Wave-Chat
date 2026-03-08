@@ -91,6 +91,9 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .chat-col-panel.chat-locked-ui .chat-input-wrap{opacity:.5;pointer-events:none;}
 .chat-col-panel.chat-locked-ui .chat-locked-notice{display:flex;}
 .chat-locked-notice{display:none;align-items:center;justify-content:center;padding:.4rem;background:rgba(255,71,87,.08);border-top:1px solid rgba(255,71,87,.2);font-size:.68rem;color:var(--danger);}
+.chat-col-panel.chat-locked-ui .chat-input{pointer-events:none;user-select:none;-webkit-user-select:none;cursor:not-allowed;}
+.chat-col-panel.chat-locked-ui .send-btn{pointer-events:none;cursor:not-allowed;}
+.chat-col-panel.chat-locked-ui .img-attach-btn{pointer-events:none;cursor:not-allowed;}
 .chat-messages{flex:1;overflow-y:auto;padding:.75rem;display:flex;flex-direction:column;gap:.4rem;}
 .chat-messages::-webkit-scrollbar{width:3px;}
 .chat-messages::-webkit-scrollbar-thumb{background:var(--border);}
@@ -508,6 +511,7 @@ function connectSocket(){
     if(ih) document.getElementById('screen-btn').classList.remove('hidden');
     renderParticipants();
     updateBadges();
+    if(isChatLocked) applyChatLockUI(true);
     state.participants.forEach(p=>{if(p.id!==socket.id)initiateOffer(p.id);});
   });
 
@@ -542,13 +546,7 @@ function connectSocket(){
   });
   socket.on('chat_locked',({locked})=>{
     isChatLocked=locked;
-    const panel=document.getElementById('chat-panel-el');
-    const notice=document.getElementById('chat-locked-notice');
-    panel.classList.toggle('chat-locked-ui',locked&&!isHost);
-    if(notice)notice.style.display=locked&&!isHost?'flex':'none';
-    document.getElementById('chat-lock-badge').style.display=locked?'inline':'none';
-    const btn=document.getElementById('chat-lock-btn');
-    if(btn){btn.textContent=locked?'💬 Unlock Chat':'💬 Lock Chat';btn.classList.toggle('active-state',locked);}
+    applyChatLockUI(locked);
   });
   socket.on('force_mute',({locked})=>{
     isMuted=true; micHostLocked=!!locked; if(locked)isAllMuted=true;
@@ -1581,7 +1579,37 @@ function renderParticipants(){
 }
 
 // ── Chat ──
+function applyChatLockUI(locked){
+  const panel = document.getElementById('chat-panel-el');
+  const notice = document.getElementById('chat-locked-notice');
+  const inp = document.getElementById('chat-in');
+  const sendBtn = document.querySelector('.send-btn');
+  const attachBtn = document.querySelector('.img-attach-btn');
+  const fileInput = document.getElementById('img-file-input');
+
+  const lockForMe = locked && !isHost;
+  panel.classList.toggle('chat-locked-ui', lockForMe);
+  if(notice) notice.style.display = lockForMe ? 'flex' : 'none';
+
+  // Fully disable input so mobile keyboard cannot open
+  if(inp){
+    inp.disabled = lockForMe;
+    inp.readOnly = lockForMe;
+    inp.placeholder = lockForMe ? '🔒 Chat locked by host' : 'Type a message…';
+    if(lockForMe) inp.blur(); // dismiss keyboard immediately
+  }
+  if(sendBtn) sendBtn.disabled = lockForMe;
+  if(attachBtn) attachBtn.disabled = lockForMe;
+  if(fileInput) fileInput.disabled = lockForMe;
+
+  document.getElementById('chat-lock-badge').style.display = locked ? 'inline' : 'none';
+  const btn = document.getElementById('chat-lock-btn');
+  if(btn){ btn.textContent = locked ? '💬 Unlock Chat' : '💬 Lock Chat'; btn.classList.toggle('active-state', locked); }
+}
+
 function sendChat(){
+  // Hard guard — don't send if chat is locked (catches mobile edge cases)
+  if(isChatLocked && !isHost) return;
   const inp=document.getElementById('chat-in');
   const text=inp.value.trim();
   if(!text&&!pendingImage)return;
