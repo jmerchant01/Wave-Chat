@@ -125,18 +125,18 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .video-area.collapsed .video-area-body{display:none;}
 
 /* Camera grid */
-.video-area-body{padding:.65rem;}
-.video-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:.5rem;}
+.video-area-body{padding:.65rem;height:200px;min-height:80px;box-sizing:border-box;}
+.video-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:.5rem;height:100%;}
 .video-grid.single{grid-template-columns:1fr;}
-.video-tile{position:relative;border-radius:9px;overflow:hidden;background:#0a0a12;border:1px solid var(--border);aspect-ratio:16/9;}
-.video-tile video{width:100%;height:100%;object-fit:cover;display:block;}
+.video-tile{position:relative;border-radius:9px;overflow:hidden;background:#0a0a12;border:1px solid var(--border);}
+.video-tile video{width:100%;height:100%;object-fit:cover;display:block;position:absolute;inset:0;}
 .video-label{position:absolute;bottom:5px;left:7px;background:rgba(0,0,0,.7);color:#fff;font-size:.6rem;padding:.18rem .4rem;border-radius:4px;pointer-events:none;}
 .video-label.host-label{color:var(--host);}
 
 /* Screen tiles */
-.screen-grid{display:flex;flex-direction:column;gap:.5rem;padding:.65rem;}
-.screen-tile{position:relative;border-radius:9px;overflow:hidden;background:#0a0a12;border:1px solid rgba(255,101,132,.3);aspect-ratio:16/9;width:100%;}
-.screen-tile video{width:100%;height:100%;object-fit:contain;display:block;}
+.screen-grid{display:flex;flex-direction:column;gap:.5rem;padding:.65rem;height:200px;min-height:80px;box-sizing:border-box;}
+.screen-tile{position:relative;border-radius:9px;overflow:hidden;background:#0a0a12;border:1px solid rgba(255,101,132,.3);flex:1;min-height:0;}
+.screen-tile video{width:100%;height:100%;object-fit:contain;display:block;position:absolute;inset:0;}
 .screen-badge{position:absolute;top:5px;right:5px;background:rgba(255,101,132,.85);color:#fff;font-size:.58rem;padding:.15rem .38rem;border-radius:4px;}
 .screen-label{position:absolute;bottom:5px;left:7px;background:rgba(0,0,0,.7);color:var(--accent2);font-size:.6rem;padding:.18rem .4rem;border-radius:4px;pointer-events:none;}
 .screen-pill{display:flex;align-items:center;gap:.3rem;background:var(--surface2);border:1px solid var(--border);border-radius:5px;padding:.18rem .45rem;cursor:pointer;font-size:.62rem;transition:border-color .15s;}
@@ -155,6 +155,15 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .resize-handle:hover{background:rgba(108,99,255,.12);}
 .resize-handle::before{content:'';width:36px;height:2px;background:var(--border);border-radius:2px;transition:background .15s;}
 .resize-handle:hover::before{background:var(--accent);}
+
+/* Mobile: always show resize handle visibly, larger touch target */
+@media(max-width:768px){
+  .resize-handle{height:28px;background:rgba(108,99,255,.06);border-top:1px solid var(--border);}
+  .resize-handle::before{width:48px;height:3px;background:var(--muted);}
+  .resize-handle:hover::before,.resize-handle:active::before{background:var(--accent);}
+  .video-tile .tile-controls,.screen-tile .tile-controls{opacity:1;}
+  .tile-btn{width:30px;height:30px;font-size:.85rem;}
+}
 
 /* ── FOCUS OVERLAY ── */
 .focus-overlay{position:fixed;inset:0;background:#000;z-index:500;display:none;flex-direction:column;}
@@ -751,6 +760,13 @@ function toggleScreenRequests(){
 }
 
 async function startScreenShare(){
+  // Screen share not supported on mobile browsers
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia){
+    toast('🖥️ Screen share is not supported on mobile browsers. Use a desktop browser.');
+    document.getElementById('screen-btn').textContent='🖥️ Screen';
+    document.getElementById('screen-btn').disabled=false;
+    return;
+  }
   try{
     localScreenStream=await navigator.mediaDevices.getDisplayMedia({video:{cursor:'always'},audio:false});
     isScreenSharing=true;
@@ -1062,8 +1078,7 @@ function initResizeHandle(handleId, areaId, bodyId, minH, maxH){
     if(!dragging) return;
     const delta = e.clientY - startY;
     const newH = Math.min(maxH, Math.max(minH, startH + delta));
-    body.style.maxHeight = newH + 'px';
-    body.style.overflowY = 'auto';
+    body.style.height = newH + 'px';
   });
   document.addEventListener('mouseup', ()=>{
     if(dragging){ dragging=false; document.body.style.cursor=''; document.body.style.userSelect=''; }
@@ -1076,7 +1091,7 @@ function initResizeHandle(handleId, areaId, bodyId, minH, maxH){
     if(!dragging)return;
     const delta=e.touches[0].clientY-startY;
     const newH=Math.min(maxH,Math.max(minH,startH+delta));
-    body.style.maxHeight=newH+'px'; body.style.overflowY='auto';
+    body.style.height=newH+'px';
   },{passive:true});
   document.addEventListener('touchend',()=>{ dragging=false; });
 }
@@ -1165,6 +1180,15 @@ function showRoom(name){
   // Init resize handles once room is visible
   initResizeHandle('cam-resize','cam-area','cam-body', 80, 600);
   initResizeHandle('screen-resize','screen-area','screen-body', 80, 700);
+  // Hide screen share on mobile (not supported by mobile browsers)
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || !navigator.mediaDevices?.getDisplayMedia;
+  const screenBtn = document.getElementById('screen-btn');
+  if(isMobile && screenBtn){
+    screenBtn.style.opacity = '0.4';
+    screenBtn.style.cursor = 'not-allowed';
+    screenBtn.title = 'Screen share is not available on mobile browsers';
+    screenBtn.onclick = ()=>toast('🖥️ Screen share is not supported on mobile. Use a desktop browser.');
+  }
 }
 function updateInvite(){
   const url=`${location.origin}${location.pathname}?room=${roomId}`;
