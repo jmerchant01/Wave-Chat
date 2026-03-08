@@ -181,6 +181,82 @@ io.on('connection', (socket) => {
     io.to(roomId).emit('chat_message', { type: 'system', text: `${name} was removed by the host.` });
   });
 
+  socket.on('host_screen_requests_toggle', ({ enabled }) => {
+    if (!socket.data.isHost) return;
+    const roomId = socket.data.roomId;
+    const room = rooms.get(roomId);
+    if (!room) return;
+    room.screenRequestsEnabled = enabled;
+    socket.to(roomId).emit('screen_requests_toggle', { enabled });
+  });
+
+  socket.on('screenshare_start', () => {
+    const roomId = socket.data.roomId;
+    const room = rooms.get(roomId);
+    if (!room) return;
+    room.activeScreenShareId = socket.id;
+    socket.to(roomId).emit('screenshare_started', { sharerId: socket.id });
+  });
+
+  socket.on('screenshare_stop', () => {
+    const roomId = socket.data.roomId;
+    const room = rooms.get(roomId);
+    if (!room) return;
+    if (room.activeScreenShareId === socket.id) {
+      room.activeScreenShareId = null;
+      socket.to(roomId).emit('screenshare_stopped', { sharerId: socket.id });
+    }
+  });
+
+  // ── SCREEN SHARE: Participant requests, host approves/denies ──
+  socket.on('screenshare_request', () => {
+    const roomId = socket.data.roomId;
+    const room = rooms.get(roomId);
+    if (!room) return;
+    const p = room.participants.get(socket.id);
+    if (!p) return;
+    // Send request to host
+    io.to(room.hostId).emit('screenshare_request', { fromId: socket.id, fromName: p.name });
+  });
+
+  socket.on('screenshare_approve', ({ target }) => {
+    if (!socket.data.isHost) return;
+    io.to(target).emit('screenshare_approved');
+  });
+
+  socket.on('screenshare_deny', ({ target }) => {
+    if (!socket.data.isHost) return;
+    io.to(target).emit('screenshare_denied');
+  });
+
+  // ── HOST: ALLOW/REVOKE SCREEN SHARE FOR PARTICIPANTS ──
+  socket.on('host_allow_screenshare', ({ allowed }) => {
+    if (!socket.data.isHost) return;
+    const roomId = socket.data.roomId;
+    const room = rooms.get(roomId);
+    if (!room) return;
+    room.screenShareAllowed = allowed;
+    socket.to(roomId).emit('screen_share_allowed', { allowed });
+  });
+
+  // ── SCREEN SHARE REQUEST (host → participant) ──
+  socket.on('request_screenshare', ({ target }) => {
+    if (!socket.data.isHost) return;
+    const roomId = socket.data.roomId;
+    const room = rooms.get(roomId);
+    if (!room) return;
+    const hostP = room.participants.get(socket.id);
+    io.to(target).emit('request_screenshare', { fromName: hostP ? hostP.name : 'Host' });
+  });
+
+  socket.on('screenshare_denied_resp', () => {
+    const roomId = socket.data.roomId;
+    const room = rooms.get(roomId);
+    if (!room) return;
+    const p = room.participants.get(socket.id);
+    io.to(room.hostId).emit('screenshare_denied', { targetName: p ? p.name : 'Participant' });
+  });
+
   socket.on('host_lock', ({ locked }) => {
     if (!socket.data.isHost) return;
     const roomId = socket.data.roomId;
