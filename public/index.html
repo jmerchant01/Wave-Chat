@@ -8,6 +8,24 @@
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#050508;--surface:#0d0d14;--surface2:#13131e;--border:#1e1e2e;--accent:#6c63ff;--accent2:#ff6584;--accent3:#43e97b;--text:#e8e8f0;--muted:#6b6b80;--host:#ffd700;--danger:#ff4757;}
+body.light{--bg:#f0f0f8;--surface:#ffffff;--surface2:#f4f4fb;--border:#d8d8e8;--accent:#6c63ff;--accent2:#ff6584;--accent3:#1db954;--text:#1a1a2e;--muted:#7070a0;--host:#c49a00;--danger:#e0202f;}
+body.light::before{opacity:.15;}
+
+/* Light mode overrides */
+body.light .video-tile,
+body.light .screen-tile{background:#1a1a2e;}
+body.light .chat-msg{background:var(--surface2);border-color:var(--border);}
+body.light .host-panel{border-color:#c49a0055;}
+body.light .host-panel::before{background:linear-gradient(90deg,#c49a0055,transparent);}
+body.light .host-title{color:#c49a00;}
+body.light .focus-overlay{background:#111;}
+body.light .tab.active{background:var(--accent);color:#fff;}
+body.light .field input{background:var(--surface2);color:var(--text);}
+body.light .card::before{opacity:.6;}
+
+/* Theme toggle button */
+.theme-toggle{width:36px;height:36px;border-radius:50%;border:1px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1rem;transition:all .2s;flex-shrink:0;}
+.theme-toggle:hover{border-color:var(--accent);background:var(--accent);color:#fff;}
 *{margin:0;padding:0;box-sizing:border-box;}
 body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;min-height:100vh;overflow-x:hidden;}
 body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 80% 50% at 20% 20%,rgba(108,99,255,.08) 0%,transparent 60%),radial-gradient(ellipse 60% 40% at 80% 80%,rgba(255,101,132,.06) 0%,transparent 60%),radial-gradient(ellipse 40% 60% at 50% 50%,rgba(67,233,123,.03) 0%,transparent 70%);pointer-events:none;z-index:0;}
@@ -252,6 +270,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 
 <!-- LANDING -->
 <div id="landing">
+  <button class="theme-toggle" onclick="toggleTheme()" id="theme-btn-landing" title="Toggle light/dark mode" style="position:fixed;top:1rem;right:1rem;z-index:100;">🌙</button>
   <div class="logo">WAVE</div>
   <div class="tagline">Real-time voice rooms &bull; Any device &bull; No limits</div>
   <div class="card">
@@ -290,6 +309,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
       </div>
     </div>
     <div style="display:flex;align-items:center;gap:.65rem;flex-wrap:wrap;">
+      <button class="theme-toggle" onclick="toggleTheme()" id="theme-btn-room" title="Toggle light/dark mode">🌙</button>
       <div class="room-id-badge" onclick="copyInvite()">📋 Copy Invite</div>
       <button class="btn btn-sm btn-ghost" onclick="leaveRoom()">Leave →</button>
     </div>
@@ -448,10 +468,20 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 </div>
 
 <script>
-// ═══════════════════════════════════════════════════
-//  WAVE CLIENT — voice + video + screen share
-// ═══════════════════════════════════════════════════
-let socket=null, myId=null, myName='', roomId='', isHost=false;
+// ── Theme ──
+function applyTheme(light){
+  document.body.classList.toggle('light', light);
+  const icon = light ? '☀️' : '🌙';
+  document.querySelectorAll('.theme-toggle').forEach(b=>b.textContent=icon);
+  try{ localStorage.setItem('wave-theme', light?'light':'dark'); }catch(e){}
+}
+function toggleTheme(){
+  applyTheme(!document.body.classList.contains('light'));
+}
+// Apply saved theme immediately
+(function(){
+  try{ if(localStorage.getItem('wave-theme')==='light') applyTheme(true); }catch(e){}
+})();, myId=null, myName='', roomId='', isHost=false;
 let isMuted=false, isSpeaking=false, isLocked=false, isChatLocked=false;
 let micHostLocked=false, isAllMuted=false;
 let isCameraOn=false, isScreenSharing=false, screenShareAllowed=false, screenRequestsEnabled=true;
