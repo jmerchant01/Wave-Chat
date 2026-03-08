@@ -119,7 +119,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .send-btn:hover{background:#7c74ff;}
 
 /* ── VIDEO / SCREEN PANELS (middle col) ── */
-.video-area{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;flex-shrink:0;}
+.video-area{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:visible;flex-shrink:0;position:relative;}
 .video-area.collapsed .video-area-body,
 .video-area.collapsed #screen-body{display:none;}
 .video-area.hidden{display:none!important;}
@@ -128,7 +128,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .video-area.collapsed .video-area-body{display:none;}
 
 /* Camera grid */
-.video-area-body{padding:.65rem;height:200px;min-height:80px;box-sizing:border-box;}
+.video-area-body{padding:.65rem;height:200px;min-height:60px;box-sizing:border-box;overflow:hidden;border-radius:0 0 12px 12px;}
 .video-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:.5rem;height:100%;}
 .video-grid.single{grid-template-columns:1fr;}
 .video-tile{position:relative;border-radius:9px;overflow:hidden;background:#0a0a12;border:1px solid var(--border);}
@@ -137,7 +137,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .video-label.host-label{color:var(--host);}
 
 /* Screen tiles */
-.screen-grid{display:flex;flex-direction:column;gap:.5rem;padding:.65rem;height:200px;min-height:80px;box-sizing:border-box;}
+.screen-grid{display:flex;flex-direction:column;gap:.5rem;padding:.65rem;height:200px;min-height:60px;box-sizing:border-box;overflow:hidden;}
 .screen-tile{position:relative;border-radius:9px;overflow:hidden;background:#0a0a12;border:1px solid rgba(255,101,132,.3);flex:1;min-height:0;}
 .screen-tile video{width:100%;height:100%;object-fit:contain;display:block;position:absolute;inset:0;}
 .screen-badge{position:absolute;top:5px;right:5px;background:rgba(255,101,132,.85);color:#fff;font-size:.58rem;padding:.15rem .38rem;border-radius:4px;}
@@ -154,7 +154,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .tile-btn:hover{background:rgba(108,99,255,.75);}
 
 /* ── RESIZE HANDLE ── */
-.resize-handle{height:8px;cursor:ns-resize;background:transparent;display:flex;align-items:center;justify-content:center;transition:background .15s;user-select:none;flex-shrink:0;}
+.resize-handle{height:12px;cursor:ns-resize;background:var(--surface2);border-top:1px solid var(--border);border-radius:0 0 12px 12px;display:flex;align-items:center;justify-content:center;transition:background .15s;user-select:none;flex-shrink:0;position:relative;z-index:5;}
 .resize-handle:hover{background:rgba(108,99,255,.12);}
 .resize-handle::before{content:'';width:36px;height:2px;background:var(--border);border-radius:2px;transition:background .15s;}
 .resize-handle:hover::before{background:var(--accent);}
@@ -1171,6 +1171,8 @@ function initResizeHandle(handleId, areaId, bodyId, minH, maxH){
   const body = document.getElementById(bodyId);
   if(!handle || !area || !body) return;
   let dragging = false, startY = 0, startH = 0;
+  // Double-click resets to default height
+  handle.addEventListener('dblclick', ()=>{ body.style.height = '200px'; });
   handle.addEventListener('mousedown', e=>{
     e.preventDefault();
     dragging = true;
