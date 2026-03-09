@@ -149,10 +149,13 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .video-area.collapsed .video-area-body{display:none;}
 
 /* Camera grid */
-.video-area-body{padding:.65rem;height:200px;min-height:60px;box-sizing:border-box;overflow:hidden;border-radius:0 0 12px 12px;}
-.video-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:.5rem;height:100%;}
-.video-grid.single{grid-template-columns:1fr;}
-.video-tile{position:relative;border-radius:9px;overflow:hidden;background:#0a0a12;border:1px solid var(--border);}
+.video-area-body{padding:.65rem;min-height:80px;box-sizing:border-box;overflow-y:auto;border-radius:0 0 12px 12px;}
+.video-grid{display:grid;gap:.5rem;padding:.1rem;height:100%;width:100%;box-sizing:border-box;align-content:start;}
+.video-grid.count-1{grid-template-columns:1fr;}
+.video-grid.count-2{grid-template-columns:1fr 1fr;}
+.video-grid.count-3{grid-template-columns:1fr 1fr 1fr;}
+.video-grid.count-4{grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;}
+.video-tile{position:relative;border-radius:9px;overflow:hidden;background:#0a0a12;border:1px solid var(--border);aspect-ratio:1/1;width:100%;}
 .video-tile video{width:100%;height:100%;object-fit:cover;display:block;position:absolute;inset:0;}
 .video-label{position:absolute;bottom:5px;left:7px;background:rgba(0,0,0,.7);color:#fff;font-size:.6rem;padding:.18rem .4rem;border-radius:4px;pointer-events:none;}
 .video-label.host-label{color:var(--host);}
@@ -952,11 +955,7 @@ function addCamTile(peerId, stream, label, isHostP, muted){
 }
 
 function removeCamTile(peerId){
-  // Stop the video track cleanly
-  const entry = camStreams.get(peerId);
-  if(entry) entry.stream.getTracks().forEach(t=>t.stop());
   camStreams.delete(peerId);
-  // Remove the tile from DOM immediately
   const tile = document.getElementById('cam-tile-'+peerId) || document.querySelector(`[data-peer="${peerId}"]`);
   if(tile) tile.remove();
   refreshCamPanel();
@@ -1030,7 +1029,9 @@ function renderCamTiles(){
     if(!camStreams.has(pid) || camStreams.get(pid).visible===false) el.remove();
   });
 
-  grid.className = 'video-grid' + (visible.length === 1 ? ' single' : '');
+  // Set grid class based on count for equal square tiles
+  const n = visible.length;
+  grid.className = 'video-grid count-' + Math.min(n, 4);
 
   visible.forEach(([peerId, {stream, label, isHostP, muted}]) => {
     let tile = grid.querySelector(`[data-peer="${peerId}"]`);
@@ -1042,17 +1043,44 @@ function renderCamTiles(){
 
       const vid = document.createElement('video');
       vid.autoplay = true; vid.playsInline = true;
+      vid.muted = !!muted;
       vid.setAttribute('playsinline', '');
       vid.setAttribute('webkit-playsinline', '');
-      if(muted) vid.muted = true;
+
+      // Set srcObject and play robustly — fixes black screen on remote peers
+      const tryPlay = ()=>{
+        vid.play().catch(()=>{
+          // Autoplay blocked — show tap-to-play overlay
+          if(tile.querySelector('.tap-play')) return;
+          const tap = document.createElement('div');
+          tap.className = 'tap-play';
+          tap.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.5);cursor:pointer;font-size:.75rem;color:#fff;border-radius:9px;z-index:3;';
+          tap.textContent = '▶ Tap to play';
+          tap.onclick = ()=>{ vid.play().catch(()=>{}); tap.remove(); };
+          tile.appendChild(tap);
+        });
+      };
+
       vid.srcObject = stream;
-      vid.onloadedmetadata = ()=>{ vid.play().catch(()=>{
-        const tap = document.createElement('div');
-        tap.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.5);cursor:pointer;font-size:.75rem;color:#fff;border-radius:9px;z-index:3;';
-        tap.textContent = '▶ Tap to play';
-        tap.onclick = ()=>{ vid.play().catch(()=>{}); tap.remove(); };
-        tile.appendChild(tap);
-      }); };
+      vid.onloadedmetadata = ()=>tryPlay();
+
+      // Re-attach stream if track becomes live (fixes black screen on renegotiation)
+      stream.getTracks().forEach(t=>{
+        t.onunmute = ()=>{
+          if(vid.srcObject !== stream) vid.srcObject = stream;
+          tryPlay();
+        };
+      });
+
+      // Fallback: if not playing after 1.5s, re-set srcObject and retry
+      setTimeout(()=>{
+        if(vid.paused || vid.readyState < 2){
+          vid.srcObject = null;
+          vid.srcObject = stream;
+          tryPlay();
+        }
+      }, 1500);
+
       tile.appendChild(vid);
 
       const lbl = document.createElement('div');
@@ -1069,7 +1097,16 @@ function renderCamTiles(){
       tile.appendChild(controls);
 
       grid.appendChild(tile);
-      vid.play().catch(()=>{});
+      tryPlay();
+    } else {
+      // Tile exists — make sure video stream is still attached and playing
+      const vid = tile.querySelector('video');
+      if(vid && vid.srcObject !== stream){
+        vid.srcObject = stream;
+        vid.play().catch(()=>{});
+      } else if(vid && vid.paused){
+        vid.play().catch(()=>{});
+      }
     }
   });
 }
