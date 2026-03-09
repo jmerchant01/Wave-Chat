@@ -666,21 +666,32 @@ function connectSocket(){
     }
   });
 
-  socket.on('screenshare_started',({sharerId})=>{
-    // tracked locally via WebRTC ontrack
+  socket.on('screenshare_started',({sharerId, streamId})=>{
+    // Store the screen stream ID so ontrack can identify it
+    const peer = peers.get(sharerId);
+    if(peer && streamId) peer.remoteScreenStreamId = streamId;
   });
   socket.on('screenshare_stopped',({sharerId})=>{
     clearScreenTile(sharerId);
+    const peer = peers.get(sharerId);
+    if(peer) peer.remoteScreenStreamId = null;
   });
-  // When a peer turns on camera, onnegotiationneeded on THEIR side will push the new offer.
-  // We just need to be ready to receive it (webrtc_offer handler handles that).
-  // When a peer turns off camera, remove their tile immediately.
-  socket.on('cam_active',({from, active})=>{
+  socket.on('cam_active',({from, active, streamId})=>{
     if(from === socket.id) return;
     if(!active){
       removeCamTile(from);
+      const peer = peers.get(from);
+      if(peer){
+        peer.remoteCamStreamId = null;
+        // Reset so next camera-on gets routed as first video track again
+        if(peer.seenTrackIds) peer.seenTrackIds.clear();
+        peer.videoTrackCount = 0;
+      }
+    } else {
+      // Store the cam stream ID so ontrack can identify it
+      const peer = peers.get(from);
+      if(peer && streamId) peer.remoteCamStreamId = streamId;
     }
-    // active=true: no action needed — their onnegotiationneeded fires and sends us a new offer
   });
 
   // Screen share approval flow
@@ -819,7 +830,7 @@ async function toggleCamera(){
     document.getElementById('cam-btn').classList.remove('active');
     document.getElementById('cam-btn').textContent='📷 Camera';
     toast('📷 Camera off');
-    if(socket) socket.emit('cam_active', {active: false});
+    if(socket) socket.emit('cam_active', {active: false, streamId: null});
   } else {
     try{
       localVideoStream=await navigator.mediaDevices.getUserMedia({video:{width:{ideal:1280},height:{ideal:720}},audio:false});
@@ -834,7 +845,7 @@ async function toggleCamera(){
       document.getElementById('cam-btn').textContent='📷 Camera ON';
       toast('📷 Camera on — others can see you');
       // Tell all peers to expect a video track (triggers renegotiation on their end too)
-      if(socket) socket.emit('cam_active', {active: true});
+      if(socket) socket.emit('cam_active', {active: true, streamId: localVideoStream.id});
     }catch(e){toast('⚠️ Camera access denied');}
   }
 }
@@ -889,7 +900,7 @@ async function startScreenShare(){
     document.getElementById('screen-btn').textContent='🖥️ Stop Share';
     document.getElementById('screen-btn').disabled=false;
     toast('🖥️ Screen sharing started');
-    if(socket)socket.emit('screenshare_start');
+    if(socket)socket.emit('screenshare_start', {streamId: localScreenStream.id});
     localScreenStream.getVideoTracks()[0].onended=()=>stopScreenShare();
   }catch(e){
     document.getElementById('screen-btn').textContent='🖥️ Screen';
@@ -1631,27 +1642,46 @@ function getOrCreatePeer(peerId){
     if(track.kind==='video'){
       const pInfo=participants.get(peerId);
       const label=pInfo?pInfo.name+(pInfo.isHost?' 👑':''):'Participant';
-      const trackStream=new MediaStream([track]);
 
-      // Use the peer's known screen sender track ID to distinguish cam vs screen
-      // If we sent a screen track to them, their screen track has a specific ID
-      // Simpler: first video track on the connection = cam, any additional = screen
-      // But renegotiation can re-fire ontrack for the same track — dedupe by track.id
-      if(peer.seenTrackIds && peer.seenTrackIds.has(track.id)) return;
+      // Dedupe: skip if we've already handled this exact track
       if(!peer.seenTrackIds) peer.seenTrackIds = new Set();
+      if(peer.seenTrackIds.has(track.id)) return;
       peer.seenTrackIds.add(track.id);
 
-      // Count only newly seen video tracks
-      peer.videoTrackCount = (peer.videoTrackCount||0) + 1;
-      const isCamTrack = peer.videoTrackCount === 1;
+      const incomingStreamId = streams[0]?.id;
 
-      if(isCamTrack){
+      // Determine cam vs screen using signalled stream IDs
+      // Falls back to: if we know the screen stream ID and it matches → screen, else → cam
+      let isScreenTrack = false;
+      if(peer.remoteScreenStreamId && incomingStreamId === peer.remoteScreenStreamId){
+        isScreenTrack = true;
+      } else if(peer.remoteCamStreamId && incomingStreamId === peer.remoteCamStreamId){
+        isScreenTrack = false;
+      } else {
+        // Fallback: use track count — first video = cam, second = screen
+        peer.videoTrackCount = (peer.videoTrackCount||0) + 1;
+        isScreenTrack = peer.videoTrackCount > 1;
+      }
+
+      // Build a clean stream for this track
+      const trackStream = streams[0] ? streams[0] : new MediaStream([track]);
+
+      if(!isScreenTrack){
         addCamTile(peerId, trackStream, label, pInfo?pInfo.isHost:false, false);
         track.onended=()=>removeCamTile(peerId);
       } else {
         setScreenTile(peerId, trackStream, label);
         track.onended=()=>clearScreenTile(peerId);
       }
+
+      // Handle track going mute/unmute (mobile often starts muted)
+      track.onunmute=()=>{
+        if(!isScreenTrack){
+          const tile = document.getElementById('cam-tile-'+peerId);
+          const vid = tile?.querySelector('video');
+          if(vid && vid.paused) vid.play().catch(()=>{});
+        }
+      };
     }
   };
 

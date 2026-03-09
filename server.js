@@ -84,9 +84,9 @@ io.on('connection', (socket) => {
   socket.on('webrtc_answer', ({ target, sdp }) => { io.to(target).emit('webrtc_answer', { from: socket.id, sdp }); });
   socket.on('webrtc_ice', ({ target, candidate }) => { io.to(target).emit('webrtc_ice', { from: socket.id, candidate }); });
   // Relay camera-on signal to all peers so they can request renegotiation
-  socket.on('cam_active', ({ active }) => {
+  socket.on('cam_active', ({ active, streamId }) => {
     const roomId = socket.data.roomId; if(!roomId) return;
-    socket.to(roomId).emit('cam_active', { from: socket.id, active });
+    socket.to(roomId).emit('cam_active', { from: socket.id, active, streamId });
   });
 
   socket.on('chat_message', ({ text, image, msgId }) => {
@@ -195,12 +195,13 @@ io.on('connection', (socket) => {
     socket.to(roomId).emit('screen_requests_toggle', { enabled });
   });
 
-  socket.on('screenshare_start', () => {
+  socket.on('screenshare_start', ({ streamId } = {}) => {
     const roomId = socket.data.roomId;
     const room = rooms.get(roomId);
     if (!room) return;
     room.activeScreenShareId = socket.id;
-    socket.to(roomId).emit('screenshare_started', { sharerId: socket.id });
+    room.activeScreenShareStreamId = streamId || null;
+    socket.to(roomId).emit('screenshare_started', { sharerId: socket.id, streamId });
   });
 
   socket.on('screenshare_stop', () => {
