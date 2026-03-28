@@ -35,7 +35,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 #landing{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem 1rem 4rem;text-align:center;}
 .logo{font-family:'Syne',sans-serif;font-size:clamp(3rem,10vw,7rem);font-weight:800;letter-spacing:-.04em;background:linear-gradient(135deg,#6c63ff 0%,#ff6584 50%,#43e97b 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1;margin-bottom:.5rem;}
 .tagline{color:var(--muted);font-size:.85rem;letter-spacing:.15em;text-transform:uppercase;margin-bottom:3rem;}
-.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:2.5rem;width:100%;max-width:480px;position:relative;overflow:hidden;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:2.5rem;width:100%;max-width:420px;position:relative;overflow:hidden;margin:0 auto;}
 .card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent),var(--accent2),var(--accent3));}
 .tabs{display:flex;background:var(--surface2);border-radius:10px;padding:4px;margin-bottom:2rem;}
 .tab{flex:1;padding:.6rem 1rem;border:none;background:transparent;color:var(--muted);font-family:'DM Mono',monospace;font-size:.8rem;cursor:pointer;border-radius:7px;transition:all .2s;letter-spacing:.05em;}
@@ -685,12 +685,20 @@ async function initAuth(){
     const t = localStorage.getItem('wave-token');
     if(!t){ showAuthScreen(); return; }
     const res = await fetch('/api/me', { headers:{ Authorization:`Bearer ${t}` } });
-    if(!res.ok){ localStorage.removeItem('wave-token'); showAuthScreen(); return; }
+    if(!res.ok){
+      // Token invalid or expired — clear it and show login
+      localStorage.removeItem('wave-token');
+      showAuthScreen();
+      return;
+    }
     const user = await res.json();
     authToken = t;
     currentUser = user;
     onAuthSuccess();
-  }catch(e){ showAuthScreen(); }
+  }catch(e){
+    localStorage.removeItem('wave-token');
+    showAuthScreen();
+  }
 }
 
 function showAuthScreen(){
