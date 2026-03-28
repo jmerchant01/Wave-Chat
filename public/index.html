@@ -279,11 +279,152 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .save-opt .opt-sub{font-size:.65rem;color:var(--muted);margin-top:.1rem;}
 .save-modal-cancel{margin-top:.75rem;width:100%;padding:.5rem;border:none;background:transparent;color:var(--muted);font-family:'DM Mono',monospace;font-size:.72rem;cursor:pointer;}
 .save-modal-cancel:hover{color:var(--text);}
+
+/* ── Auth screens ── */
+.auth-screen{position:fixed;inset:0;background:var(--bg);z-index:500;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:1rem;}
+.auth-card{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:2rem;width:100%;max-width:380px;position:relative;overflow:hidden;}
+.auth-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--accent),var(--accent2),var(--accent3));}
+.auth-logo{font-family:'Syne',sans-serif;font-size:2.2rem;font-weight:800;background:linear-gradient(135deg,var(--accent),var(--accent2),var(--accent3));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;text-align:center;margin-bottom:.2rem;}
+.auth-sub{text-align:center;font-size:.72rem;color:var(--muted);margin-bottom:1.5rem;}
+.auth-tabs{display:flex;background:var(--surface2);border-radius:10px;padding:3px;gap:3px;margin-bottom:1.3rem;}
+.auth-tab{flex:1;padding:.5rem;border:none;background:transparent;color:var(--muted);font-family:'DM Mono',monospace;font-size:.75rem;border-radius:8px;cursor:pointer;transition:all .2s;}
+.auth-tab.active{background:var(--accent);color:#fff;}
+.auth-field{margin-bottom:.9rem;}
+.auth-field label{display:block;font-size:.65rem;color:var(--muted);margin-bottom:.3rem;text-transform:uppercase;letter-spacing:.05em;}
+.auth-field input{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.55rem .75rem;color:var(--text);font-family:'DM Mono',monospace;font-size:.78rem;outline:none;transition:border-color .2s;box-sizing:border-box;}
+.auth-field input:focus{border-color:var(--accent);}
+.auth-avatar-wrap{display:flex;align-items:center;gap:.75rem;margin-bottom:.9rem;}
+.auth-avatar-preview{width:56px;height:56px;border-radius:50%;background:var(--surface2);border:2px solid var(--border);overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.4rem;cursor:pointer;}
+.auth-avatar-preview img{width:100%;height:100%;object-fit:cover;}
+.auth-avatar-info{font-size:.68rem;color:var(--muted);line-height:1.6;}
+.auth-avatar-info span{color:var(--accent);cursor:pointer;text-decoration:underline;}
+.auth-btn{width:100%;padding:.65rem;border:none;border-radius:10px;background:var(--accent);color:#fff;font-family:'Syne',sans-serif;font-size:.88rem;font-weight:700;cursor:pointer;transition:opacity .2s;margin-top:.3rem;}
+.auth-btn:hover{opacity:.85;}
+.auth-error{color:var(--danger);font-size:.7rem;margin-top:.5rem;text-align:center;min-height:1rem;}
+
+/* ── Friends panel ── */
+.friends-panel{position:fixed;top:0;right:0;bottom:0;width:300px;background:var(--surface);border-left:1px solid var(--border);z-index:200;display:flex;flex-direction:column;transform:translateX(100%);transition:transform .3s ease;}
+.friends-panel.open{transform:translateX(0);}
+.friends-header{padding:1rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.friends-title{font-family:'Syne',sans-serif;font-size:.9rem;font-weight:700;}
+.friends-close{background:none;border:none;color:var(--muted);font-size:1.1rem;cursor:pointer;}
+.friends-tabs{display:flex;border-bottom:1px solid var(--border);}
+.friends-tab{flex:1;padding:.6rem;border:none;background:transparent;color:var(--muted);font-family:'DM Mono',monospace;font-size:.68rem;cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;}
+.friends-tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+.friends-body{flex:1;overflow-y:auto;padding:.75rem;}
+.friend-search{display:flex;gap:.4rem;margin-bottom:.75rem;}
+.friend-search input{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:.45rem .65rem;color:var(--text);font-family:'DM Mono',monospace;font-size:.72rem;outline:none;}
+.friend-search input:focus{border-color:var(--accent);}
+.friend-search button{padding:.45rem .7rem;border:none;border-radius:7px;background:var(--accent);color:#fff;font-size:.75rem;cursor:pointer;}
+.friend-item{display:flex;align-items:center;gap:.6rem;padding:.5rem .4rem;border-radius:8px;transition:background .15s;}
+.friend-item:hover{background:var(--surface2);}
+.friend-avatar{width:36px;height:36px;border-radius:50%;overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.85rem;font-weight:700;}
+.friend-avatar img{width:100%;height:100%;object-fit:cover;}
+.friend-info{flex:1;min-width:0;}
+.friend-name{font-size:.78rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.friend-status{font-size:.63rem;color:var(--muted);}
+.friend-status.online{color:var(--accent3);}
+.friend-actions{display:flex;gap:.3rem;flex-shrink:0;}
+.friend-btn{padding:.25rem .5rem;border-radius:5px;border:1px solid var(--border);background:transparent;color:var(--text);font-size:.65rem;cursor:pointer;font-family:'DM Mono',monospace;transition:all .15s;white-space:nowrap;}
+.friend-btn:hover{border-color:var(--accent);color:var(--accent);}
+.friend-btn.danger:hover{border-color:var(--danger);color:var(--danger);}
+.friend-btn.accept{border-color:var(--accent3);color:var(--accent3);}
+.friend-btn.accept:hover{background:var(--accent3);color:#000;}
+.friends-empty{text-align:center;color:var(--muted);font-size:.72rem;padding:2rem 1rem;line-height:1.8;}
+.friend-badge{background:var(--danger);color:#fff;border-radius:50%;width:16px;height:16px;font-size:.6rem;display:inline-flex;align-items:center;justify-content:center;margin-left:.3rem;vertical-align:middle;}
+
+/* ── Profile button in header ── */
+.profile-btn{display:flex;align-items:center;gap:.4rem;padding:.35rem .65rem;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-family:'DM Mono',monospace;font-size:.72rem;cursor:pointer;transition:all .2s;}
+.profile-btn:hover{border-color:var(--accent);}
+.profile-avatar-sm{width:22px;height:22px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:700;flex-shrink:0;}
+.profile-avatar-sm img{width:100%;height:100%;object-fit:cover;}
+
+/* ── Friend invite popup ── */
+.invite-popup{position:fixed;bottom:5rem;right:1.5rem;background:var(--surface);border:1px solid var(--accent);border-radius:14px;padding:1rem 1.2rem;z-index:800;min-width:260px;box-shadow:0 8px 32px rgba(0,0,0,.4);animation:msgIn .3s ease;}
+.invite-popup h4{font-family:'Syne',sans-serif;font-size:.85rem;font-weight:700;margin-bottom:.25rem;}
+.invite-popup p{font-size:.72rem;color:var(--muted);margin-bottom:.75rem;}
+.invite-popup-btns{display:flex;gap:.5rem;}
+.invite-popup-btn{flex:1;padding:.4rem;border-radius:7px;border:none;font-family:'DM Mono',monospace;font-size:.72rem;cursor:pointer;}
+.invite-popup-btn.join{background:var(--accent);color:#fff;}
+.invite-popup-btn.dismiss{background:var(--surface2);color:var(--muted);}
+
 .hidden{display:none!important;}
 </style>
 </head>
 <body>
 <div id="app">
+
+<!-- AUTH SCREEN -->
+<div id="auth-screen" class="auth-screen">
+  <div class="auth-card">
+    <div class="auth-logo">WAVE</div>
+    <div class="auth-sub">Real-time voice rooms</div>
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="auth-tab-login" onclick="switchAuthTab('login')">Log In</button>
+      <button class="auth-tab" id="auth-tab-register" onclick="switchAuthTab('register')">Sign Up</button>
+    </div>
+    <!-- Login -->
+    <div id="auth-login">
+      <div class="auth-field"><label>Username</label><input id="login-username" type="text" placeholder="Your username" autocomplete="username" onkeydown="if(event.key==='Enter')doLogin()"/></div>
+      <div class="auth-field"><label>Password</label><input id="login-password" type="password" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"/></div>
+      <button class="auth-btn" onclick="doLogin()">Log In →</button>
+    </div>
+    <!-- Register -->
+    <div id="auth-register" class="hidden">
+      <div class="auth-avatar-wrap">
+        <div class="auth-avatar-preview" id="reg-avatar-preview" onclick="document.getElementById('reg-avatar-file').click()">📷</div>
+        <div class="auth-avatar-info">Profile photo<br><span onclick="document.getElementById('reg-avatar-file').click()">Upload photo</span> or use initials</div>
+        <input type="file" id="reg-avatar-file" accept="image/*" class="hidden" onchange="handleRegAvatar(this)"/>
+      </div>
+      <div class="auth-field"><label>Username</label><input id="reg-username" type="text" placeholder="Pick a username" maxlength="24" autocomplete="username" onkeydown="if(event.key==='Enter')doRegister()"/></div>
+      <div class="auth-field"><label>Email</label><input id="reg-email" type="email" placeholder="your@email.com" autocomplete="email" onkeydown="if(event.key==='Enter')doRegister()"/></div>
+      <div class="auth-field"><label>Password</label><input id="reg-password" type="password" placeholder="Min 6 characters" autocomplete="new-password" onkeydown="if(event.key==='Enter')doRegister()"/></div>
+      <button class="auth-btn" onclick="doRegister()">Create Account →</button>
+    </div>
+    <div class="auth-error" id="auth-error"></div>
+  </div>
+</div>
+
+<!-- FRIENDS PANEL (slide-in from right) -->
+<div id="friends-panel" class="friends-panel">
+  <div class="friends-header">
+    <span class="friends-title">👥 Friends</span>
+    <button class="friends-close" onclick="closeFriendsPanel()">✕</button>
+  </div>
+  <div class="friends-tabs">
+    <button class="friends-tab active" id="ftab-friends" onclick="switchFriendsTab('friends')">Friends</button>
+    <button class="friends-tab" id="ftab-requests" onclick="switchFriendsTab('requests')">Requests <span id="req-badge" class="friend-badge hidden">0</span></button>
+    <button class="friends-tab" id="ftab-add" onclick="switchFriendsTab('add')">Add</button>
+  </div>
+  <div class="friends-body">
+    <!-- Friends list -->
+    <div id="ftab-friends-body">
+      <div id="friends-list"></div>
+    </div>
+    <!-- Requests -->
+    <div id="ftab-requests-body" class="hidden">
+      <div id="requests-list"></div>
+    </div>
+    <!-- Add friend -->
+    <div id="ftab-add-body" class="hidden">
+      <div class="friend-search">
+        <input id="friend-search-input" placeholder="Exact username…" onkeydown="if(event.key==='Enter')searchFriend()"/>
+        <button onclick="searchFriend()">Search</button>
+      </div>
+      <div id="friend-search-results"></div>
+    </div>
+  </div>
+</div>
+
+<!-- FRIEND INVITE POPUP -->
+<div id="invite-popup" class="invite-popup hidden">
+  <h4>📨 Room Invite</h4>
+  <p id="invite-popup-text">wants you to join their room</p>
+  <div class="invite-popup-btns">
+    <button class="invite-popup-btn join" onclick="acceptFriendInvite()">Join Room</button>
+    <button class="invite-popup-btn dismiss" onclick="dismissFriendInvite()">Dismiss</button>
+  </div>
+</div>
 
 <!-- LANDING -->
 <div id="landing">
@@ -327,6 +468,11 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     </div>
     <div style="display:flex;align-items:center;gap:.65rem;flex-wrap:wrap;">
       <button class="theme-toggle" onclick="toggleTheme()" id="theme-btn-room" title="Toggle light/dark mode">🌙</button>
+      <button class="profile-btn" onclick="openFriendsPanel()" id="friends-header-btn">
+        <div class="profile-avatar-sm" id="header-avatar">👤</div>
+        <span id="header-username">—</span>
+        <span id="header-req-badge" class="friend-badge hidden">0</span>
+      </button>
       <div class="room-id-badge" onclick="copyInvite()">📋 Copy Invite</div>
       <button class="btn btn-sm btn-ghost" onclick="leaveRoom()">Leave →</button>
     </div>
@@ -463,6 +609,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
         <div class="invite-box">
           <p>📨 Share invite:</p>
           <div class="invite-url" id="invite-url" onclick="copyInvite()">—</div>
+          <button class="host-btn" style="margin-top:.5rem;border-color:var(--accent3);color:var(--accent3);" onclick="openFriendInvitePanel()">👥 Invite a Friend</button>
         </div>
       </div>
 
@@ -526,6 +673,340 @@ function toggleTheme(){
 })();
 
 // ═══════════════════════════════════════════════════
+//  AUTH & FRIENDS
+// ═══════════════════════════════════════════════════
+let currentUser = null; // { id, username, avatar, friends, friendRequests }
+let authToken = null;
+let pendingInvite = null; // { fromName, roomId, roomName }
+
+// ── Bootstrap: check saved token ──
+async function initAuth(){
+  try{
+    const t = localStorage.getItem('wave-token');
+    if(!t){ showAuthScreen(); return; }
+    const res = await fetch('/api/me', { headers:{ Authorization:`Bearer ${t}` } });
+    if(!res.ok){ localStorage.removeItem('wave-token'); showAuthScreen(); return; }
+    const user = await res.json();
+    authToken = t;
+    currentUser = user;
+    onAuthSuccess();
+  }catch(e){ showAuthScreen(); }
+}
+
+function showAuthScreen(){
+  document.getElementById('auth-screen').style.display = 'flex';
+  document.getElementById('landing').style.display = 'none';
+}
+
+function onAuthSuccess(){
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('landing').style.display = 'block';
+  updateHeaderProfile();
+  updateFriendsList();
+  updateRequestsBadge();
+  // Pre-fill name from username
+  document.getElementById('create-name').value = currentUser.username;
+  document.getElementById('join-name').value = currentUser.username;
+}
+
+function switchAuthTab(tab){
+  document.getElementById('auth-login').classList.toggle('hidden', tab!=='login');
+  document.getElementById('auth-register').classList.toggle('hidden', tab!=='register');
+  document.getElementById('auth-tab-login').classList.toggle('active', tab==='login');
+  document.getElementById('auth-tab-register').classList.toggle('active', tab==='register');
+  document.getElementById('auth-error').textContent = '';
+}
+
+let regAvatarBase64 = null;
+function handleRegAvatar(input){
+  const file = input.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    regAvatarBase64 = e.target.result;
+    const prev = document.getElementById('reg-avatar-preview');
+    prev.innerHTML = `<img src="${regAvatarBase64}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+  };
+  reader.readAsDataURL(file);
+}
+
+async function doRegister(){
+  const username = document.getElementById('reg-username').value.trim();
+  const email    = document.getElementById('reg-email').value.trim();
+  const password = document.getElementById('reg-password').value;
+  const errEl = document.getElementById('auth-error');
+  errEl.textContent = '';
+  if(!username || !email || !password){ errEl.textContent = 'Fill in all fields'; return; }
+  try{
+    const res = await fetch('/api/register', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ username, email, password, avatar: regAvatarBase64 }) });
+    const data = await res.json();
+    if(!res.ok){ errEl.textContent = data.error; return; }
+    authToken = data.token;
+    currentUser = data.user;
+    localStorage.setItem('wave-token', authToken);
+    onAuthSuccess();
+    setupPushNotifications();
+  }catch(e){ errEl.textContent = 'Server error — try again'; }
+}
+
+async function doLogin(){
+  const username = document.getElementById('login-username').value.trim();
+  const password = document.getElementById('login-password').value;
+  const errEl = document.getElementById('auth-error');
+  errEl.textContent = '';
+  if(!username || !password){ errEl.textContent = 'Fill in all fields'; return; }
+  try{
+    const res = await fetch('/api/login', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ username, password }) });
+    const data = await res.json();
+    if(!res.ok){ errEl.textContent = data.error; return; }
+    authToken = data.token;
+    currentUser = data.user;
+    localStorage.setItem('wave-token', authToken);
+    onAuthSuccess();
+    setupPushNotifications();
+  }catch(e){ errEl.textContent = 'Server error — try again'; }
+}
+
+function logout(){
+  localStorage.removeItem('wave-token');
+  authToken = null; currentUser = null;
+  showAuthScreen();
+}
+
+// ── Header profile ──
+function updateHeaderProfile(){
+  if(!currentUser) return;
+  const u = document.getElementById('header-username');
+  const a = document.getElementById('header-avatar');
+  if(u) u.textContent = currentUser.username;
+  if(a){
+    if(currentUser.avatar) a.innerHTML = `<img src="${currentUser.avatar}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+    else { a.textContent = currentUser.username.slice(0,2).toUpperCase(); a.style.background = colorFor(currentUser.id||'x'); a.style.color='#fff'; }
+  }
+}
+
+// ── Friends panel ──
+function openFriendsPanel(){
+  document.getElementById('friends-panel').classList.add('open');
+  refreshFriendsData();
+}
+function closeFriendsPanel(){ document.getElementById('friends-panel').classList.remove('open'); }
+
+function switchFriendsTab(tab){
+  ['friends','requests','add'].forEach(t=>{
+    document.getElementById(`ftab-${t}`).classList.toggle('active', t===tab);
+    document.getElementById(`ftab-${t}-body`).classList.toggle('hidden', t!==tab);
+  });
+}
+
+async function refreshFriendsData(){
+  if(!authToken) return;
+  try{
+    const res = await fetch('/api/me', { headers:{Authorization:`Bearer ${authToken}`} });
+    const data = await res.json();
+    currentUser.friends = data.friends;
+    currentUser.friendRequests = data.friendRequests;
+    updateFriendsList();
+    updateRequestsList();
+    updateRequestsBadge();
+  }catch(e){}
+}
+
+function updateRequestsBadge(){
+  const count = currentUser?.friendRequests?.length || 0;
+  ['req-badge','header-req-badge'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(!el) return;
+    el.textContent = count;
+    el.classList.toggle('hidden', count===0);
+  });
+}
+
+function updateFriendsList(){
+  const el = document.getElementById('friends-list');
+  if(!el) return;
+  const friends = currentUser?.friends || [];
+  if(friends.length === 0){ el.innerHTML = '<div class="friends-empty">No friends yet.<br>Use the Add tab to find people.</div>'; return; }
+  el.innerHTML = '';
+  friends.forEach(f=>{
+    const isOnline = Array.from(onlineUsers||[]).some(([,v])=>v?.username===f.username);
+    const div = document.createElement('div');
+    div.className = 'friend-item';
+    div.innerHTML = `
+      <div class="friend-avatar" style="background:${colorFor(f.id||'x')};color:#fff;">${f.avatar?`<img src="${f.avatar}">`:(f.username||'?').slice(0,2).toUpperCase()}</div>
+      <div class="friend-info">
+        <div class="friend-name">${esc(f.username)}</div>
+        <div class="friend-status ${isOnline?'online':''}">${isOnline?'● Online':'○ Offline'}</div>
+      </div>
+      <div class="friend-actions">
+        <button class="friend-btn danger" onclick="removeFriend('${f.id}','${esc(f.username)}')">Remove</button>
+      </div>`;
+    el.appendChild(div);
+  });
+}
+
+function updateRequestsList(){
+  const el = document.getElementById('requests-list');
+  if(!el) return;
+  const reqs = currentUser?.friendRequests || [];
+  if(reqs.length === 0){ el.innerHTML = '<div class="friends-empty">No pending requests.</div>'; return; }
+  el.innerHTML = '';
+  reqs.forEach(r=>{
+    const f = r.from;
+    const div = document.createElement('div');
+    div.className = 'friend-item';
+    div.innerHTML = `
+      <div class="friend-avatar" style="background:${colorFor(f._id||'x')};color:#fff;">${f.avatar?`<img src="${f.avatar}">`:(f.username||'?').slice(0,2).toUpperCase()}</div>
+      <div class="friend-info"><div class="friend-name">${esc(f.username)}</div><div class="friend-status">Wants to be friends</div></div>
+      <div class="friend-actions">
+        <button class="friend-btn accept" onclick="acceptFriendReq('${f._id}')">✓</button>
+        <button class="friend-btn danger" onclick="declineFriendReq('${f._id}')">✕</button>
+      </div>`;
+    el.appendChild(div);
+  });
+}
+
+async function searchFriend(){
+  const q = document.getElementById('friend-search-input').value.trim();
+  const el = document.getElementById('friend-search-results');
+  if(!q){ el.innerHTML = ''; return; }
+  try{
+    const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`, { headers:{Authorization:`Bearer ${authToken}`} });
+    const results = await res.json();
+    if(!results.length){ el.innerHTML = '<div class="friends-empty">No user found with that exact username.</div>'; return; }
+    el.innerHTML = '';
+    results.forEach(u=>{
+      const alreadyFriend = (currentUser.friends||[]).some(f=>f.id===u.id||f._id===u.id);
+      const div = document.createElement('div');
+      div.className = 'friend-item';
+      div.innerHTML = `
+        <div class="friend-avatar" style="background:${colorFor(u.id||'x')};color:#fff;">${u.avatar?`<img src="${u.avatar}">`:(u.username||'?').slice(0,2).toUpperCase()}</div>
+        <div class="friend-info"><div class="friend-name">${esc(u.username)}</div></div>
+        <div class="friend-actions">${alreadyFriend?'<span style="font-size:.65rem;color:var(--accent3)">✓ Friends</span>':`<button class="friend-btn" onclick="sendFriendReq('${u.id}',this)">Add Friend</button>`}</div>`;
+      el.appendChild(div);
+    });
+  }catch(e){}
+}
+
+async function sendFriendReq(targetId, btn){
+  try{
+    const res = await fetch(`/api/friend-request/${targetId}`, { method:'POST', headers:{Authorization:`Bearer ${authToken}`} });
+    const data = await res.json();
+    if(res.ok){ btn.textContent = 'Sent!'; btn.disabled = true; toast('👥 Friend request sent!'); }
+    else toast('⚠️ '+data.error);
+  }catch(e){}
+}
+
+async function acceptFriendReq(fromId){
+  try{
+    await fetch(`/api/friend-accept/${fromId}`, { method:'POST', headers:{Authorization:`Bearer ${authToken}`} });
+    toast('👥 Friend added!'); refreshFriendsData();
+  }catch(e){}
+}
+
+async function declineFriendReq(fromId){
+  try{
+    await fetch(`/api/friend-decline/${fromId}`, { method:'POST', headers:{Authorization:`Bearer ${authToken}`} });
+    refreshFriendsData();
+  }catch(e){}
+}
+
+async function removeFriend(friendId, name){
+  if(!confirm(`Remove ${name} as a friend?`)) return;
+  try{
+    await fetch(`/api/friend-remove/${friendId}`, { method:'POST', headers:{Authorization:`Bearer ${authToken}`} });
+    toast('👥 Friend removed'); refreshFriendsData();
+  }catch(e){}
+}
+
+// ── In-room friend invites ──
+function openFriendInvitePanel(){
+  if(!currentUser){ toast('Log in to invite friends'); return; }
+  switchFriendsTab('friends');
+  openFriendsPanel();
+  // Show invite buttons next to each friend
+  renderFriendsForInvite();
+}
+
+function renderFriendsForInvite(){
+  const el = document.getElementById('friends-list');
+  if(!el) return;
+  const friends = currentUser?.friends || [];
+  if(!friends.length){ el.innerHTML = '<div class="friends-empty">No friends to invite yet.</div>'; return; }
+  el.innerHTML = '';
+  friends.forEach(f=>{
+    const div = document.createElement('div');
+    div.className = 'friend-item';
+    div.innerHTML = `
+      <div class="friend-avatar" style="background:${colorFor(f.id||f._id||'x')};color:#fff;">${f.avatar?`<img src="${f.avatar}">`:(f.username||'?').slice(0,2).toUpperCase()}</div>
+      <div class="friend-info">
+        <div class="friend-name">${esc(f.username)}</div>
+      </div>
+      <div class="friend-actions">
+        <button class="friend-btn" style="border-color:var(--accent3);color:var(--accent3);" onclick="sendRoomInvite('${f.id||f._id}','${esc(f.username)}')">📨 Invite</button>
+      </div>`;
+    el.appendChild(div);
+  });
+}
+
+function sendRoomInvite(toUserId, toUsername){
+  if(!socket || !roomId){ toast('Join a room first'); return; }
+  const rName = document.getElementById('room-title')?.textContent || 'a room';
+  // Real-time socket invite (works if they have the tab open)
+  socket.emit('send_friend_invite', { toUserId, roomId, roomName: rName, fromName: currentUser.username });
+  // Email invite as backup (works even if tab is closed)
+  fetch('/api/invite-email', {
+    method:'POST',
+    headers:{'Content-Type':'application/json', Authorization:`Bearer ${authToken}`},
+    body: JSON.stringify({ toUserId, roomId, roomName: rName })
+  }).catch(()=>{});
+  toast(`📨 Invite sent to ${toUsername}!`);
+}
+
+// ── Push Notifications ──
+async function setupPushNotifications(){
+  if(!('Notification' in window)) return;
+  try{
+    const perm = await Notification.requestPermission();
+    if(perm === 'granted') localStorage.setItem('wave-notif','1');
+  }catch(e){}
+}
+
+function showBrowserNotification(title, body, rid){
+  if(!('Notification' in window) || Notification.permission !== 'granted') return;
+  const n = new Notification(title, { body, tag:'wave-invite' });
+  n.onclick = ()=>{ window.focus(); if(rid){ document.getElementById('join-code').value=rid; switchTab('join'); joinRoom(); } n.close(); };
+  setTimeout(()=>n.close(), 15000);
+}
+
+// ── Incoming invite popup ──
+function showInvitePopup(fromName, rid, rName){
+  pendingInvite = { roomId: rid };
+  document.getElementById('invite-popup-text').textContent = `${fromName} invited you to join "${rName}"`;
+  document.getElementById('invite-popup').classList.remove('hidden');
+  // Also fire a browser notification if tab is in background
+  showBrowserNotification('📨 WAVE Room Invite', `${fromName} wants you to join "${rName}"`, rid);
+}
+
+function acceptFriendInvite(){
+  if(!pendingInvite) return;
+  document.getElementById('invite-popup').classList.add('hidden');
+  document.getElementById('join-code').value = pendingInvite.roomId;
+  if(currentUser) document.getElementById('join-name').value = currentUser.username;
+  switchTab('join');
+  joinRoom();
+  pendingInvite = null;
+}
+
+function dismissFriendInvite(){
+  document.getElementById('invite-popup').classList.add('hidden');
+  pendingInvite = null;
+}
+
+let onlineUsers = new Map();
+
+// ═══════════════════════════════════════════════════
 //  WAVE CLIENT — voice + video + screen share
 // ═══════════════════════════════════════════════════
 let socket=null, myId=null, myName='', roomId='', isHost=false;
@@ -568,13 +1049,24 @@ window.onload=()=>{
   const p=new URLSearchParams(location.search);
   const rc=p.get('room');
   if(rc){switchTab('join');document.getElementById('join-code').value=rc;}
+  initAuth();
 };
 
 // ── Socket setup ──
 function connectSocket(){
   socket=io();
   myId=null;
-  socket.on('connect',()=>{myId=socket.id;});
+  socket.on('connect',()=>{
+    myId=socket.id;
+    // Register as online with JWT
+    if(authToken) socket.emit('user_online', { token: authToken });
+  });
+
+  // Friend invite received
+  socket.on('friend_invite', ({fromName, roomId: rid, roomName})=>{
+    showInvitePopup(fromName, rid, roomName);
+  });
+  socket.on('friend_invite_offline', ()=>{ toast('⚠️ That friend is not online right now'); });
 
   socket.on('room_joined',({roomId:rid,isHost:ih,state,joinMuted})=>{
     roomId=rid; isHost=ih;
@@ -756,18 +1248,17 @@ function connectSocket(){
 
 // ── Room create/join ──
 async function createRoom(){
-  myName=document.getElementById('create-name').value.trim()||'Host';
-  const rName=document.getElementById('room-name-in').value.trim()||'My Room';
-  const rId=Math.random().toString(36).slice(2,9).toUpperCase();
+  myName = (currentUser?.username) || document.getElementById('create-name').value.trim() || 'Host';
+  const rName = document.getElementById('room-name-in').value.trim() || 'My Room';
   disableForms(); await initMic(); connectSocket();
-  socket.on('connect',()=>socket.emit('create_room',{roomId:rId,roomName:rName,userName:myName}));
+  socket.on('connect',()=>socket.emit('create_room',{name:myName, roomName:rName, userId:currentUser?.id||null}));
 }
 async function joinRoom(){
-  myName=document.getElementById('join-name').value.trim()||'Guest';
-  const code=document.getElementById('join-code').value.trim().toUpperCase();
+  myName = (currentUser?.username) || document.getElementById('join-name').value.trim() || 'Guest';
+  const code = document.getElementById('join-code').value.trim().toUpperCase();
   if(!code){toast('Enter a room code');return;}
   disableForms(); await initMic(); connectSocket();
-  socket.on('connect',()=>socket.emit('join_room',{roomId:code,userName:myName}));
+  socket.on('connect',()=>socket.emit('join_room',{roomId:code, name:myName, userId:currentUser?.id||null}));
 }
 function disableForms(){document.getElementById('create-btn').disabled=true;document.getElementById('join-btn').disabled=true;}
 function enableForms(){document.getElementById('create-btn').disabled=false;document.getElementById('join-btn').disabled=false;}
