@@ -1088,44 +1088,69 @@ async function initAuth(){
   const roomCode = urlParams.get('room');
   if(roomCode){
     const guestTab = document.getElementById('auth-tab-guest');
-    if(guestTab){
-      guestTab.style.display = '';
-      guestTab.textContent = 'Join as Guest';
-    }
-    // Pre-fill room code for guest join
-    const guestRoomInput = document.getElementById('guest-room-code');
-    if(guestRoomInput) guestRoomInput.value = roomCode;
-    // Auto-switch to guest tab
+    if(guestTab){ guestTab.style.display=''; guestTab.textContent='Join as Guest'; }
     switchAuthTab('guest');
-    document.getElementById('auth-sub') && (document.getElementById('auth-sub').textContent = `Joining room ${roomCode}`);
   }
+
+  const t = localStorage.getItem('wave-token');
+  if(!t){ showAuthScreen(); return; }
+
   try{
-    const t = localStorage.getItem('wave-token');
-    if(!t){
-      showAuthScreen();
-      return;
-    }
     const res = await fetch('/api/me', { headers:{ Authorization:`Bearer ${t}` } });
-    if(!res.ok){
+
+    if(res.ok){
+      const user = await res.json();
+      // Save fresh token to extend session
+      if(user.freshToken){
+        localStorage.setItem('wave-token', user.freshToken);
+        authToken = user.freshToken;
+      } else {
+        authToken = t;
+      }
+      currentUser = user;
+      if(roomCode){
+        onAuthSuccess();
+        document.getElementById('join-code').value = roomCode;
+        joinRoom();
+      } else {
+        onAuthSuccess();
+      }
+    } else if(res.status === 401){
+      // Token truly invalid — only log out on explicit auth failure
       localStorage.removeItem('wave-token');
       showAuthScreen();
-      return;
-    }
-    const user = await res.json();
-    authToken = t;
-    currentUser = user;
-    // If logged in and there's a room code, jump straight to joining
-    if(roomCode){
-      onAuthSuccess();
-      document.getElementById('join-code').value = roomCode;
-      joinRoom();
     } else {
-      onAuthSuccess();
+      // Server error / offline — stay logged in with cached token
+      authToken = t;
+      // Try to restore minimal user from remember-me cache
+      const cached = getCachedUser();
+      if(cached){
+        currentUser = cached;
+        onAuthSuccess();
+      } else {
+        showAuthScreen();
+      }
     }
   }catch(e){
-    localStorage.removeItem('wave-token');
-    showAuthScreen();
+    // Network error (offline) — stay logged in if token exists
+    authToken = t;
+    const cached = getCachedUser();
+    if(cached){
+      currentUser = cached;
+      onAuthSuccess();
+    } else {
+      // No cached user but token exists — show auth screen
+      // but keep token so next online visit auto-logs in
+      showAuthScreen();
+    }
   }
+}
+
+function getCachedUser(){
+  try{
+    const c = localStorage.getItem('wave-user-cache');
+    return c ? JSON.parse(c) : null;
+  }catch(e){ return null; }
 }
 
 function showAuthScreen(){
@@ -1135,6 +1160,9 @@ function showAuthScreen(){
 }
 
 function onAuthSuccess(){
+  // Cache user for offline access
+  try{ localStorage.setItem('wave-user-cache', JSON.stringify({ id: currentUser.id||currentUser._id, username: currentUser.username, avatar: currentUser.avatar, email: currentUser.email })); }catch(e){}
+
   document.getElementById('auth-screen').style.display = 'none';
   document.getElementById('landing').style.display = 'flex';
   // Populate home nav
@@ -1340,6 +1368,7 @@ async function doLogin(){
 
 function logout(){
   localStorage.removeItem('wave-token');
+  localStorage.removeItem('wave-user-cache');
   // Keep remember-me so fields are pre-filled next time
   authToken = null; currentUser = null;
   showAuthScreen();

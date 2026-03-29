@@ -44,7 +44,7 @@ router.post('/register', async (req, res) => {
     if (existingEmail) return res.status(400).json({ error: 'Email already registered' });
 
     const user = await User.create({ username, email: email.toLowerCase(), password, avatar: avatar || null });
-    const token = jwt.sign({ id: user._id, username: user.username }, JWT_SECRET, { expiresIn: '30d' });
+    const token = jwt.sign({ id: user._id, username: user.username }, JWT_SECRET, { expiresIn: '365d' });
     res.json({ token, user: { id: user._id, username: user.username, email: user.email, avatar: user.avatar } });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -56,7 +56,7 @@ router.post('/login', async (req, res) => {
     const user = await User.findOne({ username: new RegExp(`^${username}$`, 'i') });
     if (!user || !(await user.comparePassword(password)))
       return res.status(400).json({ error: 'Invalid username or password' });
-    const token = jwt.sign({ id: user._id, username: user.username }, JWT_SECRET, { expiresIn: '30d' });
+    const token = jwt.sign({ id: user._id, username: user.username }, JWT_SECRET, { expiresIn: '365d' });
     res.json({ token, user: { id: user._id, username: user.username, email: user.email, avatar: user.avatar } });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -68,7 +68,9 @@ router.get('/me', auth, async (req, res) => {
       .populate('friends', 'username avatar email')
       .populate('friendRequests.from', 'username avatar');
     if (!user) return res.status(404).json({ error: 'User not found' });
-    res.json({ id: user._id, username: user.username, email: user.email, avatar: user.avatar, pushSubscription: user.pushSubscription, friends: user.friends, friendRequests: user.friendRequests });
+    // Issue a fresh token to keep them logged in
+    const freshToken = jwt.sign({ id: user._id, username: user.username }, JWT_SECRET, { expiresIn: '365d' });
+    res.json({ id: user._id, username: user.username, email: user.email, avatar: user.avatar, pushSubscription: user.pushSubscription, friends: user.friends, friendRequests: user.friendRequests, freshToken });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
