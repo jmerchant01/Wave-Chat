@@ -436,12 +436,34 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
       <button class="auth-tab active" id="auth-tab-login" onclick="switchAuthTab('login')">Log In</button>
       <button class="auth-tab" id="auth-tab-register" onclick="switchAuthTab('register')">Sign Up</button>
       <button class="auth-tab" id="auth-tab-guest" onclick="switchAuthTab('guest')" style="display:none;">Join as Guest</button>
+      <button class="auth-tab" id="auth-tab-reset" style="display:none;">Reset</button>
     </div>
     <!-- Login -->
     <div id="auth-login">
       <div class="auth-field"><label>Username</label><input id="login-username" type="text" placeholder="Your username" autocomplete="username" onkeydown="if(event.key==='Enter')doLogin()"/></div>
       <div class="auth-field"><label>Password</label><input id="login-password" type="password" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"/></div>
       <button class="auth-btn" id="login-btn" onclick="doLogin()">Log In →</button>
+      <div style="text-align:center;margin-top:.65rem;font-size:.68rem;color:var(--muted);">
+        Forgot your password? <span style="color:var(--accent);cursor:pointer;" onclick="switchAuthTab('reset')">Reset it</span>
+      </div>
+    </div>
+
+    <!-- Reset Password -->
+    <div id="auth-reset" class="hidden">
+      <p style="font-size:.72rem;color:var(--muted);margin-bottom:1rem;line-height:1.6;">Enter your email address and we'll send you a link to reset your password.</p>
+      <div class="auth-field"><label>Email Address</label><input id="reset-email" type="email" placeholder="your@email.com" onkeydown="if(event.key==='Enter')doResetRequest()"/></div>
+      <button class="auth-btn" id="reset-btn" onclick="doResetRequest()">Send Reset Link →</button>
+      <div style="text-align:center;margin-top:.65rem;font-size:.68rem;color:var(--muted);">
+        Remember it? <span style="color:var(--accent);cursor:pointer;" onclick="switchAuthTab('login')">Log in</span>
+      </div>
+    </div>
+
+    <!-- New Password (from reset link) -->
+    <div id="auth-newpass" class="hidden">
+      <p style="font-size:.72rem;color:var(--muted);margin-bottom:1rem;line-height:1.6;">Enter your new password below.</p>
+      <div class="auth-field"><label>New Password</label><input id="newpass-input" type="password" placeholder="Min 6 characters" onkeydown="if(event.key==='Enter')doNewPassword()"/></div>
+      <div class="auth-field"><label>Confirm Password</label><input id="newpass-confirm" type="password" placeholder="Repeat password" onkeydown="if(event.key==='Enter')doNewPassword()"/></div>
+      <button class="auth-btn" id="newpass-btn" onclick="doNewPassword()">Set New Password →</button>
     </div>
     <!-- Register -->
     <div id="auth-register" class="hidden">
@@ -929,6 +951,12 @@ let pendingInvite = null; // { fromName, roomId, roomName }
 
 // ── Bootstrap: check saved token ──
 async function initAuth(){
+  // Check if there's a password reset token
+  if(resetToken){
+    showAuthScreen();
+    switchAuthTab('newpass');
+    return;
+  }
   // Check if there's a room code in URL — show guest option
   const urlParams = new URLSearchParams(location.search);
   const roomCode = urlParams.get('room');
@@ -1002,7 +1030,7 @@ function onAuthSuccess(){
 }
 
 function switchAuthTab(tab){
-  ['login','register','guest'].forEach(t=>{
+  ['login','register','guest','reset','newpass'].forEach(t=>{
     const panel = document.getElementById('auth-'+t);
     const btn = document.getElementById('auth-tab-'+t);
     if(panel) panel.classList.toggle('hidden', t!==tab);
@@ -1058,6 +1086,58 @@ function handleRegAvatar(input){
     prev.innerHTML = `<img src="${regAvatarBase64}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
   };
   reader.readAsDataURL(file);
+}
+
+// ── Password Reset ──
+let resetToken = null;
+
+async function doResetRequest(){
+  const email = document.getElementById('reset-email').value.trim();
+  const errEl = document.getElementById('auth-error');
+  errEl.textContent = '';
+  if(!email){ errEl.textContent = 'Enter your email address'; return; }
+  setAuthLoading('reset-btn', true, 'Send Reset Link →');
+  try{
+    const res = await fetch('/api/reset-request', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ email })
+    });
+    const data = await res.json();
+    if(!res.ok){ errEl.textContent = data.error; return; }
+    // Show success — don't reveal if email exists
+    document.getElementById('auth-reset').innerHTML = `
+      <div style="text-align:center;padding:1rem 0;">
+        <div style="font-size:2rem;margin-bottom:.75rem;">📧</div>
+        <div style="font-size:.85rem;font-weight:600;margin-bottom:.5rem;">Check your email</div>
+        <div style="font-size:.72rem;color:var(--muted);line-height:1.7;">If an account exists for <strong>${esc(email)}</strong>, a reset link has been sent. Check your inbox and spam folder.</div>
+        <div style="margin-top:1rem;font-size:.68rem;color:var(--muted);">
+          <span style="color:var(--accent);cursor:pointer;" onclick="switchAuthTab('login')">← Back to Log In</span>
+        </div>
+      </div>`;
+  }catch(e){ errEl.textContent = 'Server error — try again'; }
+  finally{ setAuthLoading('reset-btn', false, 'Send Reset Link →'); }
+}
+
+async function doNewPassword(){
+  const password = document.getElementById('newpass-input').value;
+  const confirm = document.getElementById('newpass-confirm').value;
+  const errEl = document.getElementById('auth-error');
+  errEl.textContent = '';
+  if(!password || password.length < 6){ errEl.textContent = 'Password must be at least 6 characters'; return; }
+  if(password !== confirm){ errEl.textContent = 'Passwords do not match'; return; }
+  setAuthLoading('newpass-btn', true, 'Set New Password →');
+  try{
+    const res = await fetch('/api/reset-password', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ token: resetToken, password })
+    });
+    const data = await res.json();
+    if(!res.ok){ errEl.textContent = data.error; return; }
+    toast('✅ Password updated! Please log in.');
+    resetToken = null;
+    switchAuthTab('login');
+  }catch(e){ errEl.textContent = 'Server error — try again'; }
+  finally{ setAuthLoading('newpass-btn', false, 'Set New Password →'); }
 }
 
 function setAuthLoading(btnId, loading, defaultText){
@@ -2033,6 +2113,9 @@ window.onload=()=>{
   const p=new URLSearchParams(location.search);
   const rc=p.get('room');
   if(rc){document.getElementById('join-code').value=rc;}
+  // Check for password reset token
+  const rt = p.get('reset');
+  if(rt){ resetToken = rt; }
   initAuth();
 };
 

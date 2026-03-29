@@ -202,4 +202,48 @@ function emailTemplate(title, body, sub, url, btnText) {
   </div></body></html>`;
 }
 
+// ── Request password reset ──
+router.post('/reset-request', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if(!email) return res.status(400).json({ error: 'Email required' });
+    const user = await User.findOne({ email: email.toLowerCase() });
+    // Always return success to avoid revealing if email exists
+    if(!user) return res.json({ success: true });
+    // Generate reset token (expires in 1 hour)
+    const resetToken = jwt.sign({ id: user._id, purpose: 'reset' }, JWT_SECRET, { expiresIn: '1h' });
+    const appUrl = process.env.APP_URL || 'https://wave-chat-fnpr.onrender.com';
+    const resetUrl = `${appUrl}?reset=${resetToken}`;
+    try {
+      await resend.emails.send({
+        from: FROM_EMAIL, to: user.email,
+        subject: 'Reset your WAVE password',
+        html: emailTemplate('🔒 Reset Your Password',
+          `We received a request to reset the password for your WAVE account (<b>${user.username}</b>).`,
+          'This link expires in 1 hour. If you didn\'t request this, you can ignore this email.',
+          resetUrl, '🔑 Reset Password')
+      });
+    } catch(e) { console.log('Reset email error:', e.message); }
+    res.json({ success: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── Set new password ──
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { token, password } = req.body;
+    if(!token || !password) return res.status(400).json({ error: 'Missing fields' });
+    if(password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    let decoded;
+    try { decoded = jwt.verify(token, JWT_SECRET); }
+    catch { return res.status(400).json({ error: 'Reset link is invalid or expired' }); }
+    if(decoded.purpose !== 'reset') return res.status(400).json({ error: 'Invalid reset token' });
+    const user = await User.findById(decoded.id);
+    if(!user) return res.status(404).json({ error: 'User not found' });
+    user.password = password; // pre-save hook will hash it
+    await user.save();
+    res.json({ success: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 module.exports = { router, auth, JWT_SECRET };
