@@ -138,7 +138,33 @@ io.on('connection', (socket) => {
     if(target) io.to(target.socketId).emit('friend_accepted', { username: fromUsername });
   });
 
-  // ── Community channel messages (real-time relay) ──
+  // ── Community invite via socket ──
+  socket.on('send_community_invite', ({ toUserId, fromName, communityId, communityName, inviteCode }) => {
+    const target = onlineUsers.get(toUserId);
+    if(target) io.to(target.socketId).emit('community_invite_received', { fromName, communityId, communityName, inviteCode });
+  });
+
+  // ── Invite friend to room (public/private) ──
+  socket.on('invite_friend_to_room', ({ toUserId, roomId: rid, fromName }) => {
+    const room = rooms.get(rid);
+    if (!room) return socket.emit('invite_result', { error: 'Room not found' });
+    const target = onlineUsers.get(toUserId);
+    if (room.locked) {
+      // Private/locked room — send request to host
+      if (room.hostId === socket.id) {
+        // You ARE the host, just send invite directly
+        if (target) io.to(target.socketId).emit('friend_invite', { fromName, roomId: rid, roomName: room.name });
+      } else {
+        // Ask host to approve
+        io.to(room.hostId).emit('join_request', { fromName: `${fromName} (invited by friend)`, fromUserId: toUserId, roomId: rid });
+        socket.emit('invite_result', { pending: true });
+      }
+    } else {
+      // Public/unlocked room — send invite directly
+      if (target) io.to(target.socketId).emit('friend_invite', { fromName, roomId: rid, roomName: room.name });
+      socket.emit('invite_result', { sent: true });
+    }
+  });
   socket.on('community_join', ({ communityId }) => {
     socket.join(`community:${communityId}`);
   });

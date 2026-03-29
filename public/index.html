@@ -434,7 +434,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 <!-- AUTH SCREEN -->
 <div id="auth-screen" class="auth-screen">
   <div class="auth-card">
-    <div class="auth-logo">WAVE</div>
+    <div class="auth-logo">👋 WAVE</div>
     <div class="auth-sub">Real-time voice rooms</div>
     <div class="auth-tabs">
       <button class="auth-tab active" id="auth-tab-login" onclick="switchAuthTab('login')">Log In</button>
@@ -544,7 +544,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 <!-- LANDING -->
 <div id="landing">
   <div class="home-nav">
-    <div class="home-nav-logo">WAVE</div>
+    <div class="home-nav-logo">👋 WAVE</div>
     <div class="home-nav-right">
       <div class="home-user-info">
         <div class="home-avatar" id="home-avatar-el" onclick="document.getElementById('avatar-upload-input').click()" title="Click to change profile photo" style="cursor:pointer;position:relative;">👤
@@ -727,7 +727,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
         <span id="header-username">—</span>
         <span id="header-req-badge" class="friend-badge hidden">0</span>
       </button>
-      <div class="room-id-badge" onclick="copyInvite()">📋 Copy Invite</div>
+      <div class="room-id-badge" onclick="copyRoomURL()">🔗 Copy URL</div>
       <button class="btn btn-sm btn-ghost" onclick="leaveRoom()">Leave →</button>
     </div>
   </div>
@@ -871,8 +871,11 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
         </div>
         <div class="invite-box">
           <p>📨 Share invite:</p>
-          <div class="invite-url" id="invite-url" onclick="copyInvite()">—</div>
-          <button class="host-btn" style="margin-top:.5rem;border-color:var(--accent3);color:var(--accent3);" onclick="openFriendInvitePanel()">👥 Invite a Friend</button>
+          <div class="invite-url" id="invite-url" onclick="copyRoomURL()">—</div>
+          <div style="display:flex;gap:.4rem;margin-top:.5rem;flex-wrap:wrap;">
+            <button class="host-btn" style="flex:1;border-color:var(--accent);color:var(--accent);" onclick="copyRoomURL()">🔗 Copy URL</button>
+            <button class="host-btn" style="flex:1;border-color:var(--accent3);color:var(--accent3);" onclick="openFriendInvitePanel()">👥 Invite Friends</button>
+          </div>
         </div>
       </div>
 
@@ -928,7 +931,8 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     <div style="display:flex;align-items:center;gap:.5rem;">
       <span id="cv-member-count" style="font-size:.7rem;color:var(--muted);"></span>
       <button id="cv-settings-btn" class="home-nav-btn hidden" onclick="openCommunitySettings()">⚙️ Settings</button>
-      <button id="cv-invite-btn" class="home-nav-btn" onclick="copyCommunityInvite()">📋 Invite</button>
+      <button id="cv-invite-btn" class="home-nav-btn" onclick="openCommunityInvitePanel()">👥 Invite Friends</button>
+      <button class="home-nav-btn" onclick="copyCommunityURL()" style="border-color:var(--accent);color:var(--accent);">🔗 Copy URL</button>
       <button id="cv-leave-btn" class="home-nav-btn" onclick="leaveCommunity()" style="color:var(--danger);">Leave</button>
     </div>
   </div>
@@ -988,6 +992,16 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
       <button class="auth-btn" style="flex:1;margin-top:0;" onclick="saveCommunitySettings()">Save Changes</button>
     </div>
     <button onclick="deleteCommunity()" style="width:100%;margin-top:.5rem;padding:.5rem;border:1px solid var(--danger);background:transparent;color:var(--danger);border-radius:8px;cursor:pointer;font-family:'DM Mono',monospace;font-size:.72rem;">🗑 Delete Community</button>
+  </div>
+</div>
+
+<!-- INVITE FRIENDS MODAL (rooms + communities) -->
+<div id="invite-friends-overlay" class="save-modal-overlay hidden">
+  <div class="save-modal" style="max-width:420px;">
+    <h3 id="invite-friends-title">👥 Invite Friends</h3>
+    <p id="invite-friends-sub" style="font-size:.7rem;color:var(--muted);margin-bottom:.85rem;line-height:1.6;"></p>
+    <div id="invite-friends-list" style="max-height:320px;overflow-y:auto;display:flex;flex-direction:column;gap:.35rem;"></div>
+    <button class="save-modal-cancel" style="width:100%;margin-top:.75rem;padding:.6rem;" onclick="closeInviteFriendsModal()">Close</button>
   </div>
 </div>
 
@@ -1325,6 +1339,19 @@ function onAuthSuccess(){
   loadPublicRooms();
   initDraggablePanels();
   initTouchDrag();
+  // Handle community invite URL
+  if(window._pendingCommunityCode){
+    const code = window._pendingCommunityCode;
+    window._pendingCommunityCode = null;
+    setTimeout(async()=>{
+      try{
+        const res = await fetch(`/api/communities/invite/${code}`,{method:'POST',headers:{Authorization:`Bearer ${authToken}`}});
+        const data = await res.json();
+        if(res.ok){ toast('🏘️ Joined community!'); loadMyCommunities(); openCommunityById(data.communityId); }
+        else toast('⚠️ '+data.error);
+      }catch(e){}
+    }, 1000);
+  }
   // Connect home socket for real-time notifications (presence, invites, friend requests)
   initHomeSocket();
 }
@@ -1872,6 +1899,15 @@ function initHomeSocket(){
   homeSocket.on('friend_invite', ({ fromName, roomId: rid, roomName })=>{
     showInvitePopup(fromName, rid, roomName);
   });
+  homeSocket.on('community_invite_received', ({ fromName, communityId, communityName, inviteCode })=>{
+    toast(`🏘️ ${fromName} invited you to "${communityName}"!`);
+    showBrowserNotification('🏘️ Community Invite', `${fromName} invited you to join "${communityName}"`, null);
+    // Show a popup with join option
+    if(confirm(`${fromName} invited you to join "${communityName}". Join now?`)){
+      fetch(`/api/communities/invite/${inviteCode}`,{method:'POST',headers:{Authorization:`Bearer ${authToken}`}})
+        .then(r=>r.json()).then(d=>{ if(d.success){ loadMyCommunities(); openCommunityById(communityId); toast('🏘️ Joined!'); }});
+    }
+  });
   homeSocket.on('browser_notification', ({ title, body, roomId: rid })=>{
     showBrowserNotification(title, body, rid);
   });
@@ -1894,7 +1930,112 @@ function initHomeSocket(){
   initDMSocketListeners(homeSocket);
 }
 
-// ── Report User ──
+// ── Invite Friends Modal ──
+let inviteMode = null; // 'room' or 'community'
+
+function openFriendInvitePanel(){
+  inviteMode = 'room';
+  document.getElementById('invite-friends-title').textContent = '👥 Invite Friends to Room';
+  const isLocked = document.querySelector('#room-lock-btn')?.classList.contains('active-state');
+  document.getElementById('invite-friends-sub').innerHTML = isLocked
+    ? '⚠️ Room is <strong>private</strong> — invites will be sent to host for approval.'
+    : '✅ Room is <strong>public</strong> — friends will be invited directly.';
+  renderInviteFriendsList();
+  document.getElementById('invite-friends-overlay').classList.remove('hidden');
+}
+
+function openCommunityInvitePanel(){
+  inviteMode = 'community';
+  document.getElementById('invite-friends-title').textContent = `👥 Invite Friends to ${currentCommunity?.name||'Community'}`;
+  const isPrivate = currentCommunity?.isPublic === false;
+  document.getElementById('invite-friends-sub').innerHTML = isPrivate
+    ? '🔒 <strong>Private community</strong> — friends will receive an invite link to join.'
+    : '✅ <strong>Public community</strong> — friends will be added automatically.';
+  renderInviteFriendsList();
+  document.getElementById('invite-friends-overlay').classList.remove('hidden');
+}
+
+function closeInviteFriendsModal(){
+  document.getElementById('invite-friends-overlay').classList.add('hidden');
+  inviteMode = null;
+}
+
+function renderInviteFriendsList(){
+  const el = document.getElementById('invite-friends-list');
+  const friends = currentUser?.friends||[];
+  if(!friends.length){ el.innerHTML='<div class="friends-empty">No friends to invite yet.</div>'; return; }
+  el.innerHTML='';
+  friends.forEach(f=>{
+    const fid = f.id||f._id;
+    const isOnline = friendStatuses[fid]?.online;
+    const div = document.createElement('div');
+    div.className='friend-item';
+    div.style.cssText='padding:.4rem .2rem;';
+    div.innerHTML=`
+      <div class="friend-avatar" style="background:${colorFor(fid)};color:#fff;">${f.avatar?`<img src="${f.avatar}">`:(f.username||'?').slice(0,2).toUpperCase()}</div>
+      <div class="friend-info">
+        <div class="friend-name">${esc(f.username)}</div>
+        <div class="friend-status ${isOnline?'online':''}" style="font-size:.62rem;">${isOnline?'🟢 Online':'⚫ Offline'}</div>
+      </div>
+      <div class="friend-actions">
+        <button class="friend-btn" style="border-color:var(--accent);color:var(--accent);" id="inv-btn-${fid}" onclick="sendFriendInvite('${fid}','${esc(f.username)}',this)">Invite</button>
+      </div>`;
+    el.appendChild(div);
+  });
+}
+
+async function sendFriendInvite(friendId, friendName, btn){
+  btn.disabled = true;
+  if(inviteMode === 'room'){
+    const sock = homeSocket||socket;
+    if(!sock||!roomId){ toast('Join a room first'); btn.disabled=false; return; }
+    sock.emit('invite_friend_to_room', { toUserId: friendId, roomId, fromName: currentUser.username });
+    // Also send socket invite directly
+    sock.emit('send_friend_invite', { toUserId: friendId, roomId, roomName: document.getElementById('room-title')?.textContent||'a room', fromName: currentUser.username });
+    btn.textContent='Sent ✓';
+    toast(`📨 Invited ${friendName}!`);
+  } else if(inviteMode === 'community' && currentCommunity){
+    try{
+      const res = await fetch(`/api/communities/${currentCommunity._id}/invite-friend`,{
+        method:'POST', headers:{'Content-Type':'application/json',Authorization:`Bearer ${authToken}`},
+        body: JSON.stringify({ friendId })
+      });
+      const data = await res.json();
+      if(!res.ok){ toast('⚠️ '+data.error); btn.disabled=false; return; }
+      // Notify friend via socket
+      const sock = homeSocket||socket;
+      if(sock){
+        if(data.autoJoined){
+          // Public — they're already added, send notification
+          sock.emit('send_friend_invite', { toUserId: friendId, roomId: null, roomName: null, fromName: currentUser.username, communityId: currentCommunity._id, communityName: currentCommunity.name, inviteCode: data.inviteCode });
+        } else {
+          // Private — send invite code
+          sock.emit('send_community_invite', { toUserId: friendId, fromName: currentUser.username, communityId: currentCommunity._id, communityName: currentCommunity.name, inviteCode: data.inviteCode });
+        }
+      }
+      btn.textContent = data.autoJoined ? 'Added ✓' : 'Invited ✓';
+      toast(`📨 ${data.autoJoined ? `Added ${friendName} to community!` : `Invite sent to ${friendName}!`}`);
+    }catch(e){ btn.disabled=false; toast('⚠️ Error sending invite'); }
+  }
+}
+
+// ── URL Copy functions ──
+function copyRoomURL(){
+  const url = `${location.origin}${location.pathname}?room=${roomId}`;
+  navigator.clipboard.writeText(url).then(()=>toast('🔗 Room URL copied!')).catch(()=>{
+    const el = document.getElementById('invite-url');
+    if(el) el.select?.();
+    toast(`Code: ${roomId}`);
+  });
+}
+
+function copyCommunityURL(){
+  if(!currentCommunity) return;
+  const url = `${location.origin}${location.pathname}?community=${currentCommunity.inviteCode}`;
+  navigator.clipboard.writeText(url).then(()=>toast('🔗 Community URL copied!')).catch(()=>toast(`Code: ${currentCommunity.inviteCode}`));
+}
+
+function copyCommunityInvite(){ copyCommunityURL(); }
 let reportTargetSocketId = null;
 let reportTargetUserId = null;
 let reportTargetName = null;
@@ -2955,7 +3096,8 @@ window.onload=()=>{
   const p=new URLSearchParams(location.search);
   const rc=p.get('room');
   if(rc){document.getElementById('join-code').value=rc;}
-  // Check for password reset token
+  const communityCode = p.get('community');
+  if(communityCode){ window._pendingCommunityCode = communityCode; }
   const rt = p.get('reset');
   if(rt){ resetToken = rt; }
   initAuth();
@@ -3332,15 +3474,19 @@ function toggleScreenRequests(){
 }
 
 async function startScreenShare(){
-  // Screen share not supported on mobile browsers
   if(!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia){
-    toast('🖥️ Screen share is not supported on mobile browsers. Use a desktop browser.');
+    toast('🖥️ Screen share not supported in this browser.');
     document.getElementById('screen-btn').textContent='🖥️ Screen';
     document.getElementById('screen-btn').disabled=false;
     return;
   }
   try{
-    localScreenStream=await navigator.mediaDevices.getDisplayMedia({video:{cursor:'always'},audio:false});
+    // Try with audio on desktop, without on mobile (Android may not support audio capture)
+    const isAndroid = /Android/i.test(navigator.userAgent);
+    localScreenStream = await navigator.mediaDevices.getDisplayMedia({
+      video: { cursor: 'always' },
+      audio: !isAndroid
+    });
     isScreenSharing=true;
     addOrUpdateVideoTile('screen-'+socket.id, localScreenStream, myName+' (screen)', true, true);
     peers.forEach((peer,peerId)=>{
@@ -3356,7 +3502,9 @@ async function startScreenShare(){
   }catch(e){
     document.getElementById('screen-btn').textContent='🖥️ Screen';
     document.getElementById('screen-btn').disabled=false;
-    if(e.name!=='NotAllowedError')toast('⚠️ Screen share failed');
+    if(e.name==='NotAllowedError') toast('🖥️ Screen share permission denied');
+    else if(e.name==='NotSupportedError') toast('🖥️ Screen share not supported on this device');
+    else if(e.name!=='AbortError') toast('⚠️ Screen share failed: '+e.message);
   }
 }
 
@@ -4174,15 +4322,25 @@ function showRoom(name){
   initResizeHandle('cam-resize','cam-area','cam-body', 80, 600);
   initResizeHandle('screen-resize','screen-area','screen-body', 80, 700);
   initChatResize();
-  // Hide screen share on mobile (not supported by mobile browsers)
-  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || !navigator.mediaDevices?.getDisplayMedia;
+  // Only disable screen share if the API truly isn't available
   const screenBtn = document.getElementById('screen-btn');
-  if(isMobile && screenBtn){
-    screenBtn.style.opacity = '0.4';
-    screenBtn.style.cursor = 'not-allowed';
-    screenBtn.title = 'Screen share is not available on mobile browsers';
-    screenBtn.onclick = ()=>toast('🖥️ Screen share is not supported on mobile. Use a desktop browser.');
+  const hasDisplayMedia = !!(navigator.mediaDevices?.getDisplayMedia);
+  const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+  if(!hasDisplayMedia || isIOS){
+    // iOS Safari doesn't support getDisplayMedia at all
+    if(screenBtn){
+      screenBtn.style.opacity = '0.4';
+      screenBtn.style.cursor = 'not-allowed';
+      screenBtn.title = isIOS
+        ? 'Screen share is not supported on iPhone/iPad (iOS limitation)'
+        : 'Screen share is not supported in this browser';
+      screenBtn.onclick = ()=>toast(isIOS
+        ? '🍎 iOS does not allow screen sharing from browsers. This is an Apple limitation.'
+        : '🖥️ Screen share is not supported in this browser.');
+    }
   }
+  // Android Chrome DOES support getDisplayMedia — button stays fully enabled
 }
 function updateInvite(){
   const url=`${location.origin}${location.pathname}?room=${roomId}`;
@@ -4418,10 +4576,7 @@ function leaveRoom(forced=false){
   clearPendingInvites();
 }
 
-function copyInvite(){
-  const url=`${location.origin}${location.pathname}?room=${roomId}`;
-  navigator.clipboard.writeText(url).then(()=>toast('✅ Invite link copied!')).catch(()=>toast(`Code: ${roomId}`));
-}
+function copyInvite(){ copyRoomURL(); }
 function toast(msg,dur=3500){
   const c=document.getElementById('toasts');
   const t=document.createElement('div');t.className='toast';t.textContent=msg;c.appendChild(t);

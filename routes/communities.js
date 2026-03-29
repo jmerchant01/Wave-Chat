@@ -97,6 +97,38 @@ router.get('/communities/:id', auth, async (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── Invite a friend to community ──
+router.post('/communities/:id/invite-friend', auth, async (req, res) => {
+  try {
+    const { friendId } = req.body;
+    const community = await Community.findById(req.params.id);
+    if (!community) return res.status(404).json({ error: 'Not found' });
+    // Must be a member to invite
+    if (!getMember(community, req.user.id)) return res.status(403).json({ error: 'Not a member' });
+    // Must be friends
+    const me = await User.findById(req.user.id).select('username friends');
+    if (!me.friends.map(f=>f.toString()).includes(friendId))
+      return res.status(403).json({ error: 'Not friends with this user' });
+    const friend = await User.findById(friendId).select('username');
+    if (!friend) return res.status(404).json({ error: 'User not found' });
+
+    if (community.isPublic) {
+      // Public: auto-add them
+      const existing = getMember(community, friendId);
+      if (!existing) {
+        const memberRole = community.roles.find(r => r.name === 'Member');
+        community.members.push({ userId: friendId, roles: memberRole ? [memberRole._id.toString()] : [] });
+        await community.save();
+      }
+      res.json({ success: true, autoJoined: true, communityId: community._id, communityName: community.name, inviteCode: community.inviteCode });
+    } else {
+      // Private: just return the invite code — host approval not required for friend invites
+      // The friend uses the invite code to join
+      res.json({ success: true, autoJoined: false, communityId: community._id, communityName: community.name, inviteCode: community.inviteCode });
+    }
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // ── Join community ──
 router.post('/communities/:id/join', auth, async (req, res) => {
   try {
