@@ -281,7 +281,8 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .home-nav-logo{font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:800;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
 .home-nav-right{display:flex;align-items:center;gap:.75rem;}
 .home-user-info{display:flex;align-items:center;gap:.5rem;font-size:.78rem;}
-.home-avatar{width:32px;height:32px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;overflow:hidden;flex-shrink:0;}
+.home-avatar{width:36px;height:36px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;overflow:hidden;flex-shrink:0;position:relative;}
+.home-avatar:hover #avatar-hover-overlay{opacity:1!important;background:rgba(0,0,0,.55)!important;}
 .home-avatar img{width:100%;height:100%;object-fit:cover;}
 .home-nav-btn{padding:.35rem .85rem;border-radius:7px;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:'DM Mono',monospace;font-size:.72rem;cursor:pointer;transition:all .2s;}
 .home-nav-btn:hover{border-color:var(--danger);color:var(--danger);}
@@ -448,8 +449,11 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     <div class="home-nav-logo">WAVE</div>
     <div class="home-nav-right">
       <div class="home-user-info">
-        <div class="home-avatar" id="home-avatar-el">👤</div>
+        <div class="home-avatar" id="home-avatar-el" onclick="document.getElementById('avatar-upload-input').click()" title="Click to change profile photo" style="cursor:pointer;position:relative;">👤
+          <div style="position:absolute;inset:0;background:rgba(0,0,0,0);border-radius:50%;display:flex;align-items:center;justify-content:center;opacity:0;transition:all .2s;font-size:.6rem;" id="avatar-hover-overlay">📷</div>
+        </div>
         <span id="home-username-el">—</span>
+        <input type="file" id="avatar-upload-input" accept="image/*" class="hidden" onchange="handleAvatarUpdate(this)"/>
       </div>
       <button class="home-nav-btn" onclick="logout()">Log Out</button>
     </div>
@@ -1086,6 +1090,32 @@ function acceptFriendInvite(){
 function dismissFriendInvite(){
   document.getElementById('invite-popup').classList.add('hidden');
   pendingInvite = null;
+}
+
+async function handleAvatarUpdate(input){
+  const file = input.files[0]; if(!file) return;
+  if(file.size > 5 * 1024 * 1024){ toast('⚠️ Photo must be under 5MB'); return; }
+  const reader = new FileReader();
+  reader.onload = async e => {
+    const base64 = e.target.result;
+    try{
+      const res = await fetch('/api/avatar', {
+        method:'POST',
+        headers:{'Content-Type':'application/json', Authorization:`Bearer ${authToken}`},
+        body: JSON.stringify({ avatar: base64 })
+      });
+      if(!res.ok){ toast('⚠️ Failed to save photo'); return; }
+      currentUser.avatar = base64;
+      // Update all avatar elements
+      const homeAv = document.getElementById('home-avatar-el');
+      if(homeAv){
+        homeAv.innerHTML = `<img src="${base64}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;"><div style="position:absolute;inset:0;background:rgba(0,0,0,0);border-radius:50%;display:flex;align-items:center;justify-content:center;opacity:0;transition:all .2s;font-size:.6rem;" id="avatar-hover-overlay">📷</div>`;
+      }
+      updateHeaderProfile();
+      toast('✅ Profile photo updated!');
+    }catch(e){ toast('⚠️ Error updating photo'); }
+  };
+  reader.readAsDataURL(file);
 }
 
 // ── Home screen functions ──
