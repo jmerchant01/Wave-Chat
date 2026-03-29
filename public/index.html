@@ -284,7 +284,10 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .start-room-btn.selected{background:var(--accent3);color:#000;}
 .start-room-btn:hover{background:var(--accent3);color:#000;}
 /* Join request banner */
-.join-request-banner{position:fixed;top:5rem;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--accent);border-radius:12px;padding:.85rem 1.2rem;z-index:900;display:none;align-items:center;gap:.75rem;box-shadow:0 8px 32px rgba(0,0,0,.4);animation:msgIn .3s ease;}
+.pending-invite-item{display:flex;align-items:center;justify-content:space-between;font-size:.68rem;padding:.25rem 0;border-bottom:1px solid var(--border);}
+.pending-invite-item:last-child{border-bottom:none;}
+.pending-invite-name{color:var(--text);}
+.pending-invite-status{color:var(--muted);font-size:.6rem;}top:5rem;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--accent);border-radius:12px;padding:.85rem 1.2rem;z-index:900;display:none;align-items:center;gap:.75rem;box-shadow:0 8px 32px rgba(0,0,0,.4);animation:msgIn .3s ease;}
 .join-request-banner.visible{display:flex;}
 .join-req-btns{display:flex;gap:.4rem;}
 #landing{min-height:100vh;display:flex;flex-direction:column;background:var(--bg);}
@@ -703,6 +706,11 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
           <p>📨 Share invite:</p>
           <div class="invite-url" id="invite-url" onclick="copyInvite()">—</div>
           <button class="host-btn" style="margin-top:.5rem;border-color:var(--accent3);color:var(--accent3);" onclick="openFriendInvitePanel()">👥 Invite a Friend</button>
+        </div>
+        <!-- Pending invites list -->
+        <div id="pending-invites-box" style="display:none;margin-top:.6rem;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.65rem;">
+          <p style="font-size:.63rem;color:var(--muted);margin-bottom:.4rem;">⏳ Waiting to join:</p>
+          <div id="pending-invites-list"></div>
         </div>
       </div>
 
@@ -1265,9 +1273,46 @@ function initHomeSocket(){
   homeSocket.on('friend_invite_offline', ()=>{
     toast('⚠️ That friend is not online right now — an email has been sent');
   });
+  homeSocket.on('friend_invite', ({ fromName, roomId: rid, roomName })=>{
+    showInvitePopup(fromName, rid, roomName);
+  });
+  homeSocket.on('browser_notification', ({ title, body, roomId: rid })=>{
+    showBrowserNotification(title, body, rid);
+  });
 }
 
-// ── Home screen functions ──
+// ── Pending invites (host sees who hasn't joined yet) ──
+const pendingInvitesMap = new Map(); // userId -> username
+
+function addPendingInvite(userId, username){
+  pendingInvitesMap.set(userId, username);
+  renderPendingInvites();
+}
+
+function removePendingInvite(userId){
+  pendingInvitesMap.delete(userId);
+  renderPendingInvites();
+}
+
+function renderPendingInvites(){
+  const box = document.getElementById('pending-invites-box');
+  const list = document.getElementById('pending-invites-list');
+  if(!box || !list) return;
+  if(pendingInvitesMap.size === 0){ box.style.display='none'; return; }
+  box.style.display = 'block';
+  list.innerHTML = '';
+  pendingInvitesMap.forEach((username, uid)=>{
+    const div = document.createElement('div');
+    div.className = 'pending-invite-item';
+    div.innerHTML = `<span class="pending-invite-name">👤 ${esc(username)}</span><span class="pending-invite-status">⏳ Invited</span>`;
+    list.appendChild(div);
+  });
+}
+
+function clearPendingInvites(){
+  pendingInvitesMap.clear();
+  renderPendingInvites();
+}
 async function homeSearchFriend(){
   const q = document.getElementById('home-friend-search').value.trim();
   const el = document.getElementById('home-search-results');
@@ -1525,13 +1570,26 @@ function connectSocket(){
     document.getElementById('join-request-banner').classList.add('visible');
     setTimeout(()=>document.getElementById('join-request-banner').classList.remove('visible'), 20000);
   });
-  // Join request cancelled by requester
+  // Invite sent confirmation — add to pending list
+  socket.on('invite_sent', ({ userId, username })=>{
+    addPendingInvite(userId, username);
+  });
+  // Invited friend joined — remove from pending list
+  socket.on('invite_joined', ({ userId, name })=>{
+    removePendingInvite(userId);
+    toast(`✅ ${name} joined the room!`);
+  });
+  // Browser notification signal from server
   socket.on('join_request_cancelled', ({ fromUserId })=>{
     if(pendingJoinRequester && pendingJoinRequester.fromUserId === fromUserId){
       document.getElementById('join-request-banner').classList.remove('visible');
       pendingJoinRequester = null;
       toast('ℹ️ Join request was cancelled');
     }
+  });
+  // Browser notification signal from server
+  socket.on('browser_notification', ({ title, body, roomId: rid })=>{
+    showBrowserNotification(title, body, rid);
   });
   socket.on('friend_invite_offline', ()=>{ toast('⚠️ That friend is not online right now'); });
 
@@ -2937,6 +2995,7 @@ function leaveRoom(forced=false){
   history.replaceState(null,'',location.pathname);
   // Re-register as online on home screen
   if(authToken) initHomeSocket();
+  clearPendingInvites();
 }
 
 function copyInvite(){

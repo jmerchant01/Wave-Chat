@@ -20,6 +20,20 @@ app.use(express.json({ limit: '15mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/api', authRouter);
 
+function emailTemplate(title, body, sub, url, btnText) {
+  return `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#050508;font-family:'Segoe UI',sans-serif;">
+  <div style="max-width:480px;margin:40px auto;background:#0d0d14;border-radius:16px;overflow:hidden;border:1px solid #1e1e2e;">
+    <div style="background:linear-gradient(135deg,#6c63ff,#ff6584,#43e97b);padding:3px 0 0;"></div>
+    <div style="padding:2rem;">
+      <div style="font-size:2rem;font-weight:900;background:linear-gradient(135deg,#6c63ff,#ff6584);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:1rem;">WAVE</div>
+      <h2 style="color:#e8e8f0;font-size:1.1rem;margin:0 0 .75rem;">${title}</h2>
+      <p style="color:#e8e8f0;font-size:.9rem;margin:0 0 .5rem;">${body}</p>
+      <p style="color:#6b6b80;font-size:.82rem;margin:0 0 1.5rem;">${sub}</p>
+      <a href="${url}" style="display:inline-block;background:#6c63ff;color:#fff;text-decoration:none;padding:.75rem 1.5rem;border-radius:10px;font-weight:700;font-size:.9rem;">${btnText}</a>
+    </div>
+  </div></body></html>`;
+}
+
 const rooms = new Map();
 const onlineUsers = new Map(); // userId -> { socketId, username, avatar, roomId }
 
@@ -95,24 +109,62 @@ io.on('connection', (socket) => {
     else socket.emit('friend_invite_offline', { toUserId });
   });
 
-  socket.on('create_room', ({ name, roomName, userId, inviteFriendIds }) => {
+  socket.on('create_room', async ({ name, roomName, userId, inviteFriendIds }) => {
     const roomId = Math.random().toString(36).substr(2, 8).toUpperCase();
     const displayName = name || 'Host';
+    const rName = roomName || 'Voice Room';
     rooms.set(roomId, {
-      name: roomName || 'Voice Room', hostId: socket.id,
+      name: rName, hostId: socket.id,
       locked: false, chatLocked: false, allMuted: false,
       activeScreenShareId: null, screenRequestsEnabled: true,
+      pendingInvites: new Map(), // userId -> { username, sentAt }
       participants: new Map([[socket.id, { name: displayName, muted: false, isHost: true, userId: userId||null }]])
     });
     socket.join(roomId); socket.data.roomId = roomId; socket.data.name = displayName;
     if (userId) { const o = onlineUsers.get(userId); if(o) o.roomId = roomId; }
     socket.emit('room_joined', { roomId, isHost: true, joinMuted: false, state: getRoomPublicState(rooms.get(roomId)) });
-    // Auto-invite selected friends
+
+    // Auto-invite selected friends — socket + email + browser notification
     if(inviteFriendIds && inviteFriendIds.length){
-      inviteFriendIds.forEach(fid => {
-        const target = onlineUsers.get(fid);
-        if(target) io.to(target.socketId).emit('friend_invite', { fromName: displayName, roomId, roomName: roomName||'Voice Room' });
-      });
+      const User = require('./models/User');
+      const { Resend } = require('resend');
+      const resend = new Resend(process.env.RESEND_API_KEY || 're_cpjQ5pCW_BqS7EyPe8qqXtezbXZBopQd9');
+      const appUrl = process.env.APP_URL || 'https://wave-chat-fnpr.onrender.com';
+
+      for(const fid of inviteFriendIds){
+        try{
+          const friend = await User.findById(fid).select('username email');
+          if(!friend) continue;
+          const room = rooms.get(roomId);
+          if(room) room.pendingInvites.set(fid, { username: friend.username, sentAt: Date.now() });
+
+          const target = onlineUsers.get(fid);
+          if(target){
+            // Online — send real-time socket invite + browser notification signal
+            io.to(target.socketId).emit('friend_invite', { fromName: displayName, roomId, roomName: rName });
+            io.to(target.socketId).emit('browser_notification', {
+              title: `📨 Room Invite from ${displayName}`,
+              body: `${displayName} invited you to join "${rName}" — tap to join!`,
+              roomId
+            });
+          }
+          // Always send email regardless of online status
+          const joinUrl = `${appUrl}?room=${roomId}`;
+          await resend.emails.send({
+            from: 'WAVE <onboarding@resend.dev>',
+            to: friend.email,
+            subject: `${displayName} invited you to join "${rName}" on WAVE`,
+            html: emailTemplate(
+              `🎙️ You're invited to "${rName}"`,
+              `<b>${displayName}</b> created a room and wants you to join!`,
+              `Click the button below to jump in — the room is live right now.`,
+              joinUrl, '🎙️ Join Room Now'
+            )
+          });
+          // Notify host that invite was sent
+          socket.emit('invite_sent', { userId: fid, username: friend.username });
+        }catch(e){ console.log('Invite error for', fid, e.message); }
+      }
     }
   });
 
@@ -131,6 +183,11 @@ io.on('connection', (socket) => {
     io.to(roomId).emit('room_state_update', getRoomPublicState(room));
     // Update online status to show in-room
     if (userId) { const o = onlineUsers.get(userId); if(o) o.roomId = roomId; }
+    // Remove from pending invites if they were invited
+    if(userId && room.pendingInvites && room.pendingInvites.has(userId)){
+      room.pendingInvites.delete(userId);
+      io.to(room.hostId).emit('invite_joined', { userId, name: displayName });
+    }
   });
 
   socket.on('webrtc_offer',  ({target,sdp})       => io.to(target).emit('webrtc_offer',  {from:socket.id,sdp}));
