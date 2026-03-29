@@ -331,8 +331,12 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .dm-send-btn{width:30px;height:30px;border-radius:7px;border:none;background:var(--accent);color:#fff;cursor:pointer;font-size:.8rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 .dm-attach-preview{background:var(--surface2);border-radius:7px;padding:.4rem .6rem;font-size:.68rem;color:var(--text);display:flex;align-items:center;justify-content:space-between;margin-bottom:.3rem;}
 #dm-inbox-view,#dm-chat-view{display:flex;flex-direction:column;flex:1;}
-#messages-section{display:flex;flex-direction:column;}
-.dm-btn{padding:.22rem .5rem;border-radius:5px;border:1px solid var(--accent);background:transparent;color:var(--accent);font-size:.62rem;cursor:pointer;font-family:'DM Mono',monospace;white-space:nowrap;}
+#panel-messages{display:flex;flex-direction:column;}
+.drag-handle{font-size:1rem;color:var(--muted);cursor:grab;margin-right:.4rem;user-select:none;opacity:.5;transition:opacity .15s;}
+.drag-handle:hover{opacity:1;}
+.draggable-panel{transition:opacity .2s;}
+.draggable-panel.dragging{opacity:.4;cursor:grabbing;}
+.draggable-panel.drag-over{outline:2px dashed var(--accent);outline-offset:4px;border-radius:14px;}
 .home-nav{display:flex;align-items:center;justify-content:space-between;padding:.85rem 2rem;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;}
 .home-nav-logo{font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:800;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
 .home-nav-right{display:flex;align-items:center;gap:.75rem;}
@@ -442,6 +446,10 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     <div id="auth-login">
       <div class="auth-field"><label>Username</label><input id="login-username" type="text" placeholder="Your username" autocomplete="username" onkeydown="if(event.key==='Enter')doLogin()"/></div>
       <div class="auth-field"><label>Password</label><input id="login-password" type="password" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"/></div>
+      <label style="display:flex;align-items:center;gap:.5rem;font-size:.7rem;color:var(--muted);cursor:pointer;margin-bottom:.5rem;user-select:none;">
+        <input type="checkbox" id="remember-me" style="accent-color:var(--accent);cursor:pointer;width:14px;height:14px;"/>
+        Remember me
+      </label>
       <button class="auth-btn" id="login-btn" onclick="doLogin()">Log In →</button>
       <div style="text-align:center;margin-top:.65rem;font-size:.68rem;color:var(--muted);">
         Forgot your password? <span style="color:var(--accent);cursor:pointer;" onclick="switchAuthTab('reset')">Reset it</span>
@@ -552,11 +560,14 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
   </div>
 
   <!-- Main home content -->
-  <div class="home-body">
+  <div class="home-body" id="home-body">
 
     <!-- Left: Room actions -->
-    <div class="home-section">
-      <div class="home-section-title">🎙️ Voice Rooms</div>
+    <div class="home-section draggable-panel" id="panel-rooms" draggable="true">
+      <div class="home-section-title">
+        <span class="drag-handle" title="Drag to reorder">⠿</span>
+        🎙️ Voice Rooms
+      </div>
       <div class="home-card">
         <div class="home-card-icon">🎙️</div>
         <div class="home-card-label">Create a Room</div>
@@ -583,8 +594,10 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     </div>
 
     <!-- Right: Friends -->
-    <div class="home-section">
-      <div class="home-section-title">👥 Friends
+    <div class="home-section draggable-panel" id="panel-friends" draggable="true">
+      <div class="home-section-title">
+        <span class="drag-handle" title="Drag to reorder">⠿</span>
+        👥 Friends
         <span id="home-req-badge" class="friend-badge hidden" style="margin-left:.4rem;">0</span>
       </div>
 
@@ -610,8 +623,10 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     </div>
 
     <!-- Messages section -->
-    <div class="home-section" id="messages-section">
-      <div class="home-section-title">💬 Messages
+    <div class="home-section draggable-panel" id="panel-messages" draggable="true">
+      <div class="home-section-title">
+        <span class="drag-handle" title="Drag to reorder">⠿</span>
+        💬 Messages
         <span id="msg-unread-badge" class="friend-badge hidden" style="margin-left:.4rem;background:var(--accent2);">0</span>
       </div>
 
@@ -905,6 +920,117 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 </div>
 
 <script>
+// ── Draggable Panels ──
+const PANEL_ORDER_KEY = 'wave-panel-order';
+let dragSrcPanel = null;
+
+function initDraggablePanels(){
+  const body = document.getElementById('home-body');
+  if(!body) return;
+
+  // Restore saved order
+  try{
+    const saved = localStorage.getItem(PANEL_ORDER_KEY);
+    if(saved){
+      const order = JSON.parse(saved); // ['panel-rooms','panel-friends','panel-messages']
+      order.forEach(id=>{
+        const el = document.getElementById(id);
+        if(el) body.appendChild(el);
+      });
+    }
+  }catch(e){}
+
+  // Attach drag events to all panels
+  body.querySelectorAll('.draggable-panel').forEach(panel=>{
+    panel.addEventListener('dragstart', e=>{
+      dragSrcPanel = panel;
+      panel.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', panel.id);
+    });
+    panel.addEventListener('dragend', ()=>{
+      panel.classList.remove('dragging');
+      body.querySelectorAll('.draggable-panel').forEach(p=>p.classList.remove('drag-over'));
+      savePanelOrder();
+    });
+    panel.addEventListener('dragover', e=>{
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      if(panel !== dragSrcPanel){
+        body.querySelectorAll('.draggable-panel').forEach(p=>p.classList.remove('drag-over'));
+        panel.classList.add('drag-over');
+      }
+    });
+    panel.addEventListener('dragleave', ()=>{
+      panel.classList.remove('drag-over');
+    });
+    panel.addEventListener('drop', e=>{
+      e.preventDefault();
+      panel.classList.remove('drag-over');
+      if(!dragSrcPanel || dragSrcPanel === panel) return;
+      // Determine insert position
+      const panels = [...body.querySelectorAll('.draggable-panel')];
+      const srcIdx = panels.indexOf(dragSrcPanel);
+      const tgtIdx = panels.indexOf(panel);
+      if(srcIdx < tgtIdx) panel.after(dragSrcPanel);
+      else panel.before(dragSrcPanel);
+      savePanelOrder();
+    });
+  });
+}
+
+function savePanelOrder(){
+  const body = document.getElementById('home-body');
+  if(!body) return;
+  const order = [...body.querySelectorAll('.draggable-panel')].map(p=>p.id);
+  try{ localStorage.setItem(PANEL_ORDER_KEY, JSON.stringify(order)); }catch(e){}
+}
+
+// Touch drag support for mobile
+function initTouchDrag(){
+  const body = document.getElementById('home-body');
+  if(!body) return;
+  let touchPanel = null, touchClone = null, startX = 0, startY = 0;
+
+  body.querySelectorAll('.drag-handle').forEach(handle=>{
+    handle.addEventListener('touchstart', e=>{
+      touchPanel = handle.closest('.draggable-panel');
+      const touch = e.touches[0];
+      startX = touch.clientX; startY = touch.clientY;
+      touchPanel.classList.add('dragging');
+      e.preventDefault();
+    },{passive:false});
+
+    handle.addEventListener('touchmove', e=>{
+      if(!touchPanel) return;
+      e.preventDefault();
+      const touch = e.touches[0];
+      const el = document.elementFromPoint(touch.clientX, touch.clientY);
+      const overPanel = el?.closest('.draggable-panel');
+      body.querySelectorAll('.draggable-panel').forEach(p=>p.classList.remove('drag-over'));
+      if(overPanel && overPanel !== touchPanel) overPanel.classList.add('drag-over');
+    },{passive:false});
+
+    handle.addEventListener('touchend', e=>{
+      if(!touchPanel) return;
+      const touch = e.changedTouches[0];
+      const el = document.elementFromPoint(touch.clientX, touch.clientY);
+      const overPanel = el?.closest('.draggable-panel');
+      body.querySelectorAll('.draggable-panel').forEach(p=>p.classList.remove('drag-over'));
+      if(overPanel && overPanel !== touchPanel){
+        const panels = [...body.querySelectorAll('.draggable-panel')];
+        const srcIdx = panels.indexOf(touchPanel);
+        const tgtIdx = panels.indexOf(overPanel);
+        if(srcIdx < tgtIdx) overPanel.after(touchPanel);
+        else overPanel.before(touchPanel);
+        savePanelOrder();
+      }
+      touchPanel.classList.remove('dragging');
+      touchPanel = null;
+    });
+  });
+}
+
 // ── PWA Install Prompt ──
 let deferredInstallPrompt = null;
 window.addEventListener('beforeinstallprompt', e => {
@@ -1005,6 +1131,7 @@ async function initAuth(){
 function showAuthScreen(){
   document.getElementById('auth-screen').style.display = 'flex';
   document.getElementById('landing').style.display = 'none';
+  initRememberMe();
 }
 
 function onAuthSuccess(){
@@ -1025,6 +1152,8 @@ function onAuthSuccess(){
   refreshHomeScreen();
   updateRequestsBadge();
   loadDMInbox();
+  initDraggablePanels();
+  initTouchDrag();
   // Connect home socket for real-time notifications (presence, invites, friend requests)
   initHomeSocket();
 }
@@ -1169,9 +1298,22 @@ async function doRegister(){
   finally{ setAuthLoading('register-btn', false, 'Create Account →'); }
 }
 
+// ── Remember Me ──
+function initRememberMe(){
+  try{
+    const saved = localStorage.getItem('wave-remember');
+    if(!saved) return;
+    const { username, password } = JSON.parse(saved);
+    if(username) document.getElementById('login-username').value = username;
+    if(password) document.getElementById('login-password').value = password;
+    document.getElementById('remember-me').checked = true;
+  }catch(e){}
+}
+
 async function doLogin(){
   const username = document.getElementById('login-username').value.trim();
   const password = document.getElementById('login-password').value;
+  const rememberMe = document.getElementById('remember-me')?.checked;
   const errEl = document.getElementById('auth-error');
   errEl.textContent = '';
   if(!username || !password){ errEl.textContent = 'Fill in all fields'; return; }
@@ -1181,6 +1323,12 @@ async function doLogin(){
       body: JSON.stringify({ username, password }) });
     const data = await res.json();
     if(!res.ok){ errEl.textContent = data.error; return; }
+    // Save or clear remembered credentials
+    if(rememberMe){
+      localStorage.setItem('wave-remember', JSON.stringify({ username, password }));
+    } else {
+      localStorage.removeItem('wave-remember');
+    }
     authToken = data.token;
     currentUser = data.user;
     localStorage.setItem('wave-token', authToken);
@@ -1192,8 +1340,10 @@ async function doLogin(){
 
 function logout(){
   localStorage.removeItem('wave-token');
+  // Keep remember-me so fields are pre-filled next time
   authToken = null; currentUser = null;
   showAuthScreen();
+  initRememberMe();
 }
 
 // ── Header profile ──
