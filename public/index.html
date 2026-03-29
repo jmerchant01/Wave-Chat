@@ -523,7 +523,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     <!-- Add friend -->
     <div id="ftab-add-body" class="hidden">
       <div class="friend-search">
-        <input id="friend-search-input" placeholder="Exact username…" onkeydown="if(event.key==='Enter')searchFriend()"/>
+        <input id="friend-search-input" placeholder="Exact username…" onkeydown="if(event.key==='Enter')searchFriend()" oninput="if(!this.value.trim()){document.getElementById('friend-search-results').innerHTML=''}"/>
         <button onclick="searchFriend()">Search</button>
       </div>
       <div id="friend-search-results"></div>
@@ -563,7 +563,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
   <div class="home-body" id="home-body">
 
     <!-- Left: Room actions -->
-    <div class="home-section draggable-panel" id="panel-rooms" draggable="true">
+    <div class="home-section draggable-panel" id="panel-rooms">
       <div class="home-section-title">
         <span class="drag-handle" title="Drag to reorder">⠿</span>
         🎙️ Voice Rooms
@@ -601,7 +601,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     </div>
 
     <!-- Right: Friends -->
-    <div class="home-section draggable-panel" id="panel-friends" draggable="true">
+    <div class="home-section draggable-panel" id="panel-friends">
       <div class="home-section-title">
         <span class="drag-handle" title="Drag to reorder">⠿</span>
         👥 Friends
@@ -612,7 +612,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
       <div class="home-card" style="margin-bottom:.75rem;">
         <div class="home-card-label" style="margin-bottom:.5rem;">Find a Friend</div>
         <div class="friend-search">
-          <input id="home-friend-search" placeholder="Exact username…" onkeydown="if(event.key==='Enter')homeSearchFriend()"/>
+          <input id="home-friend-search" placeholder="Exact username…" onkeydown="if(event.key==='Enter')homeSearchFriend()" oninput="if(!this.value.trim()){document.getElementById('home-search-results').innerHTML=''}"/>
           <button onclick="homeSearchFriend()">Search</button>
         </div>
         <div id="home-search-results"></div>
@@ -630,7 +630,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     </div>
 
     <!-- Messages section -->
-    <div class="home-section draggable-panel" id="panel-messages" draggable="true">
+    <div class="home-section draggable-panel" id="panel-messages">
       <div class="home-section-title">
         <span class="drag-handle" title="Drag to reorder">⠿</span>
         💬 Messages
@@ -668,7 +668,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     </div>
 
     <!-- Communities section -->
-    <div class="home-section draggable-panel" id="panel-communities" draggable="true">
+    <div class="home-section draggable-panel" id="panel-communities">
       <div class="home-section-title">
         <span class="drag-handle" title="Drag to reorder">⠿</span>
         🏘️ Communities
@@ -676,7 +676,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
       </div>
       <!-- Search communities -->
       <div class="friend-search" style="margin-bottom:.75rem;">
-        <input id="community-search-input" placeholder="Search by name or #tag…" onkeydown="if(event.key==='Enter')searchCommunities()"/>
+        <input id="community-search-input" placeholder="Search by name or #tag…" onkeydown="if(event.key==='Enter')searchCommunities()" oninput="if(!this.value.trim()){const r=document.getElementById('community-search-results');r.innerHTML='';r.classList.add('hidden')}"/>
         <button onclick="searchCommunities()">Search</button>
       </div>
       <div id="community-search-results" class="hidden" style="margin-bottom:.75rem;"></div>
@@ -685,13 +685,13 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     </div>
 
     <!-- Public Rooms section -->
-    <div class="home-section draggable-panel" id="panel-public-rooms" draggable="true">
+    <div class="home-section draggable-panel" id="panel-public-rooms">
       <div class="home-section-title">
         <span class="drag-handle" title="Drag to reorder">⠿</span>
         🔍 Discover Rooms
       </div>
       <div class="friend-search" style="margin-bottom:.75rem;">
-        <input id="public-room-search" placeholder="Search rooms or #tags…" onkeydown="if(event.key==='Enter')searchPublicRooms()"/>
+        <input id="public-room-search" placeholder="Search rooms or #tags…" onkeydown="if(event.key==='Enter')searchPublicRooms()" oninput="if(!this.value.trim())loadPublicRooms()"/>
         <button onclick="searchPublicRooms()">Search</button>
       </div>
       <div id="public-rooms-list">
@@ -1097,15 +1097,27 @@ function initDraggablePanels(){
 
   // Attach drag events to all panels
   body.querySelectorAll('.draggable-panel').forEach(panel=>{
+    const handle = panel.querySelector('.drag-handle');
+
+    // Only enable dragging when mousedown is on the handle
+    if(handle){
+      handle.addEventListener('mousedown', ()=>{ panel.draggable = true; });
+      handle.addEventListener('mouseleave', ()=>{ if(!dragSrcPanel) panel.draggable = false; });
+    }
+
     panel.addEventListener('dragstart', e=>{
+      // Only allow drag if started from handle
+      if(!panel.draggable) { e.preventDefault(); return; }
       dragSrcPanel = panel;
       panel.classList.add('dragging');
       e.dataTransfer.effectAllowed = 'move';
       e.dataTransfer.setData('text/plain', panel.id);
     });
     panel.addEventListener('dragend', ()=>{
+      panel.draggable = false;
       panel.classList.remove('dragging');
       body.querySelectorAll('.draggable-panel').forEach(p=>p.classList.remove('drag-over'));
+      dragSrcPanel = null;
       savePanelOrder();
     });
     panel.addEventListener('dragover', e=>{
@@ -1123,7 +1135,6 @@ function initDraggablePanels(){
       e.preventDefault();
       panel.classList.remove('drag-over');
       if(!dragSrcPanel || dragSrcPanel === panel) return;
-      // Determine insert position
       const panels = [...body.querySelectorAll('.draggable-panel')];
       const srcIdx = panels.indexOf(dragSrcPanel);
       const tgtIdx = panels.indexOf(panel);
@@ -1899,13 +1910,18 @@ function initHomeSocket(){
   homeSocket.on('friend_invite', ({ fromName, roomId: rid, roomName })=>{
     showInvitePopup(fromName, rid, roomName);
   });
-  homeSocket.on('community_invite_received', ({ fromName, communityId, communityName, inviteCode })=>{
-    toast(`🏘️ ${fromName} invited you to "${communityName}"!`);
-    showBrowserNotification('🏘️ Community Invite', `${fromName} invited you to join "${communityName}"`, null);
-    // Show a popup with join option
-    if(confirm(`${fromName} invited you to join "${communityName}". Join now?`)){
-      fetch(`/api/communities/invite/${inviteCode}`,{method:'POST',headers:{Authorization:`Bearer ${authToken}`}})
-        .then(r=>r.json()).then(d=>{ if(d.success){ loadMyCommunities(); openCommunityById(communityId); toast('🏘️ Joined!'); }});
+  homeSocket.on('community_invite_received', ({ fromName, communityId, communityName, inviteCode, autoJoined })=>{
+    if(autoJoined){
+      toast(`🏘️ ${fromName} added you to "${communityName}"!`);
+      showBrowserNotification('🏘️ Added to Community', `${fromName} added you to "${communityName}"`, null);
+      loadMyCommunities();
+    } else {
+      toast(`🏘️ ${fromName} invited you to "${communityName}"!`);
+      showBrowserNotification('🏘️ Community Invite', `${fromName} invited you to join "${communityName}"`, null);
+      if(confirm(`${fromName} invited you to join "${communityName}". Join now?`)){
+        fetch(`/api/communities/invite/${inviteCode}`,{method:'POST',headers:{Authorization:`Bearer ${authToken}`}})
+          .then(r=>r.json()).then(d=>{ if(d.success){ loadMyCommunities(); openCommunityById(communityId); toast('🏘️ Joined!'); }});
+      }
     }
   });
   homeSocket.on('browser_notification', ({ title, body, roomId: rid })=>{
@@ -2007,7 +2023,7 @@ async function sendFriendInvite(friendId, friendName, btn){
       if(sock){
         if(data.autoJoined){
           // Public — they're already added, send notification
-          sock.emit('send_friend_invite', { toUserId: friendId, roomId: null, roomName: null, fromName: currentUser.username, communityId: currentCommunity._id, communityName: currentCommunity.name, inviteCode: data.inviteCode });
+          sock.emit('send_community_invite', { toUserId: friendId, fromName: currentUser.username, communityId: currentCommunity._id, communityName: currentCommunity.name, inviteCode: data.inviteCode, autoJoined: true });
         } else {
           // Private — send invite code
           sock.emit('send_community_invite', { toUserId: friendId, fromName: currentUser.username, communityId: currentCommunity._id, communityName: currentCommunity.name, inviteCode: data.inviteCode });

@@ -139,9 +139,9 @@ io.on('connection', (socket) => {
   });
 
   // ── Community invite via socket ──
-  socket.on('send_community_invite', ({ toUserId, fromName, communityId, communityName, inviteCode }) => {
+  socket.on('send_community_invite', ({ toUserId, fromName, communityId, communityName, inviteCode, autoJoined }) => {
     const target = onlineUsers.get(toUserId);
-    if(target) io.to(target.socketId).emit('community_invite_received', { fromName, communityId, communityName, inviteCode });
+    if(target) io.to(target.socketId).emit('community_invite_received', { fromName, communityId, communityName, inviteCode, autoJoined: !!autoJoined });
   });
 
   // ── Invite friend to room (public/private) ──
