@@ -5,8 +5,9 @@ const path = require('path');
 const mongoose = require('mongoose');
 const { router: authRouter, JWT_SECRET } = require('./routes/auth');
 const adminRouter = require('./routes/admin');
+const messagesRouter = require('./routes/messages');
 const jwt = require('jsonwebtoken');
-const webpush = require('web-push');
+// web-push removed — using browser Notification API instead
 
 const app = express();
 const server = http.createServer(app);
@@ -18,36 +19,18 @@ const io = new Server(server, {
 const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://jaymerch:CarCoop1823!@wave-chat.qoqscw3.mongodb.net/wave?appName=Wave-Chat';
 mongoose.connect(MONGO_URI).then(() => console.log('✅ MongoDB connected')).catch(e => console.error('❌ MongoDB error:', e));
 
-// ── Web Push VAPID config ──
-const VAPID_PUBLIC  = process.env.VAPID_PUBLIC  || 'BAIcTXrbjdqvlDWZh1BHJ43uTPcEoclo3WHVRdIBiDG0Ej4aiQuqBV68ymsbDzKX-BBSUuB8w7WXU8ofMfxhYys';
-const VAPID_PRIVATE = process.env.VAPID_PRIVATE || 'opC0KOkB2gzApaaHRMRG4cd11v3RjXc_z39rvvWz6-g';
-webpush.setVapidDetails('mailto:admin@wave-chat.app', VAPID_PUBLIC, VAPID_PRIVATE);
-
-// ── Send push notification to a user ──
+// ── Push notifications via socket (no external lib needed) ──
+// sendPushNotification is a no-op stub — real-time handled via socket events
 async function sendPushNotification(userId, payload) {
-  try {
-    const User = require('./models/User');
-    const user = await User.findById(userId).select('pushSubscription');
-    if(!user?.pushSubscription) return;
-    await webpush.sendNotification(user.pushSubscription, JSON.stringify(payload));
-    console.log('✅ Push sent to', userId);
-  } catch(e) {
-    console.log('Push error:', e.message);
-    // If subscription expired/invalid, clear it
-    if(e.statusCode === 410) {
-      const User = require('./models/User');
-      await User.findByIdAndUpdate(userId, { pushSubscription: null }).catch(()=>{});
-    }
-  }
+  // Real-time push handled via socket.io emit to connected clients
+  // Browser Notification API handles display when app is open
 }
-
-// ── VAPID public key endpoint ──
-app.get('/api/vapid-public-key', (req, res) => res.json({ key: VAPID_PUBLIC }));
 
 app.use(express.json({ limit: '15mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/api', authRouter);
 app.use('/api', adminRouter);
+app.use('/api', messagesRouter);
 
 function emailTemplate(title, body, sub, url, btnText) {
   return `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#050508;font-family:'Segoe UI',sans-serif;">
@@ -135,6 +118,22 @@ io.on('connection', (socket) => {
   socket.on('notify_friend_accepted', ({ toUserId, fromUsername }) => {
     const target = onlineUsers.get(toUserId);
     if(target) io.to(target.socketId).emit('friend_accepted', { username: fromUsername });
+  });
+
+  // ── Direct Message relay ──
+  socket.on('dm_send', ({ toUserId, messageId }) => {
+    const target = onlineUsers.get(toUserId);
+    if(target) io.to(target.socketId).emit('dm_received', { fromUserId: socket.data.userId, messageId });
+  });
+
+  socket.on('dm_typing', ({ toUserId }) => {
+    const target = onlineUsers.get(toUserId);
+    if(target) io.to(target.socketId).emit('dm_typing', { fromUserId: socket.data.userId });
+  });
+
+  socket.on('dm_read', ({ toUserId }) => {
+    const target = onlineUsers.get(toUserId);
+    if(target) io.to(target.socketId).emit('dm_read', { fromUserId: socket.data.userId });
   });
 
   socket.on('send_friend_invite', async ({ toUserId, roomId, roomName, fromName }) => {

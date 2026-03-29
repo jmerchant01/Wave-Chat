@@ -298,6 +298,41 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .join-request-banner.visible{display:flex;}
 .join-req-btns{display:flex;gap:.4rem;}
 #landing{min-height:100vh;display:flex;flex-direction:column;background:var(--bg);}
+/* ── Direct Messages ── */
+.dm-conversation-item{display:flex;align-items:center;gap:.6rem;padding:.6rem .5rem;border-radius:9px;cursor:pointer;position:relative;}
+.dm-conversation-item:hover{background:var(--surface2);}
+.dm-conv-avatar{width:38px;height:38px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.85rem;font-weight:700;overflow:hidden;}
+.dm-conv-avatar img{width:100%;height:100%;object-fit:cover;}
+.dm-conv-info{flex:1;min-width:0;}
+.dm-conv-name{font-size:.78rem;font-weight:600;}
+.dm-conv-preview{font-size:.65rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:.1rem;}
+.dm-conv-meta{display:flex;flex-direction:column;align-items:flex-end;gap:.2rem;flex-shrink:0;}
+.dm-conv-time{font-size:.6rem;color:var(--muted);}
+.dm-unread-dot{width:18px;height:18px;border-radius:50%;background:var(--accent2);color:#fff;font-size:.6rem;display:flex;align-items:center;justify-content:center;font-weight:700;}
+.dm-chat-header{display:flex;align-items:center;gap:.6rem;padding:.6rem .5rem;border-bottom:1px solid var(--border);margin-bottom:.5rem;}
+.dm-back-btn{border:none;background:transparent;color:var(--accent);font-size:.75rem;cursor:pointer;font-family:'DM Mono',monospace;padding:.2rem .4rem;}
+.dm-chat-avatar{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;overflow:hidden;flex-shrink:0;}
+.dm-chat-avatar img{width:100%;height:100%;object-fit:cover;}
+.dm-typing{font-size:.65rem;color:var(--muted);font-style:italic;margin-left:auto;}
+.dm-messages{flex:1;overflow-y:auto;max-height:320px;min-height:120px;padding:.3rem .2rem;display:flex;flex-direction:column;gap:.4rem;}
+.dm-msg{max-width:82%;padding:.45rem .7rem;border-radius:12px;font-size:.75rem;line-height:1.5;word-break:break-word;position:relative;}
+.dm-msg.mine{background:var(--accent);color:#fff;align-self:flex-end;border-bottom-right-radius:3px;}
+.dm-msg.theirs{background:var(--surface2);color:var(--text);align-self:flex-start;border-bottom-left-radius:3px;}
+.dm-msg img{max-width:180px;border-radius:7px;display:block;margin:.2rem 0;cursor:pointer;}
+.dm-msg video{max-width:200px;border-radius:7px;display:block;margin:.2rem 0;}
+.dm-file-link{display:flex;align-items:center;gap:.4rem;background:rgba(255,255,255,.1);padding:.35rem .6rem;border-radius:7px;font-size:.7rem;text-decoration:none;color:inherit;}
+.dm-delete-btn{position:absolute;top:-6px;right:-6px;width:16px;height:16px;border-radius:50%;background:var(--danger);color:#fff;border:none;cursor:pointer;font-size:.55rem;display:none;align-items:center;justify-content:center;}
+.dm-msg:hover .dm-delete-btn{display:flex;}
+.dm-input-area{border-top:1px solid var(--border);padding:.5rem 0 0;}
+.dm-input-row{display:flex;gap:.35rem;align-items:center;}
+.dm-attach-btn{width:30px;height:30px;border-radius:7px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;font-size:.85rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.dm-input{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.45rem .65rem;color:var(--text);font-family:'DM Mono',monospace;font-size:.75rem;outline:none;}
+.dm-input:focus{border-color:var(--accent);}
+.dm-send-btn{width:30px;height:30px;border-radius:7px;border:none;background:var(--accent);color:#fff;cursor:pointer;font-size:.8rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.dm-attach-preview{background:var(--surface2);border-radius:7px;padding:.4rem .6rem;font-size:.68rem;color:var(--text);display:flex;align-items:center;justify-content:space-between;margin-bottom:.3rem;}
+#dm-inbox-view,#dm-chat-view{display:flex;flex-direction:column;flex:1;}
+#messages-section{display:flex;flex-direction:column;}
+.dm-btn{padding:.22rem .5rem;border-radius:5px;border:1px solid var(--accent);background:transparent;color:var(--accent);font-size:.62rem;cursor:pointer;font-family:'DM Mono',monospace;white-space:nowrap;}
 .home-nav{display:flex;align-items:center;justify-content:space-between;padding:.85rem 2rem;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;}
 .home-nav-logo{font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:800;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
 .home-nav-right{display:flex;align-items:center;gap:.75rem;}
@@ -307,7 +342,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .home-avatar img{width:100%;height:100%;object-fit:cover;}
 .home-nav-btn{padding:.35rem .85rem;border-radius:7px;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:'DM Mono',monospace;font-size:.72rem;cursor:pointer;transition:all .2s;}
 .home-nav-btn:hover{border-color:var(--danger);color:var(--danger);}
-.home-body{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;padding:2rem;flex:1;max-width:960px;margin:0 auto;width:100%;box-sizing:border-box;}
+.home-body{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1.5rem;padding:2rem;flex:1;max-width:1300px;margin:0 auto;width:100%;box-sizing:border-box;}
 .home-section{display:flex;flex-direction:column;}
 .home-section-title{font-family:'Syne',sans-serif;font-size:1rem;font-weight:700;margin-bottom:.85rem;display:flex;align-items:center;}
 .home-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.25rem;position:relative;overflow:hidden;}
@@ -550,6 +585,42 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
       <!-- Friends list -->
       <div style="font-size:.72rem;color:var(--muted);margin-bottom:.4rem;font-weight:600;">YOUR FRIENDS</div>
       <div id="home-friends-list"></div>
+    </div>
+
+    <!-- Messages section -->
+    <div class="home-section" id="messages-section">
+      <div class="home-section-title">💬 Messages
+        <span id="msg-unread-badge" class="friend-badge hidden" style="margin-left:.4rem;background:var(--accent2);">0</span>
+      </div>
+
+      <!-- Conversation list / chat view -->
+      <div id="dm-inbox-view">
+        <div id="dm-conversations-list">
+          <div class="friends-empty" style="padding:.75rem 0;">Loading messages…</div>
+        </div>
+      </div>
+
+      <!-- Active conversation -->
+      <div id="dm-chat-view" class="hidden">
+        <div class="dm-chat-header">
+          <button class="dm-back-btn" onclick="closeDMChat()">← Back</button>
+          <div class="dm-chat-with">
+            <div class="dm-chat-avatar" id="dm-chat-avatar"></div>
+            <span id="dm-chat-username"></span>
+          </div>
+          <div id="dm-typing-indicator" class="dm-typing" style="display:none;">typing…</div>
+        </div>
+        <div class="dm-messages" id="dm-messages-list"></div>
+        <div class="dm-input-area">
+          <div class="dm-attach-preview" id="dm-attach-preview" style="display:none;"></div>
+          <div class="dm-input-row">
+            <button class="dm-attach-btn" onclick="document.getElementById('dm-file-input').click()" title="Attach file">📎</button>
+            <input type="file" id="dm-file-input" class="hidden" accept="image/*,video/*,.pdf,.doc,.docx,.txt,.zip" onchange="handleDMFile(this)"/>
+            <input class="dm-input" id="dm-input" placeholder="Message…" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendDM();}" oninput="dmTyping()"/>
+            <button class="dm-send-btn" onclick="sendDM()">➤</button>
+          </div>
+        </div>
+      </div>
     </div>
 
   </div>
@@ -925,6 +996,7 @@ function onAuthSuccess(){
   updateHeaderProfile();
   refreshHomeScreen();
   updateRequestsBadge();
+  loadDMInbox();
   // Connect home socket for real-time notifications (presence, invites, friend requests)
   initHomeSocket();
 }
@@ -1401,6 +1473,7 @@ function initHomeSocket(){
   homeSocket.on('browser_notification', ({ title, body, roomId: rid })=>{
     showBrowserNotification(title, body, rid);
   });
+  initDMSocketListeners(homeSocket);
 }
 
 // ── Report User ──
@@ -1577,6 +1650,7 @@ function renderHomeFriends(){
       </div>
       <div class="friend-actions" style="gap:.3rem;">
         ${joinBtnHtml}
+        <button class="dm-btn" onclick="openDMChat('${fid}','${esc(f.username)}','${f.avatar||''}')">💬</button>
         <button class="start-room-btn ${isSelected?'selected':''}" id="srb-${fid}" onclick="toggleStartRoom('${fid}','${esc(f.username)}',this)">${isSelected?'✓ Added':'+ Start Room'}</button>
         <button class="friend-btn danger" onclick="removeFriend('${fid}','${esc(f.username)}')">Remove</button>
       </div>`;
@@ -1698,6 +1772,219 @@ async function homeAcceptReq(fromId){
       refreshHomeScreen();
     }
   }catch(e){}
+}
+
+// ═══════════════════════════════════════════════════
+//  DIRECT MESSAGES
+// ═══════════════════════════════════════════════════
+let activeDMUserId = null;
+let activeDMUsername = null;
+let dmPendingFile = null;
+let dmTypingTimer = null;
+let dmPage = 1;
+
+// ── Load inbox ──
+async function loadDMInbox(){
+  if(!authToken) return;
+  try{
+    const res = await fetch('/api/messages/inbox',{headers:{Authorization:`Bearer ${authToken}`}});
+    const {conversations} = await res.json();
+    renderDMInbox(conversations);
+    // Update unread badge
+    const total = conversations.reduce((s,c)=>s+c.unread,0);
+    const badge = document.getElementById('msg-unread-badge');
+    if(badge){ badge.textContent=total; badge.classList.toggle('hidden',total===0); }
+  }catch(e){}
+}
+
+function renderDMInbox(conversations){
+  const el = document.getElementById('dm-conversations-list');
+  if(!el) return;
+  if(!conversations.length){
+    el.innerHTML='<div class="friends-empty" style="padding:.75rem 0;">No messages yet.<br>Click 💬 next to a friend to start chatting!</div>';
+    return;
+  }
+  el.innerHTML='';
+  conversations.forEach(c=>{
+    const div = document.createElement('div');
+    div.className = 'dm-conversation-item home-card';
+    div.style.cssText='margin-bottom:.4rem;padding:.5rem .65rem;cursor:pointer;';
+    div.onclick = ()=>openDMChat(c.userId, c.username, c.avatar);
+    const lastText = c.lastMessage?.text || (c.lastMessage?.fileName ? `📎 ${c.lastMessage.fileName}` : '');
+    const time = c.lastMessage ? timeAgo(new Date(c.lastMessage.createdAt)) : '';
+    const isMe = c.lastMessage?.from?._id === currentUser?.id || c.lastMessage?.from === currentUser?.id;
+    div.innerHTML=`
+      <div class="dm-conv-avatar" style="background:${colorFor(c.userId)};color:#fff;">${c.avatar?`<img src="${c.avatar}">`:(c.username||'?').slice(0,2).toUpperCase()}</div>
+      <div class="dm-conv-info">
+        <div class="dm-conv-name">${esc(c.username)}</div>
+        <div class="dm-conv-preview">${isMe?'You: ':''}${esc(lastText.slice(0,40))}</div>
+      </div>
+      <div class="dm-conv-meta">
+        <span class="dm-conv-time">${time}</span>
+        ${c.unread>0?`<span class="dm-unread-dot">${c.unread}</span>`:''}
+      </div>`;
+    el.appendChild(div);
+  });
+}
+
+function timeAgo(date){
+  const s = Math.floor((Date.now()-date)/1000);
+  if(s<60) return 'now';
+  if(s<3600) return Math.floor(s/60)+'m';
+  if(s<86400) return Math.floor(s/3600)+'h';
+  return Math.floor(s/86400)+'d';
+}
+
+async function openDMChat(userId, username, avatar){
+  activeDMUserId = userId;
+  activeDMUsername = username;
+  document.getElementById('dm-inbox-view').classList.add('hidden');
+  document.getElementById('dm-chat-view').classList.remove('hidden');
+  // Set header
+  const av = document.getElementById('dm-chat-avatar');
+  av.innerHTML = avatar?`<img src="${avatar}">`:(username||'?').slice(0,2).toUpperCase();
+  av.style.background = colorFor(userId); av.style.color='#fff';
+  document.getElementById('dm-chat-username').textContent = username;
+  document.getElementById('dm-messages-list').innerHTML='<div style="text-align:center;color:var(--muted);font-size:.7rem;padding:.5rem;">Loading…</div>';
+  dmPage = 1;
+  await loadDMMessages();
+  document.getElementById('dm-input').focus();
+  loadDMInbox(); // refresh unread counts
+}
+
+function closeDMChat(){
+  activeDMUserId = null;
+  document.getElementById('dm-chat-view').classList.add('hidden');
+  document.getElementById('dm-inbox-view').classList.remove('hidden');
+  loadDMInbox();
+}
+
+async function loadDMMessages(){
+  if(!activeDMUserId||!authToken) return;
+  try{
+    const res = await fetch(`/api/messages/conversation/${activeDMUserId}?page=${dmPage}`,{headers:{Authorization:`Bearer ${authToken}`}});
+    const {messages} = await res.json();
+    const el = document.getElementById('dm-messages-list');
+    el.innerHTML='';
+    messages.forEach(m=>renderDMMessage(m, el));
+    el.scrollTop = el.scrollHeight;
+  }catch(e){}
+}
+
+function renderDMMessage(m, container){
+  if(m.deleted){ return; } // skip deleted
+  const isMine = m.from._id===currentUser?.id || m.from===currentUser?.id || m.from?._id?.toString()===currentUser?.id;
+  const div = document.createElement('div');
+  div.className = `dm-msg ${isMine?'mine':'theirs'}`;
+  div.dataset.msgId = m._id;
+  let content = '';
+  if(m.text) content += `<div>${esc(m.text)}</div>`;
+  if(m.fileUrl){
+    if(m.fileType==='image') content += `<img src="${m.fileUrl}" onclick="window.open(this.src,'_blank')" alt="${esc(m.fileName||'image')}">`;
+    else if(m.fileType==='video') content += `<video src="${m.fileUrl}" controls></video>`;
+    else content += `<a class="dm-file-link" href="${m.fileUrl}" download="${esc(m.fileName||'file')}">📎 ${esc(m.fileName||'file')}</a>`;
+  }
+  const time = new Date(m.createdAt).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  content += `<div class="dm-msg-time">${time}</div>`;
+  if(isMine) content += `<button class="dm-delete-btn" onclick="deleteDMMessage('${m._id}',this)" title="Delete">✕</button>`;
+  div.innerHTML = content;
+  if(container) container.appendChild(div);
+  return div;
+}
+
+async function sendDM(){
+  const inp = document.getElementById('dm-input');
+  const text = inp.value.trim();
+  if(!text && !dmPendingFile) return;
+  if(!activeDMUserId||!authToken) return;
+  inp.value='';
+  const fileData = dmPendingFile;
+  clearDMFile();
+  try{
+    const body = { toUserId: activeDMUserId, text };
+    if(fileData){ body.fileUrl=fileData.url; body.fileType=fileData.type; body.fileName=fileData.name; }
+    const res = await fetch('/api/messages/send',{
+      method:'POST', headers:{'Content-Type':'application/json',Authorization:`Bearer ${authToken}`},
+      body:JSON.stringify(body)
+    });
+    const data = await res.json();
+    if(!res.ok){ toast('⚠️ '+data.error); return; }
+    const el = document.getElementById('dm-messages-list');
+    renderDMMessage(data.message, el);
+    el.scrollTop = el.scrollHeight;
+    // Notify recipient via socket
+    const sock = homeSocket||socket;
+    if(sock) sock.emit('dm_send',{toUserId:activeDMUserId,messageId:data.message._id});
+    loadDMInbox();
+  }catch(e){ toast('⚠️ Failed to send message'); }
+}
+
+async function deleteDMMessage(msgId, btn){
+  try{
+    await fetch(`/api/messages/${msgId}`,{method:'DELETE',headers:{Authorization:`Bearer ${authToken}`}});
+    const msgEl = btn.closest('.dm-msg');
+    if(msgEl) msgEl.remove();
+  }catch(e){}
+}
+
+function dmTyping(){
+  const sock = homeSocket||socket;
+  if(!sock||!activeDMUserId) return;
+  sock.emit('dm_typing',{toUserId:activeDMUserId});
+  clearTimeout(dmTypingTimer);
+}
+
+async function handleDMFile(input){
+  const file = input.files[0]; if(!file) return;
+  const MAX = 15*1024*1024;
+  if(file.size > MAX){ toast('⚠️ File too large (max 15MB)'); input.value=''; return; }
+  // Determine type
+  let fileType = 'file';
+  if(file.type.startsWith('image/')) fileType='image';
+  else if(file.type.startsWith('video/')) fileType='video';
+  // Read as base64
+  const reader = new FileReader();
+  reader.onload = e=>{
+    dmPendingFile = { url:e.target.result, type:fileType, name:file.name };
+    const prev = document.getElementById('dm-attach-preview');
+    prev.style.display='flex';
+    prev.innerHTML=`<span>📎 ${esc(file.name)} (${(file.size/1024/1024).toFixed(1)}MB)</span><button onclick="clearDMFile()" style="border:none;background:transparent;color:var(--muted);cursor:pointer;font-size:.8rem;">✕</button>`;
+  };
+  reader.readAsDataURL(file);
+  input.value='';
+}
+
+function clearDMFile(){
+  dmPendingFile = null;
+  const prev = document.getElementById('dm-attach-preview');
+  if(prev) prev.style.display='none';
+}
+
+// ── DM socket listeners (added to homeSocket in initHomeSocket) ──
+function initDMSocketListeners(sock){
+  sock.on('dm_received', async ({fromUserId, messageId})=>{
+    // Show notification
+    const friend = currentUser?.friends?.find(f=>(f.id||f._id)===fromUserId);
+    const name = friend?.username || 'Someone';
+    toast(`💬 New message from ${name}`);
+    showBrowserNotification('💬 New Message', `${name} sent you a message`, null);
+    // If chat is open with this person, load new message
+    if(activeDMUserId===fromUserId){
+      await loadDMMessages();
+      // Mark read
+      const sock2 = homeSocket||socket;
+      if(sock2) sock2.emit('dm_read',{toUserId:fromUserId});
+    }
+    loadDMInbox();
+  });
+  sock.on('dm_typing', ({fromUserId})=>{
+    if(activeDMUserId!==fromUserId) return;
+    const ind = document.getElementById('dm-typing-indicator');
+    if(ind){ ind.style.display='block'; clearTimeout(dmTypingTimer); dmTypingTimer=setTimeout(()=>ind.style.display='none',2000); }
+  });
+  sock.on('dm_read', ({fromUserId})=>{
+    // Could show read receipts here in future
+  });
 }
 
 let onlineUsers = new Map();
