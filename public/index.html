@@ -280,9 +280,9 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .dot-online{background:#43e97b;}
 .dot-inroom{background:#4fc3f7;cursor:pointer;}
 .dot-offline{background:#444;}
-.start-room-btn{padding:.22rem .5rem;border-radius:5px;border:1px solid var(--accent3);background:transparent;color:var(--accent3);font-size:.62rem;cursor:pointer;font-family:'DM Mono',monospace;transition:all .15s;white-space:nowrap;}
+.start-room-btn{padding:.22rem .5rem;border-radius:5px;border:1px solid var(--accent3);background:transparent;color:var(--accent3);font-size:.62rem;cursor:pointer;font-family:'DM Mono',monospace;white-space:nowrap;}
 .start-room-btn.selected{background:var(--accent3);color:#000;}
-.start-room-btn:hover{background:var(--accent3);color:#000;}
+
 /* Join request banner */
 .pending-invite-item{display:flex;align-items:center;justify-content:space-between;font-size:.68rem;padding:.25rem 0;border-bottom:1px solid var(--border);}
 .pending-invite-item:last-child{border-bottom:none;}
@@ -353,7 +353,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .friend-status{font-size:.63rem;color:var(--muted);}
 .friend-status.online{color:var(--accent3);}
 .friend-actions{display:flex;gap:.3rem;flex-shrink:0;}
-.friend-btn{padding:.25rem .5rem;border-radius:5px;border:1px solid var(--border);background:transparent;color:var(--text);font-size:.65rem;cursor:pointer;font-family:'DM Mono',monospace;transition:all .15s;white-space:nowrap;}
+.friend-btn{padding:.25rem .5rem;border-radius:5px;border:1px solid var(--border);background:transparent;color:var(--text);font-size:.65rem;cursor:pointer;font-family:'DM Mono',monospace;white-space:nowrap;}
 .friend-btn:hover{border-color:var(--accent);color:var(--accent);}
 .friend-btn.danger:hover{border-color:var(--danger);color:var(--danger);}
 .friend-btn.accept{border-color:var(--accent3);color:var(--accent3);}
@@ -1254,7 +1254,8 @@ function initHomeSocket(){
   // Friend statuses response
   homeSocket.on('friend_statuses', (statuses)=>{
     friendStatuses = { ...friendStatuses, ...statuses };
-    renderHomeFriends();
+    // Update status dots in-place — don't re-render whole list (would reset button state)
+    updateFriendStatusDots();
   });
   homeSocket.on('friends_status_refresh', ()=>{ fetchFriendStatuses(); });
 
@@ -1384,20 +1385,21 @@ function renderHomeFriends(){
 
     // Join button — only shown if friend is in a room
     const joinBtnHtml = status.roomId ? `
+      <span id="jrb-wrap-${fid}">
       <button class="start-room-btn ${isPendingJoin?'selected':''}" id="jrb-${fid}"
         style="border-color:${isPendingJoin?'var(--danger)':'#4fc3f7'};color:${isPendingJoin?'var(--danger)':'#4fc3f7'};"
         onclick="toggleJoinRequest('${fid}','${esc(f.username)}','${status.roomId}',this)">
         ${isPendingJoin?'✕ Cancel':'Join'}
-      </button>` : '';
+      </button></span>` : `<span id="jrb-wrap-${fid}" style="display:none;"><button class="start-room-btn" id="jrb-${fid}">Join</button></span>`;
 
     div.innerHTML=`
       <div style="position:relative;flex-shrink:0;">
         <div class="friend-avatar" style="background:${colorFor(fid)};color:#fff;">${f.avatar?`<img src="${f.avatar}">`:(f.username||'?').slice(0,2).toUpperCase()}</div>
-        <div class="friend-status-dot ${dotClass}" title="${status.online?(status.roomId?'🔵 In a room':'🟢 Online'):'⚫ Offline'}"></div>
+        <div class="friend-status-dot ${dotClass}" data-peer-dot="${fid}" title="${status.online?(status.roomId?'🔵 In a room':'🟢 Online'):'⚫ Offline'}"></div>
       </div>
       <div class="friend-info">
         <div class="friend-name">${esc(f.username)}</div>
-        <div class="friend-status ${status.online?'online':''}" style="font-size:.62rem;">${status.online?(status.roomId?'🔵 In a room':'🟢 Online'):'⚫ Offline'}</div>
+        <div class="friend-status ${status.online?'online':''}" data-peer-status="${fid}" style="font-size:.62rem;">${status.online?(status.roomId?'🔵 In a room':'🟢 Online'):'⚫ Offline'}</div>
       </div>
       <div class="friend-actions" style="gap:.3rem;">
         ${joinBtnHtml}
@@ -1406,8 +1408,6 @@ function renderHomeFriends(){
       </div>`;
     el.appendChild(div);
   });
-
-  // Fetch fresh statuses from server
   fetchFriendStatuses();
 }
 
@@ -1416,6 +1416,31 @@ function fetchFriendStatuses(){
   if(!sock || !currentUser?.friends?.length) return;
   const ids = (currentUser.friends||[]).map(f=>f.id||f._id).filter(Boolean);
   sock.emit('get_friend_statuses', { friendIds: ids });
+}
+
+function updateFriendStatusDots(){
+  const friends = currentUser?.friends || [];
+  friends.forEach(f => {
+    const fid = f.id||f._id;
+    const status = friendStatuses[fid] || { online: false, roomId: null };
+    const dotClass = status.online ? (status.roomId ? 'dot-inroom' : 'dot-online') : 'dot-offline';
+    const statusText = status.online ? (status.roomId ? '🔵 In a room' : '🟢 Online') : '⚫ Offline';
+    const dot = document.querySelector(`[data-peer-dot="${fid}"]`);
+    if(dot){ dot.className = `friend-status-dot ${dotClass}`; dot.title = statusText; }
+    const txt = document.querySelector(`[data-peer-status="${fid}"]`);
+    if(txt){ txt.textContent = statusText; txt.className = `friend-status${status.online?' online':''}`; txt.style.fontSize='.62rem'; }
+    // Show/hide join button wrapper
+    const jrbWrap = document.getElementById(`jrb-wrap-${fid}`);
+    const jrb = document.getElementById(`jrb-${fid}`);
+    if(jrbWrap){ jrbWrap.style.display = status.roomId ? '' : 'none'; }
+    if(jrb && status.roomId){
+      const isPending = pendingJoinRequests.has(status.roomId);
+      jrb.textContent = isPending ? '✕ Cancel' : 'Join';
+      jrb.style.borderColor = isPending ? 'var(--danger)' : '#4fc3f7';
+      jrb.style.color = isPending ? 'var(--danger)' : '#4fc3f7';
+      jrb.onclick = () => toggleJoinRequest(fid, f.username, status.roomId, jrb);
+    }
+  });
 }
 
 function toggleStartRoom(fid, username, btn){
