@@ -690,6 +690,15 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
         <div class="participants-list" id="p-list"></div>
       </div>
 
+      <!-- Pending invites (host only) -->
+      <div id="pending-invites-box" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;">
+        <div class="panel-header" style="border-bottom:1px solid var(--border);">
+          <span>⏳ Waiting to Join</span>
+          <span class="participant-count" id="pending-invites-count">0</span>
+        </div>
+        <div id="pending-invites-list" style="padding:.4rem .6rem;"></div>
+      </div>
+
       <!-- Host Controls -->
       <div class="host-panel hidden" id="host-panel">
         <div class="host-title">👑 Host Controls</div>
@@ -706,11 +715,6 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
           <p>📨 Share invite:</p>
           <div class="invite-url" id="invite-url" onclick="copyInvite()">—</div>
           <button class="host-btn" style="margin-top:.5rem;border-color:var(--accent3);color:var(--accent3);" onclick="openFriendInvitePanel()">👥 Invite a Friend</button>
-        </div>
-        <!-- Pending invites list -->
-        <div id="pending-invites-box" style="display:none;margin-top:.6rem;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.65rem;">
-          <p style="font-size:.63rem;color:var(--muted);margin-bottom:.4rem;">⏳ Waiting to join:</p>
-          <div id="pending-invites-list"></div>
         </div>
       </div>
 
@@ -1298,16 +1302,20 @@ function removePendingInvite(userId){
 function renderPendingInvites(){
   const box = document.getElementById('pending-invites-box');
   const list = document.getElementById('pending-invites-list');
+  const count = document.getElementById('pending-invites-count');
   if(!box || !list) return;
   if(pendingInvitesMap.size === 0){ box.style.display='none'; return; }
   box.style.display = 'block';
+  if(count) count.textContent = pendingInvitesMap.size;
   list.innerHTML = '';
   pendingInvitesMap.forEach((username, uid)=>{
     const div = document.createElement('div');
-    div.className = 'pending-invite-item';
-    div.innerHTML = `<span class="pending-invite-name">👤 ${esc(username)}</span><span class="pending-invite-status">⏳ Invited</span>`;
+    div.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:.3rem .2rem;font-size:.72rem;border-bottom:1px solid var(--border);';
+    div.innerHTML = `<span style="display:flex;align-items:center;gap:.4rem;"><span style="width:8px;height:8px;border-radius:50%;background:var(--accent2);display:inline-block;animation:blink 1.5s infinite;"></span>${esc(username)}</span><span style="font-size:.62rem;color:var(--muted);">Invited</span>`;
     list.appendChild(div);
   });
+  // Remove border from last item
+  if(list.lastChild) list.lastChild.style.borderBottom = 'none';
 }
 
 function clearPendingInvites(){

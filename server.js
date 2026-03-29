@@ -103,10 +103,37 @@ io.on('connection', (socket) => {
     if(target) io.to(target.socketId).emit('friend_accepted', { username: fromUsername });
   });
 
-  socket.on('send_friend_invite', ({ toUserId, roomId, roomName, fromName }) => {
+  socket.on('send_friend_invite', async ({ toUserId, roomId, roomName, fromName }) => {
     const target = onlineUsers.get(toUserId);
-    if (target) io.to(target.socketId).emit('friend_invite', { fromName, roomId, roomName });
-    else socket.emit('friend_invite_offline', { toUserId });
+    if (target) {
+      io.to(target.socketId).emit('friend_invite', { fromName, roomId, roomName });
+      io.to(target.socketId).emit('browser_notification', {
+        title: `📨 Room Invite from ${fromName}`,
+        body: `${fromName} invited you to join "${roomName}"`,
+        roomId
+      });
+    }
+    // Always send email too
+    try {
+      const User = require('./models/User');
+      const { Resend } = require('resend');
+      const resend = new Resend(process.env.RESEND_API_KEY || 're_cpjQ5pCW_BqS7EyPe8qqXtezbXZBopQd9');
+      const appUrl = process.env.APP_URL || 'https://wave-chat-fnpr.onrender.com';
+      const friend = await User.findById(toUserId).select('email username');
+      if(friend && friend.email){
+        const joinUrl = `${appUrl}?room=${roomId}`;
+        const result = await resend.emails.send({
+          from: 'WAVE <onboarding@resend.dev>',
+          to: friend.email,
+          subject: `${fromName} invited you to join "${roomName}" on WAVE`,
+          html: emailTemplate(`🎙️ You're invited to "${roomName}"`,
+            `<b>${fromName}</b> wants you to join their room on WAVE!`,
+            `Click the button below to jump in now.`, joinUrl, '🎙️ Join Room Now')
+        });
+        console.log('✅ Invite email sent to', friend.email, result?.id || '');
+      }
+    } catch(e) { console.log('❌ Invite email error:', e.message); }
+    if(!target) socket.emit('friend_invite_offline', { toUserId });
   });
 
   socket.on('create_room', async ({ name, roomName, userId, inviteFriendIds }) => {
@@ -150,20 +177,25 @@ io.on('connection', (socket) => {
           }
           // Always send email regardless of online status
           const joinUrl = `${appUrl}?room=${roomId}`;
-          await resend.emails.send({
-            from: 'WAVE <onboarding@resend.dev>',
-            to: friend.email,
-            subject: `${displayName} invited you to join "${rName}" on WAVE`,
-            html: emailTemplate(
-              `🎙️ You're invited to "${rName}"`,
-              `<b>${displayName}</b> created a room and wants you to join!`,
-              `Click the button below to jump in — the room is live right now.`,
-              joinUrl, '🎙️ Join Room Now'
-            )
-          });
+          try {
+            const result = await resend.emails.send({
+              from: 'WAVE <onboarding@resend.dev>',
+              to: friend.email,
+              subject: `${displayName} invited you to join "${rName}" on WAVE`,
+              html: emailTemplate(
+                `🎙️ You're invited to "${rName}"`,
+                `<b>${displayName}</b> created a room and wants you to join!`,
+                `Click the button below to jump in — the room is live right now.`,
+                joinUrl, '🎙️ Join Room Now'
+              )
+            });
+            console.log('✅ Invite email sent to', friend.email, result?.id || '');
+          } catch(emailErr) {
+            console.log('❌ Email send failed for', friend.email, ':', emailErr.message);
+          }
           // Notify host that invite was sent
           socket.emit('invite_sent', { userId: fid, username: friend.username });
-        }catch(e){ console.log('Invite error for', fid, e.message); }
+        }catch(e){ console.log('❌ Invite error for', fid, ':', e.message); }
       }
     }
   });
