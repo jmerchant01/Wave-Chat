@@ -16,6 +16,16 @@ function auth(req, res, next) {
   catch { res.status(401).json({ error: 'Invalid token' }); }
 }
 
+// ── Check if username is taken (public — for guest join) ──
+router.get('/check-username', async (req, res) => {
+  try {
+    const { q } = req.query;
+    if (!q) return res.json({ taken: false });
+    const user = await User.findOne({ username: new RegExp(`^${q}$`, 'i') });
+    res.json({ taken: !!user });
+  } catch (e) { res.status(500).json({ taken: false }); }
+});
+
 // ── Register ──
 router.post('/register', async (req, res) => {
   try {

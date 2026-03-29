@@ -376,6 +376,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     <div class="auth-tabs">
       <button class="auth-tab active" id="auth-tab-login" onclick="switchAuthTab('login')">Log In</button>
       <button class="auth-tab" id="auth-tab-register" onclick="switchAuthTab('register')">Sign Up</button>
+      <button class="auth-tab" id="auth-tab-guest" onclick="switchAuthTab('guest')" style="display:none;">Join as Guest</button>
     </div>
     <!-- Login -->
     <div id="auth-login">
@@ -394,6 +395,17 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
       <div class="auth-field"><label>Email</label><input id="reg-email" type="email" placeholder="your@email.com" autocomplete="email" onkeydown="if(event.key==='Enter')doRegister()"/></div>
       <div class="auth-field"><label>Password</label><input id="reg-password" type="password" placeholder="Min 6 characters" autocomplete="new-password" onkeydown="if(event.key==='Enter')doRegister()"/></div>
       <button class="auth-btn" onclick="doRegister()">Create Account →</button>
+    </div>
+    <!-- Guest join -->
+    <div id="auth-guest" class="hidden">
+      <div style="background:rgba(108,99,255,.08);border:1px solid rgba(108,99,255,.2);border-radius:8px;padding:.65rem .85rem;font-size:.7rem;color:var(--muted);margin-bottom:1rem;line-height:1.6;">
+        You're joining as a <strong style="color:var(--text);">guest</strong> — no account needed. Your username must not be taken by an existing user.
+      </div>
+      <div class="auth-field"><label>Choose a Username</label><input id="guest-username" type="text" placeholder="Pick a username" maxlength="24" onkeydown="if(event.key==='Enter')doGuestJoin()"/></div>
+      <button class="auth-btn" onclick="doGuestJoin()" id="guest-join-btn">Join Room →</button>
+      <div style="text-align:center;margin-top:.75rem;font-size:.68rem;color:var(--muted);">
+        Have an account? <span style="color:var(--accent);cursor:pointer;" onclick="switchAuthTab('login')">Log in</span>
+      </div>
     </div>
     <div class="auth-error" id="auth-error"></div>
   </div>
@@ -753,12 +765,30 @@ let pendingInvite = null; // { fromName, roomId, roomName }
 
 // ── Bootstrap: check saved token ──
 async function initAuth(){
+  // Check if there's a room code in URL — show guest option
+  const urlParams = new URLSearchParams(location.search);
+  const roomCode = urlParams.get('room');
+  if(roomCode){
+    const guestTab = document.getElementById('auth-tab-guest');
+    if(guestTab){
+      guestTab.style.display = '';
+      guestTab.textContent = 'Join as Guest';
+    }
+    // Pre-fill room code for guest join
+    const guestRoomInput = document.getElementById('guest-room-code');
+    if(guestRoomInput) guestRoomInput.value = roomCode;
+    // Auto-switch to guest tab
+    switchAuthTab('guest');
+    document.getElementById('auth-sub') && (document.getElementById('auth-sub').textContent = `Joining room ${roomCode}`);
+  }
   try{
     const t = localStorage.getItem('wave-token');
-    if(!t){ showAuthScreen(); return; }
+    if(!t){
+      showAuthScreen();
+      return;
+    }
     const res = await fetch('/api/me', { headers:{ Authorization:`Bearer ${t}` } });
     if(!res.ok){
-      // Token invalid or expired — clear it and show login
       localStorage.removeItem('wave-token');
       showAuthScreen();
       return;
@@ -766,7 +796,14 @@ async function initAuth(){
     const user = await res.json();
     authToken = t;
     currentUser = user;
-    onAuthSuccess();
+    // If logged in and there's a room code, jump straight to joining
+    if(roomCode){
+      onAuthSuccess();
+      document.getElementById('join-code').value = roomCode;
+      joinRoom();
+    } else {
+      onAuthSuccess();
+    }
   }catch(e){
     localStorage.removeItem('wave-token');
     showAuthScreen();
@@ -798,14 +835,53 @@ function onAuthSuccess(){
 }
 
 function switchAuthTab(tab){
-  document.getElementById('auth-login').classList.toggle('hidden', tab!=='login');
-  document.getElementById('auth-register').classList.toggle('hidden', tab!=='register');
-  document.getElementById('auth-tab-login').classList.toggle('active', tab==='login');
-  document.getElementById('auth-tab-register').classList.toggle('active', tab==='register');
+  ['login','register','guest'].forEach(t=>{
+    const panel = document.getElementById('auth-'+t);
+    const btn = document.getElementById('auth-tab-'+t);
+    if(panel) panel.classList.toggle('hidden', t!==tab);
+    if(btn) btn.classList.toggle('active', t===tab);
+  });
   document.getElementById('auth-error').textContent = '';
 }
 
-let regAvatarBase64 = null;
+async function doGuestJoin(){
+  const username = document.getElementById('guest-username').value.trim();
+  const errEl = document.getElementById('auth-error');
+  errEl.textContent = '';
+  if(!username){ errEl.textContent = 'Please enter a username'; return; }
+  if(username.length < 2){ errEl.textContent = 'Username must be at least 2 characters'; return; }
+
+  // Check username isn't taken by a registered user
+  try{
+    const res = await fetch(`/api/check-username?q=${encodeURIComponent(username)}`);
+    const data = await res.json();
+    if(data.taken){ errEl.textContent = 'That username is taken by a registered user — try another'; return; }
+  }catch(e){ errEl.textContent = 'Could not verify username — try again'; return; }
+
+  // Set as guest user (no token)
+  myName = username;
+  currentUser = null; // guest — no account
+  authToken = null;
+
+  const urlParams = new URLSearchParams(location.search);
+  const roomCode = urlParams.get('room');
+
+  document.getElementById('auth-screen').style.display = 'none';
+
+  // Go straight to joining the room
+  document.getElementById('join-code').value = roomCode || '';
+  document.getElementById('join-name').value = username;
+  document.getElementById('create-name').value = username;
+
+  if(roomCode){
+    await initMic();
+    connectSocket();
+    socket.on('connect', ()=> socket.emit('join_room', { roomId: roomCode, name: username, userId: null }));
+  } else {
+    // No room code — show landing so they can enter one
+    onAuthSuccess();
+  }
+}
 function handleRegAvatar(input){
   const file = input.files[0]; if(!file) return;
   const reader = new FileReader();
