@@ -97,9 +97,8 @@ router.delete('/admin/users/:id', auth, adminOnly, async (req, res) => {
 // ── ADMIN: Get all reports ──
 router.get('/admin/reports', auth, adminOnly, async (req, res) => {
   try {
-    const { status, page = 1 } = req.query;
-    const limit = 20;
     const { status, userId, page = 1 } = req.query;
+    const limit = 20;
     const query = {};
     if(status) query.status = status;
     if(userId) query.reportedUser = userId;
