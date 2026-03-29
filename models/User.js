@@ -10,8 +10,10 @@ const userSchema = new mongoose.Schema({
   friends: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   friendRequests: [{
     from: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    createdAt: { type: Date, default: Date.now }
+    lastSeen: { type: Date, default: Date.now },
+  createdAt: { type: Date, default: Date.now }
   }],
+  lastSeen: { type: Date, default: Date.now },
   createdAt: { type: Date, default: Date.now }
 });
 

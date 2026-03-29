@@ -64,13 +64,14 @@ router.post('/login', async (req, res) => {
 // ── Get current user ──
 router.get('/me', auth, async (req, res) => {
   try {
+    await User.findByIdAndUpdate(req.user.id, { lastSeen: new Date() });
     const user = await User.findById(req.user.id)
-      .populate('friends', 'username avatar email')
+      .populate('friends', 'username avatar email lastSeen')
       .populate('friendRequests.from', 'username avatar');
     if (!user) return res.status(404).json({ error: 'User not found' });
     // Issue a fresh token to keep them logged in
     const freshToken = jwt.sign({ id: user._id, username: user.username }, JWT_SECRET, { expiresIn: '365d' });
-    res.json({ id: user._id, username: user.username, email: user.email, avatar: user.avatar, pushSubscription: user.pushSubscription, friends: user.friends, friendRequests: user.friendRequests, freshToken });
+    res.json({ id: user._id, username: user.username, email: user.email, avatar: user.avatar, pushSubscription: user.pushSubscription, friends: user.friends, friendRequests: user.friendRequests, freshToken, lastSeen: user.lastSeen });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 

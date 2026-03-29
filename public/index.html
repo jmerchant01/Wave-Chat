@@ -346,7 +346,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .home-avatar img{width:100%;height:100%;object-fit:cover;}
 .home-nav-btn{padding:.35rem .85rem;border-radius:7px;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:'DM Mono',monospace;font-size:.72rem;cursor:pointer;transition:all .2s;}
 .home-nav-btn:hover{border-color:var(--danger);color:var(--danger);}
-.home-body{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1.5rem;padding:2rem;flex:1;max-width:1300px;margin:0 auto;width:100%;box-sizing:border-box;}
+.home-body{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1.5rem;padding:2rem;flex:1;max-width:1600px;margin:0 auto;width:100%;box-sizing:border-box;align-items:start;}
 .home-section{display:flex;flex-direction:column;}
 .home-section-title{font-family:'Syne',sans-serif;font-size:1rem;font-weight:700;margin-bottom:.85rem;display:flex;align-items:center;}
 .home-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.25rem;position:relative;overflow:hidden;}
@@ -577,6 +577,13 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
           <input id="room-name-in" type="text" placeholder="My awesome room" maxlength="32" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.5rem .75rem;color:var(--text);font-family:'DM Mono',monospace;font-size:.78rem;outline:none;box-sizing:border-box;"/>
         </div>
         <button class="btn btn-primary" id="create-btn" onclick="createRoom()" style="width:100%;">🎙️ Create &amp; Host Room</button>
+        <div style="display:flex;align-items:center;gap:.75rem;margin-top:.6rem;flex-wrap:wrap;">
+          <label style="display:flex;align-items:center;gap:.4rem;font-size:.7rem;color:var(--muted);cursor:pointer;user-select:none;">
+            <input type="checkbox" id="room-public" style="accent-color:var(--accent);cursor:pointer;"/>
+            🔍 Public room
+          </label>
+          <input id="room-tags" placeholder="#tags #space-separated" style="flex:1;min-width:120px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:.35rem .6rem;color:var(--text);font-family:'DM Mono',monospace;font-size:.68rem;outline:none;"/>
+        </div>
       </div>
       <div class="home-card" style="margin-top:.75rem;">
         <div class="home-card-icon">🔊</div>
@@ -657,6 +664,38 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
             <button class="dm-send-btn" onclick="sendDM()">➤</button>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- Communities section -->
+    <div class="home-section draggable-panel" id="panel-communities" draggable="true">
+      <div class="home-section-title">
+        <span class="drag-handle" title="Drag to reorder">⠿</span>
+        🏘️ Communities
+        <button onclick="showCreateCommunity()" style="margin-left:auto;padding:.2rem .55rem;border-radius:6px;border:1px solid var(--accent);background:transparent;color:var(--accent);font-size:.65rem;cursor:pointer;font-family:'DM Mono',monospace;">+ New</button>
+      </div>
+      <!-- Search communities -->
+      <div class="friend-search" style="margin-bottom:.75rem;">
+        <input id="community-search-input" placeholder="Search by name or #tag…" onkeydown="if(event.key==='Enter')searchCommunities()"/>
+        <button onclick="searchCommunities()">Search</button>
+      </div>
+      <div id="community-search-results" class="hidden" style="margin-bottom:.75rem;"></div>
+      <div style="font-size:.72rem;color:var(--muted);margin-bottom:.4rem;font-weight:600;">YOUR COMMUNITIES</div>
+      <div id="my-communities-list"></div>
+    </div>
+
+    <!-- Public Rooms section -->
+    <div class="home-section draggable-panel" id="panel-public-rooms" draggable="true">
+      <div class="home-section-title">
+        <span class="drag-handle" title="Drag to reorder">⠿</span>
+        🔍 Discover Rooms
+      </div>
+      <div class="friend-search" style="margin-bottom:.75rem;">
+        <input id="public-room-search" placeholder="Search rooms or #tags…" onkeydown="if(event.key==='Enter')searchPublicRooms()"/>
+        <button onclick="searchPublicRooms()">Search</button>
+      </div>
+      <div id="public-rooms-list">
+        <div class="friends-empty" style="padding:.5rem 0;">No public rooms right now.<br>Create one to appear here!</div>
       </div>
     </div>
 
@@ -850,6 +889,108 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
   </div>
 </div>
 
+<!-- CREATE COMMUNITY MODAL -->
+<div id="create-community-overlay" class="save-modal-overlay hidden">
+  <div class="save-modal" style="max-width:480px;">
+    <h3>🏘️ Create Community</h3>
+    <div class="auth-field">
+      <label>Community Name</label>
+      <input id="cc-name" type="text" placeholder="My Awesome Community" maxlength="64" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.55rem .75rem;color:var(--text);font-family:'DM Mono',monospace;font-size:.78rem;outline:none;box-sizing:border-box;"/>
+    </div>
+    <div class="auth-field" style="margin-top:.65rem;">
+      <label>Description</label>
+      <textarea id="cc-desc" placeholder="What is this community about?" maxlength="500" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.55rem .75rem;color:var(--text);font-family:'DM Mono',monospace;font-size:.75rem;outline:none;resize:vertical;min-height:70px;box-sizing:border-box;"></textarea>
+    </div>
+    <div class="auth-field" style="margin-top:.65rem;">
+      <label>Tags (up to 10, space-separated)</label>
+      <input id="cc-tags" type="text" placeholder="#gaming #music #tech" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.55rem .75rem;color:var(--text);font-family:'DM Mono',monospace;font-size:.78rem;outline:none;box-sizing:border-box;"/>
+    </div>
+    <label style="display:flex;align-items:center;gap:.5rem;font-size:.72rem;color:var(--muted);cursor:pointer;margin-top:.65rem;user-select:none;">
+      <input type="checkbox" id="cc-public" checked style="accent-color:var(--accent);cursor:pointer;"/>
+      Public community (searchable by anyone)
+    </label>
+    <div id="cc-error" style="color:var(--danger);font-size:.7rem;margin-top:.5rem;min-height:1rem;"></div>
+    <div style="display:flex;gap:.5rem;margin-top:.75rem;">
+      <button class="save-modal-cancel" style="flex:1;margin-top:0;padding:.6rem;" onclick="closeCreateCommunity()">Cancel</button>
+      <button class="auth-btn" style="flex:1;margin-top:0;" id="cc-submit-btn" onclick="submitCreateCommunity()">Create Community</button>
+    </div>
+  </div>
+</div>
+
+<!-- COMMUNITY VIEW (full screen overlay) -->
+<div id="community-view" class="hidden" style="position:fixed;inset:0;background:var(--bg);z-index:300;display:flex;flex-direction:column;">
+  <div class="home-nav" style="flex-shrink:0;">
+    <div style="display:flex;align-items:center;gap:.75rem;">
+      <button onclick="closeCommunityView()" style="border:none;background:transparent;color:var(--accent);font-size:.8rem;cursor:pointer;font-family:'DM Mono',monospace;">← Back</button>
+      <div class="community-view-avatar" id="cv-avatar" style="width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;overflow:hidden;flex-shrink:0;"></div>
+      <span id="cv-name" style="font-family:'Syne',sans-serif;font-weight:700;font-size:1rem;"></span>
+    </div>
+    <div style="display:flex;align-items:center;gap:.5rem;">
+      <span id="cv-member-count" style="font-size:.7rem;color:var(--muted);"></span>
+      <button id="cv-settings-btn" class="home-nav-btn hidden" onclick="openCommunitySettings()">⚙️ Settings</button>
+      <button id="cv-invite-btn" class="home-nav-btn" onclick="copyCommunityInvite()">📋 Invite</button>
+      <button id="cv-leave-btn" class="home-nav-btn" onclick="leaveCommunity()" style="color:var(--danger);">Leave</button>
+    </div>
+  </div>
+  <div style="display:flex;flex:1;overflow:hidden;">
+    <!-- Channels sidebar -->
+    <div style="width:200px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;">
+      <div style="padding:.75rem .85rem;font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;font-weight:600;display:flex;align-items:center;justify-content:space-between;">
+        Channels
+        <button id="cv-add-channel-btn" class="hidden" onclick="addChannel()" style="border:none;background:transparent;color:var(--accent);cursor:pointer;font-size:.9rem;" title="Add channel">+</button>
+      </div>
+      <div id="cv-channels-list" style="flex:1;overflow-y:auto;padding:.3rem .5rem;"></div>
+      <div style="padding:.75rem .85rem;border-top:1px solid var(--border);">
+        <div style="font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;font-weight:600;margin-bottom:.4rem;">Members <span id="cv-members-badge" style="background:var(--surface2);border-radius:4px;padding:0 4px;font-size:.6rem;"></span></div>
+        <div id="cv-members-mini" style="display:flex;flex-direction:column;gap:.25rem;max-height:120px;overflow-y:auto;"></div>
+      </div>
+    </div>
+    <!-- Channel content -->
+    <div style="flex:1;display:flex;flex-direction:column;overflow:hidden;">
+      <div style="padding:.6rem 1rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:.5rem;flex-shrink:0;">
+        <span id="cv-channel-icon" style="font-size:.9rem;">#</span>
+        <span id="cv-channel-name" style="font-size:.85rem;font-weight:600;"></span>
+        <span id="cv-channel-desc" style="font-size:.7rem;color:var(--muted);margin-left:.5rem;"></span>
+        <button id="cv-delete-channel-btn" class="hidden" onclick="deleteChannel()" style="margin-left:auto;border:none;background:transparent;color:var(--danger);cursor:pointer;font-size:.75rem;">🗑</button>
+      </div>
+      <div id="cv-messages" style="flex:1;overflow-y:auto;padding:.75rem 1rem;display:flex;flex-direction:column;gap:.5rem;"></div>
+      <div id="cv-typing-bar" style="height:1.4rem;padding:0 1rem;font-size:.65rem;color:var(--muted);font-style:italic;"></div>
+      <div id="cv-input-area" style="padding:.6rem 1rem;border-top:1px solid var(--border);display:flex;gap:.5rem;">
+        <button onclick="document.getElementById('cv-file-input').click()" style="width:30px;height:30px;border-radius:7px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;font-size:.85rem;flex-shrink:0;">📎</button>
+        <input type="file" id="cv-file-input" class="hidden" accept="image/*,video/*,.pdf,.doc,.docx,.txt,.zip" onchange="handleCVFile(this)"/>
+        <input id="cv-msg-input" placeholder="Message #general…" style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.5rem .75rem;color:var(--text);font-family:'DM Mono',monospace;font-size:.78rem;outline:none;" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendCommunityMessage();}" oninput="cvTyping()"/>
+        <button onclick="sendCommunityMessage()" style="width:30px;height:30px;border-radius:7px;border:none;background:var(--accent);color:#fff;cursor:pointer;font-size:.8rem;flex-shrink:0;">➤</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- COMMUNITY SETTINGS MODAL -->
+<div id="community-settings-overlay" class="save-modal-overlay hidden">
+  <div class="save-modal" style="max-width:520px;max-height:80vh;overflow-y:auto;">
+    <h3>⚙️ Community Settings</h3>
+    <div class="auth-field"><label>Name</label><input id="cs-name" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.5rem .75rem;color:var(--text);font-family:'DM Mono',monospace;font-size:.78rem;outline:none;box-sizing:border-box;"/></div>
+    <div class="auth-field" style="margin-top:.5rem;"><label>Description</label><textarea id="cs-desc" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.5rem .75rem;color:var(--text);font-family:'DM Mono',monospace;font-size:.75rem;outline:none;resize:vertical;min-height:60px;box-sizing:border-box;"></textarea></div>
+    <div class="auth-field" style="margin-top:.5rem;"><label>Tags</label><input id="cs-tags" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.5rem .75rem;color:var(--text);font-family:'DM Mono',monospace;font-size:.78rem;outline:none;box-sizing:border-box;"/></div>
+    <label style="display:flex;align-items:center;gap:.5rem;font-size:.72rem;color:var(--muted);cursor:pointer;margin:.65rem 0;user-select:none;">
+      <input type="checkbox" id="cs-public" style="accent-color:var(--accent);"/>
+      Public community
+    </label>
+    <!-- Members management -->
+    <div style="font-size:.72rem;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.08em;margin:.75rem 0 .4rem;">Members</div>
+    <div id="cs-members-list" style="max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:.4rem;"></div>
+    <!-- Roles -->
+    <div style="font-size:.72rem;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.08em;margin:.75rem 0 .4rem;">Roles</div>
+    <div id="cs-roles-list" style="margin-bottom:.5rem;"></div>
+    <button onclick="addRole()" style="font-size:.68rem;padding:.35rem .75rem;border-radius:6px;border:1px solid var(--accent);background:transparent;color:var(--accent);cursor:pointer;font-family:'DM Mono',monospace;">+ Add Role</button>
+    <div style="display:flex;gap:.5rem;margin-top:1rem;">
+      <button class="save-modal-cancel" style="flex:1;margin-top:0;padding:.6rem;" onclick="closeCommunitySettings()">Close</button>
+      <button class="auth-btn" style="flex:1;margin-top:0;" onclick="saveCommunitySettings()">Save Changes</button>
+    </div>
+    <button onclick="deleteCommunity()" style="width:100%;margin-top:.5rem;padding:.5rem;border:1px solid var(--danger);background:transparent;color:var(--danger);border-radius:8px;cursor:pointer;font-family:'DM Mono',monospace;font-size:.72rem;">🗑 Delete Community</button>
+  </div>
+</div>
+
 <!-- REPORT USER MODAL -->
 <div id="report-modal-overlay" class="save-modal-overlay hidden">
   <div class="save-modal" style="max-width:460px;">
@@ -932,7 +1073,7 @@ function initDraggablePanels(){
   try{
     const saved = localStorage.getItem(PANEL_ORDER_KEY);
     if(saved){
-      const order = JSON.parse(saved); // ['panel-rooms','panel-friends','panel-messages']
+      const order = JSON.parse(saved); // e.g. ['panel-rooms','panel-friends','panel-messages','panel-communities','panel-public-rooms']
       order.forEach(id=>{
         const el = document.getElementById(id);
         if(el) body.appendChild(el);
@@ -1180,6 +1321,8 @@ function onAuthSuccess(){
   refreshHomeScreen();
   updateRequestsBadge();
   loadDMInbox();
+  loadMyCommunities();
+  loadPublicRooms();
   initDraggablePanels();
   initTouchDrag();
   // Connect home socket for real-time notifications (presence, invites, friend requests)
@@ -1732,6 +1875,22 @@ function initHomeSocket(){
   homeSocket.on('browser_notification', ({ title, body, roomId: rid })=>{
     showBrowserNotification(title, body, rid);
   });
+  // Community real-time messages
+  homeSocket.on('community_message', ({ communityId, channelId, message })=>{
+    if(currentCommunity?._id===communityId && currentChannelId===channelId){
+      const el=document.getElementById('cv-messages');
+      renderCVMessage(message, el);
+      el.scrollTop=el.scrollHeight;
+    } else {
+      const friend = currentUser?.username;
+      toast(`💬 New message in a community`);
+    }
+  });
+  homeSocket.on('community_typing', ({ channelId, username })=>{
+    if(currentChannelId!==channelId) return;
+    const bar=document.getElementById('cv-typing-bar');
+    if(bar){ bar.textContent=`${username} is typing…`; clearTimeout(cvTypingTimer); cvTypingTimer=setTimeout(()=>bar.textContent='',2000); }
+  });
   initDMSocketListeners(homeSocket);
 }
 
@@ -2030,6 +2189,510 @@ async function homeAcceptReq(fromId){
       if(sock) sock.emit('notify_friend_accepted', { toUserId: fromId, fromUsername: currentUser.username });
       refreshHomeScreen();
     }
+  }catch(e){}
+}
+
+// ═══════════════════════════════════════════════════
+//  LAST SEEN
+// ═══════════════════════════════════════════════════
+function lastSeenText(lastSeen){
+  if(!lastSeen) return '';
+  const d = new Date(lastSeen);
+  const s = Math.floor((Date.now()-d)/1000);
+  if(s < 60) return 'Active just now';
+  if(s < 3600) return `Active ${Math.floor(s/60)}m ago`;
+  if(s < 86400) return `Active ${Math.floor(s/3600)}h ago`;
+  if(s < 604800) return `Active ${Math.floor(s/86400)}d ago`;
+  return `Active ${d.toLocaleDateString()}`;
+}
+
+// ═══════════════════════════════════════════════════
+//  PUBLIC ROOMS
+// ═══════════════════════════════════════════════════
+async function searchPublicRooms(){
+  const q = document.getElementById('public-room-search')?.value.trim()||'';
+  try{
+    const res = await fetch(`/api/rooms/search?q=${encodeURIComponent(q)}`);
+    const {rooms} = await res.json();
+    renderPublicRooms(rooms);
+  }catch(e){}
+}
+
+function renderPublicRooms(rooms){
+  const el = document.getElementById('public-rooms-list');
+  if(!el) return;
+  if(!rooms.length){ el.innerHTML='<div class="friends-empty" style="padding:.5rem 0;">No public rooms found.</div>'; return; }
+  el.innerHTML='';
+  rooms.forEach(r=>{
+    const div = document.createElement('div');
+    div.className='home-card';
+    div.style.cssText='margin-bottom:.5rem;padding:.65rem .85rem;cursor:pointer;';
+    div.onclick=()=>{ document.getElementById('join-code').value=r.roomId; joinRoom(); };
+    div.innerHTML=`
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.25rem;">
+        <span style="font-size:.8rem;font-weight:600;">${esc(r.name)}</span>
+        <span style="font-size:.65rem;color:var(--accent3);">👥 ${r.participants}</span>
+      </div>
+      <div style="font-size:.65rem;color:var(--muted);margin-bottom:.3rem;">Host: ${esc(r.hostName)}</div>
+      ${r.tags.length?`<div style="display:flex;gap:.3rem;flex-wrap:wrap;">${r.tags.map(t=>`<span style="background:rgba(108,99,255,.15);color:var(--accent);border-radius:4px;padding:.1rem .35rem;font-size:.6rem;">#${esc(t)}</span>`).join('')}</div>`:''}
+      <div style="font-size:.62rem;color:var(--accent);margin-top:.3rem;">Click to join →</div>`;
+    el.appendChild(div);
+  });
+}
+
+// Load public rooms on home screen
+async function loadPublicRooms(){ await searchPublicRooms(); }
+
+// ═══════════════════════════════════════════════════
+//  COMMUNITIES
+// ═══════════════════════════════════════════════════
+let currentCommunity = null;
+let currentChannelId = null;
+let cvPendingFile = null;
+let cvTypingTimer = null;
+
+// ── Create community ──
+function showCreateCommunity(){
+  document.getElementById('create-community-overlay').classList.remove('hidden');
+}
+function closeCreateCommunity(){
+  document.getElementById('create-community-overlay').classList.add('hidden');
+  document.getElementById('cc-error').textContent='';
+}
+async function submitCreateCommunity(){
+  const name = document.getElementById('cc-name').value.trim();
+  const desc = document.getElementById('cc-desc').value.trim();
+  const tagsRaw = document.getElementById('cc-tags').value.trim();
+  const isPublic = document.getElementById('cc-public').checked;
+  const errEl = document.getElementById('cc-error');
+  errEl.textContent='';
+  if(!name){ errEl.textContent='Name is required'; return; }
+  const tags = tagsRaw.split(/[\s,]+/).filter(Boolean).map(t=>t.replace('#',''));
+  try{
+    const res = await fetch('/api/communities',{
+      method:'POST', headers:{'Content-Type':'application/json',Authorization:`Bearer ${authToken}`},
+      body:JSON.stringify({name, description:desc, isPublic, tags})
+    });
+    const data = await res.json();
+    if(!res.ok){ errEl.textContent=data.error; return; }
+    closeCreateCommunity();
+    toast(`🏘️ "${name}" created!`);
+    loadMyCommunities();
+    openCommunityView(data.community);
+  }catch(e){ errEl.textContent='Server error'; }
+}
+
+// ── Load my communities ──
+async function loadMyCommunities(){
+  if(!authToken) return;
+  try{
+    const res = await fetch('/api/communities/mine',{headers:{Authorization:`Bearer ${authToken}`}});
+    const {communities} = await res.json();
+    renderMyCommunities(communities);
+  }catch(e){}
+}
+
+function renderMyCommunities(communities){
+  const el = document.getElementById('my-communities-list');
+  if(!el) return;
+  if(!communities?.length){ el.innerHTML='<div class="friends-empty" style="padding:.5rem 0;">No communities yet.<br>Create one or search to join!</div>'; return; }
+  el.innerHTML='';
+  communities.forEach(c=>{
+    const div = document.createElement('div');
+    div.className='dm-conversation-item home-card';
+    div.style.cssText='margin-bottom:.4rem;padding:.5rem .65rem;cursor:pointer;';
+    div.onclick=()=>openCommunityView(c);
+    const memberCount = c.members?.filter(m=>!m.banned).length||0;
+    div.innerHTML=`
+      <div class="dm-conv-avatar" style="background:${colorFor(c._id||'x')};color:#fff;">${c.avatar?`<img src="${c.avatar}">`:(c.name||'?').slice(0,2).toUpperCase()}</div>
+      <div class="dm-conv-info">
+        <div class="dm-conv-name">${esc(c.name)}</div>
+        <div class="dm-conv-preview">${memberCount} member${memberCount!==1?'s':''} ${c.tags?.length?'· '+c.tags.map(t=>'#'+t).join(' '):''}</div>
+      </div>`;
+    el.appendChild(div);
+  });
+}
+
+// ── Search communities ──
+async function searchCommunities(){
+  const q = document.getElementById('community-search-input')?.value.trim();
+  const resultsEl = document.getElementById('community-search-results');
+  if(!q||!resultsEl) return;
+  resultsEl.classList.remove('hidden');
+  try{
+    const res = await fetch(`/api/communities/search?q=${encodeURIComponent(q)}`,{headers:{Authorization:`Bearer ${authToken}`}});
+    const {communities} = await res.json();
+    resultsEl.innerHTML='';
+    if(!communities.length){ resultsEl.innerHTML='<div class="friends-empty" style="padding:.4rem 0;">No communities found.</div>'; return; }
+    communities.forEach(c=>{
+      const div=document.createElement('div');
+      div.className='home-card'; div.style.cssText='margin-bottom:.4rem;padding:.5rem .65rem;';
+      div.innerHTML=`
+        <div style="display:flex;align-items:center;gap:.5rem;">
+          <div style="width:32px;height:32px;border-radius:50%;background:${colorFor(c._id||'x')};color:#fff;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;flex-shrink:0;">${(c.name||'?').slice(0,2).toUpperCase()}</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:.78rem;font-weight:600;">${esc(c.name)}</div>
+            <div style="font-size:.63rem;color:var(--muted);">${c.memberCount||0} members ${c.tags?.length?'· '+c.tags.map(t=>'#'+t).join(' '):''}</div>
+          </div>
+          ${c.isMember
+            ? `<button class="friend-btn" onclick="openCommunityById('${c._id}')">Open</button>`
+            : `<button class="friend-btn" style="border-color:var(--accent);color:var(--accent);" onclick="joinCommunity('${c._id}',this)">Join</button>`}
+        </div>`;
+      resultsEl.appendChild(div);
+    });
+  }catch(e){}
+}
+
+async function joinCommunity(id, btn){
+  try{
+    const res = await fetch(`/api/communities/${id}/join`,{method:'POST',headers:{Authorization:`Bearer ${authToken}`}});
+    const data = await res.json();
+    if(res.ok){ btn.textContent='Joined!'; btn.disabled=true; loadMyCommunities(); toast('🏘️ Joined community!'); }
+    else toast('⚠️ '+data.error);
+  }catch(e){}
+}
+
+async function openCommunityById(id){
+  try{
+    const res = await fetch(`/api/communities/${id}`,{headers:{Authorization:`Bearer ${authToken}`}});
+    const {community} = await res.json();
+    openCommunityView(community);
+  }catch(e){}
+}
+
+// ── Open community view ──
+function openCommunityView(community){
+  currentCommunity = community;
+  // Connect socket room
+  const sock = homeSocket||socket;
+  if(sock) sock.emit('community_join',{communityId:community._id});
+
+  // Set header
+  const av = document.getElementById('cv-avatar');
+  av.innerHTML = community.avatar?`<img src="${community.avatar}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`:(community.name||'?').slice(0,2).toUpperCase();
+  av.style.background=colorFor(community._id||'x'); av.style.color='#fff';
+  document.getElementById('cv-name').textContent = community.name;
+  const memberCount = community.members?.filter(m=>!m.banned).length||0;
+  document.getElementById('cv-member-count').textContent = `${memberCount} members`;
+
+  // Show admin buttons if owner or admin
+  const isOwnerOrAdmin = community.ownerId===currentUser?.id || community.ownerId?._id===currentUser?.id || checkIsAdmin(community);
+  document.getElementById('cv-settings-btn').classList.toggle('hidden',!isOwnerOrAdmin);
+  document.getElementById('cv-add-channel-btn').classList.toggle('hidden',!isOwnerOrAdmin);
+
+  // Render channels
+  renderCVChannels(community.channels||[]);
+
+  // Render members mini list
+  renderCVMembers(community.members||[]);
+
+  // Open first text channel
+  const firstText = community.channels?.find(c=>c.type==='text'||c.type==='announcement');
+  if(firstText) openChannel(firstText);
+
+  document.getElementById('community-view').classList.remove('hidden');
+}
+
+function closeCommunityView(){
+  if(currentCommunity){
+    const sock = homeSocket||socket;
+    if(sock) sock.emit('community_leave',{communityId:currentCommunity._id});
+  }
+  currentCommunity=null; currentChannelId=null;
+  document.getElementById('community-view').classList.add('hidden');
+}
+
+function checkIsAdmin(community){
+  if(!currentUser||!community) return false;
+  const member = community.members?.find(m=>(m.userId===currentUser.id||m.userId?._id===currentUser.id||m.userId?.toString()===currentUser.id));
+  if(!member) return false;
+  return member.roles?.some(rId=>{
+    const role = community.roles?.find(r=>r._id===rId||r._id?.toString()===rId);
+    return role?.permissions?.isAdmin;
+  });
+}
+
+function renderCVChannels(channels){
+  const el = document.getElementById('cv-channels-list');
+  if(!el) return;
+  el.innerHTML='';
+  const typeIcon = {text:'#',announcement:'📢',voice:'🔊'};
+  channels.forEach(ch=>{
+    const btn=document.createElement('button');
+    btn.style.cssText='width:100%;text-align:left;padding:.4rem .6rem;border:none;background:transparent;color:var(--muted);font-family:"DM Mono",monospace;font-size:.75rem;cursor:pointer;border-radius:6px;display:flex;align-items:center;gap:.4rem;';
+    btn.innerHTML=`<span>${typeIcon[ch.type]||'#'}</span><span>${esc(ch.name)}</span>`;
+    btn.onclick=()=>{ if(ch.type==='voice'){ toast('🔊 Voice channels coming soon — use Create Room for now!'); return; } openChannel(ch); };
+    btn.dataset.channelId=ch._id;
+    el.appendChild(btn);
+  });
+}
+
+function renderCVMembers(members){
+  const el=document.getElementById('cv-members-mini');
+  const badge=document.getElementById('cv-members-badge');
+  if(!el) return;
+  const active=members.filter(m=>!m.banned);
+  if(badge) badge.textContent=active.length;
+  el.innerHTML='';
+  active.slice(0,8).forEach(m=>{
+    const user=m.user||m;
+    const div=document.createElement('div');
+    div.style.cssText='display:flex;align-items:center;gap:.4rem;font-size:.68rem;color:var(--muted);';
+    const userId=m.userId?._id||m.userId||'';
+    const ls=user.lastSeen?lastSeenText(user.lastSeen):'';
+    const isOnline=friendStatuses[userId]?.online;
+    div.innerHTML=`<div style="width:20px;height:20px;border-radius:50%;background:${colorFor(userId)};color:#fff;display:flex;align-items:center;justify-content:center;font-size:.55rem;font-weight:700;flex-shrink:0;">${(user.username||'?').slice(0,2).toUpperCase()}</div><span style="color:${isOnline?'var(--accent3)':'var(--muted)'};">${esc(user.username||'?')}</span>`;
+    el.appendChild(div);
+  });
+  if(active.length>8){ const more=document.createElement('div'); more.style.cssText='font-size:.62rem;color:var(--muted);padding:.2rem .3rem;'; more.textContent=`+${active.length-8} more`; el.appendChild(more); }
+}
+
+async function openChannel(channel){
+  currentChannelId=channel._id;
+  document.getElementById('cv-channel-icon').textContent=channel.type==='announcement'?'📢':'#';
+  document.getElementById('cv-channel-name').textContent=channel.name;
+  document.getElementById('cv-channel-desc').textContent=channel.description||'';
+  document.getElementById('cv-msg-input').placeholder=`Message #${channel.name}…`;
+  // Highlight active channel
+  document.querySelectorAll('#cv-channels-list button').forEach(b=>{ b.style.background=b.dataset.channelId===channel._id?'var(--surface2)':'transparent'; b.style.color=b.dataset.channelId===channel._id?'var(--text)':'var(--muted)'; });
+  const isAdmin=checkIsAdmin(currentCommunity);
+  const isAnnounceCh=channel.type==='announcement';
+  document.getElementById('cv-input-area').style.display=isAnnounceCh&&!isAdmin?'none':'flex';
+  document.getElementById('cv-delete-channel-btn').classList.toggle('hidden',!isAdmin);
+  await loadChannelMessages();
+}
+
+async function loadChannelMessages(){
+  if(!currentCommunity||!currentChannelId) return;
+  try{
+    const res=await fetch(`/api/communities/${currentCommunity._id}/channels/${currentChannelId}/messages`,{headers:{Authorization:`Bearer ${authToken}`}});
+    const {messages}=await res.json();
+    const el=document.getElementById('cv-messages');
+    el.innerHTML='';
+    messages.forEach(m=>renderCVMessage(m,el));
+    el.scrollTop=el.scrollHeight;
+  }catch(e){}
+}
+
+function renderCVMessage(m, container){
+  if(m.deleted) return;
+  const isMine=m.userId?._id===currentUser?.id||m.userId===currentUser?.id;
+  const user=m.userId||{};
+  const div=document.createElement('div');
+  div.style.cssText='display:flex;gap:.6rem;align-items:flex-start;';
+  div.dataset.msgId=m._id;
+  const time=new Date(m.createdAt).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  let content='';
+  if(m.text) content+=`<span style="font-size:.78rem;">${esc(m.text)}</span>`;
+  if(m.fileUrl){
+    if(m.fileType==='image') content+=`<img src="${m.fileUrl}" style="max-width:200px;border-radius:7px;display:block;margin:.2rem 0;cursor:pointer;" onclick="window.open(this.src,'_blank')">`;
+    else if(m.fileType==='video') content+=`<video src="${m.fileUrl}" controls style="max-width:220px;border-radius:7px;display:block;margin:.2rem 0;"></video>`;
+    else content+=`<a href="${m.fileUrl}" download="${esc(m.fileName||'file')}" style="display:inline-flex;align-items:center;gap:.4rem;background:var(--surface2);padding:.3rem .6rem;border-radius:6px;font-size:.7rem;text-decoration:none;color:var(--text);">📎 ${esc(m.fileName||'file')}</a>`;
+  }
+  const isAdmin=checkIsAdmin(currentCommunity);
+  div.innerHTML=`
+    <div style="width:28px;height:28px;border-radius:50%;background:${colorFor(user._id||'x')};color:#fff;display:flex;align-items:center;justify-content:center;font-size:.68rem;font-weight:700;flex-shrink:0;">${user.avatar?`<img src="${user.avatar}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`:(user.username||'?').slice(0,2).toUpperCase()}</div>
+    <div style="flex:1;min-width:0;">
+      <div style="display:flex;align-items:baseline;gap:.5rem;margin-bottom:.15rem;">
+        <span style="font-size:.75rem;font-weight:600;color:${isMine?'var(--accent)':'var(--text)'};">${esc(user.username||'?')}</span>
+        <span style="font-size:.58rem;color:var(--muted);">${time}</span>
+        ${(isMine||isAdmin)?`<button onclick="deleteCVMessage('${m._id}',this)" style="border:none;background:transparent;color:var(--muted);cursor:pointer;font-size:.6rem;margin-left:.2rem;opacity:0;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0">✕</button>`:''}
+      </div>
+      <div>${content}</div>
+    </div>`;
+  if(container) container.appendChild(div);
+}
+
+async function sendCommunityMessage(){
+  const inp=document.getElementById('cv-msg-input');
+  const text=inp.value.trim();
+  if(!text&&!cvPendingFile) return;
+  if(!currentCommunity||!currentChannelId) return;
+  inp.value='';
+  const fileData=cvPendingFile; clearCVFile();
+  try{
+    const body={text};
+    if(fileData){body.fileUrl=fileData.url;body.fileType=fileData.type;body.fileName=fileData.name;}
+    const res=await fetch(`/api/communities/${currentCommunity._id}/channels/${currentChannelId}/messages`,{
+      method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${authToken}`},body:JSON.stringify(body)
+    });
+    const data=await res.json();
+    if(!res.ok){toast('⚠️ '+data.error);return;}
+    const el=document.getElementById('cv-messages');
+    renderCVMessage(data.message,el);
+    el.scrollTop=el.scrollHeight;
+    const sock=homeSocket||socket;
+    if(sock) sock.emit('community_message',{communityId:currentCommunity._id,channelId:currentChannelId,message:data.message});
+  }catch(e){toast('⚠️ Failed to send');}
+}
+
+async function deleteCVMessage(msgId){
+  if(!currentCommunity||!currentChannelId) return;
+  try{
+    await fetch(`/api/communities/${currentCommunity._id}/channels/${currentChannelId}/messages/${msgId}`,{method:'DELETE',headers:{Authorization:`Bearer ${authToken}`}});
+    const el=document.querySelector(`[data-msg-id="${msgId}"]`);
+    if(el) el.remove();
+  }catch(e){}
+}
+
+function handleCVFile(input){
+  const file=input.files[0]; if(!file) return;
+  if(file.size>15*1024*1024){toast('⚠️ File too large (max 15MB)');input.value='';return;}
+  let fileType='file';
+  if(file.type.startsWith('image/')) fileType='image';
+  else if(file.type.startsWith('video/')) fileType='video';
+  const reader=new FileReader();
+  reader.onload=e=>{
+    cvPendingFile={url:e.target.result,type:fileType,name:file.name};
+    toast(`📎 ${file.name} ready to send`);
+  };
+  reader.readAsDataURL(file);
+  input.value='';
+}
+function clearCVFile(){ cvPendingFile=null; }
+
+function cvTyping(){
+  const sock=homeSocket||socket;
+  if(!sock||!currentCommunity||!currentChannelId) return;
+  sock.emit('community_typing',{communityId:currentCommunity._id,channelId:currentChannelId,username:currentUser?.username});
+}
+
+async function addChannel(){
+  const name=prompt('Channel name:');
+  if(!name||!currentCommunity) return;
+  const type=prompt('Type (text/announcement/voice):','text')||'text';
+  try{
+    const res=await fetch(`/api/communities/${currentCommunity._id}/channels`,{
+      method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${authToken}`},
+      body:JSON.stringify({name,type})
+    });
+    const data=await res.json();
+    if(res.ok){ currentCommunity.channels=data.channels; renderCVChannels(data.channels); toast('✅ Channel added'); }
+    else toast('⚠️ '+data.error);
+  }catch(e){}
+}
+
+async function deleteChannel(){
+  if(!confirm('Delete this channel?')) return;
+  try{
+    await fetch(`/api/communities/${currentCommunity._id}/channels/${currentChannelId}`,{method:'DELETE',headers:{Authorization:`Bearer ${authToken}`}});
+    const res=await fetch(`/api/communities/${currentCommunity._id}`,{headers:{Authorization:`Bearer ${authToken}`}});
+    const {community}=await res.json();
+    currentCommunity=community;
+    renderCVChannels(community.channels||[]);
+    const first=community.channels?.find(c=>c.type==='text');
+    if(first) openChannel(first);
+    toast('✅ Channel deleted');
+  }catch(e){}
+}
+
+async function leaveCommunity(){
+  if(!currentCommunity) return;
+  if(!confirm(`Leave "${currentCommunity.name}"?`)) return;
+  try{
+    const res=await fetch(`/api/communities/${currentCommunity._id}/leave`,{method:'POST',headers:{Authorization:`Bearer ${authToken}`}});
+    const data=await res.json();
+    if(res.ok){ closeCommunityView(); loadMyCommunities(); toast('Left community'); }
+    else toast('⚠️ '+data.error);
+  }catch(e){}
+}
+
+function copyCommunityInvite(){
+  if(!currentCommunity) return;
+  const code=currentCommunity.inviteCode;
+  navigator.clipboard.writeText(code).then(()=>toast(`📋 Invite code copied: ${code}`));
+}
+
+// Settings
+function openCommunitySettings(){
+  if(!currentCommunity) return;
+  document.getElementById('cs-name').value=currentCommunity.name||'';
+  document.getElementById('cs-desc').value=currentCommunity.description||'';
+  document.getElementById('cs-tags').value=(currentCommunity.tags||[]).map(t=>'#'+t).join(' ');
+  document.getElementById('cs-public').checked=currentCommunity.isPublic!==false;
+  renderCSMembers();
+  renderCSRoles();
+  document.getElementById('community-settings-overlay').classList.remove('hidden');
+}
+function closeCommunitySettings(){ document.getElementById('community-settings-overlay').classList.add('hidden'); }
+
+async function saveCommunitySettings(){
+  if(!currentCommunity) return;
+  const name=document.getElementById('cs-name').value.trim();
+  const description=document.getElementById('cs-desc').value.trim();
+  const tagsRaw=document.getElementById('cs-tags').value.trim();
+  const isPublic=document.getElementById('cs-public').checked;
+  const tags=tagsRaw.split(/[\s,]+/).filter(Boolean).map(t=>t.replace('#',''));
+  try{
+    const res=await fetch(`/api/communities/${currentCommunity._id}`,{
+      method:'PATCH',headers:{'Content-Type':'application/json',Authorization:`Bearer ${authToken}`},
+      body:JSON.stringify({name,description,isPublic,tags})
+    });
+    if(res.ok){ currentCommunity.name=name; document.getElementById('cv-name').textContent=name; toast('✅ Settings saved'); closeCommunitySettings(); loadMyCommunities(); }
+    else{ const d=await res.json(); toast('⚠️ '+d.error); }
+  }catch(e){}
+}
+
+function renderCSMembers(){
+  const el=document.getElementById('cs-members-list');
+  if(!el||!currentCommunity) return;
+  el.innerHTML='';
+  (currentCommunity.members||[]).filter(m=>!m.banned).forEach(m=>{
+    const user=m.user||m;
+    const userId=m.userId?._id||m.userId||'';
+    const isOwner=currentCommunity.ownerId===userId||currentCommunity.ownerId?._id===userId||currentCommunity.ownerId?.toString()===userId;
+    const div=document.createElement('div');
+    div.style.cssText='display:flex;align-items:center;gap:.5rem;padding:.35rem .4rem;border-radius:6px;font-size:.72rem;';
+    div.innerHTML=`
+      <div style="width:24px;height:24px;border-radius:50%;background:${colorFor(userId)};color:#fff;display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:700;flex-shrink:0;">${(user.username||'?').slice(0,2).toUpperCase()}</div>
+      <span style="flex:1;">${esc(user.username||'?')} ${isOwner?'👑':''}</span>
+      ${!isOwner?`<button onclick="kickMember('${userId}','${esc(user.username||'')}')" style="border:1px solid var(--danger);background:transparent;color:var(--danger);border-radius:4px;padding:.15rem .4rem;font-size:.6rem;cursor:pointer;font-family:'DM Mono',monospace;">Kick</button>`:''}`;
+    el.appendChild(div);
+  });
+}
+
+async function kickMember(userId, username){
+  if(!confirm(`Kick ${username}?`)||!currentCommunity) return;
+  try{
+    const res=await fetch(`/api/communities/${currentCommunity._id}/members/${userId}`,{method:'DELETE',headers:{Authorization:`Bearer ${authToken}`}});
+    if(res.ok){ toast(`Kicked ${username}`); openCommunityById(currentCommunity._id); renderCSMembers(); }
+    else{ const d=await res.json(); toast('⚠️ '+d.error); }
+  }catch(e){}
+}
+
+function renderCSRoles(){
+  const el=document.getElementById('cs-roles-list');
+  if(!el||!currentCommunity) return;
+  el.innerHTML='';
+  (currentCommunity.roles||[]).forEach(r=>{
+    const div=document.createElement('div');
+    div.style.cssText='display:flex;align-items:center;gap:.5rem;padding:.35rem .4rem;font-size:.72rem;margin-bottom:.3rem;';
+    div.innerHTML=`<span style="width:10px;height:10px;border-radius:50%;background:${r.color};flex-shrink:0;"></span><span style="flex:1;">${esc(r.name)}</span>`;
+    el.appendChild(div);
+  });
+}
+
+async function addRole(){
+  const name=prompt('Role name:');
+  if(!name||!currentCommunity) return;
+  try{
+    const res=await fetch(`/api/communities/${currentCommunity._id}/roles`,{
+      method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${authToken}`},
+      body:JSON.stringify({name})
+    });
+    const data=await res.json();
+    if(res.ok){ currentCommunity.roles=data.roles; renderCSRoles(); toast('✅ Role added'); }
+    else toast('⚠️ '+data.error);
+  }catch(e){}
+}
+
+async function deleteCommunity(){
+  if(!currentCommunity) return;
+  if(!confirm(`Permanently delete "${currentCommunity.name}"? This cannot be undone.`)) return;
+  try{
+    const res=await fetch(`/api/communities/${currentCommunity._id}`,{method:'DELETE',headers:{Authorization:`Bearer ${authToken}`}});
+    if(res.ok){ closeCommunitySettings(); closeCommunityView(); loadMyCommunities(); toast('Community deleted'); }
+    else{ const d=await res.json(); toast('⚠️ '+d.error); }
   }catch(e){}
 }
 
@@ -2545,7 +3208,10 @@ async function createRoom(){
   const inviteIds = Array.from(selectedFriendsForRoom);
   selectedFriendsForRoom.clear();
   updateCreateRoomBtn();
-  socket.on('connect',()=>socket.emit('create_room',{name:myName, roomName:rName, userId:currentUser?.id||null, inviteFriendIds: inviteIds}));
+  const isPublic = document.getElementById('room-public')?.checked||false;
+  const tagsRaw = document.getElementById('room-tags')?.value||'';
+  const tags = tagsRaw.split(/[\s,]+/).filter(Boolean).map(t=>t.replace('#',''));
+  socket.on('connect',()=>socket.emit('create_room',{name:myName, roomName:rName, userId:currentUser?.id||null, inviteFriendIds: inviteIds, isPublic, tags}));
 }
 async function joinRoom(){
   myName = (currentUser?.username) || document.getElementById('join-name').value.trim() || 'Guest';

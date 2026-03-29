@@ -6,6 +6,7 @@ const mongoose = require('mongoose');
 const { router: authRouter, JWT_SECRET } = require('./routes/auth');
 const adminRouter = require('./routes/admin');
 const messagesRouter = require('./routes/messages');
+const communityRouter = require('./routes/communities');
 const jwt = require('jsonwebtoken');
 // web-push removed — using browser Notification API instead
 
@@ -31,6 +32,23 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use('/api', authRouter);
 app.use('/api', adminRouter);
 app.use('/api', messagesRouter);
+app.use('/api', communityRouter);
+
+// ── Public rooms registry ──
+const publicRooms = new Map(); // roomId -> { name, tags, hostName, participants, createdAt }
+
+app.get('/api/rooms/search', (req, res) => {
+  const { q = '' } = req.query;
+  const query = q.toLowerCase().replace('#','');
+  const results = [];
+  publicRooms.forEach((room, id) => {
+    if(!query || room.name.toLowerCase().includes(query) || room.tags.some(t=>t.includes(query)) || room.hostName.toLowerCase().includes(query)) {
+      results.push({ roomId: id, name: room.name, tags: room.tags, hostName: room.hostName, participants: room.participants, createdAt: room.createdAt });
+    }
+  });
+  results.sort((a,b) => b.participants - a.participants);
+  res.json({ rooms: results.slice(0,30) });
+});
 
 function emailTemplate(title, body, sub, url, btnText) {
   return `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#050508;font-family:'Segoe UI',sans-serif;">
@@ -120,7 +138,19 @@ io.on('connection', (socket) => {
     if(target) io.to(target.socketId).emit('friend_accepted', { username: fromUsername });
   });
 
-  // ── Direct Message relay ──
+  // ── Community channel messages (real-time relay) ──
+  socket.on('community_join', ({ communityId }) => {
+    socket.join(`community:${communityId}`);
+  });
+  socket.on('community_leave', ({ communityId }) => {
+    socket.leave(`community:${communityId}`);
+  });
+  socket.on('community_message', ({ communityId, channelId, message }) => {
+    socket.to(`community:${communityId}`).emit('community_message', { communityId, channelId, message });
+  });
+  socket.on('community_typing', ({ communityId, channelId, username }) => {
+    socket.to(`community:${communityId}`).emit('community_typing', { channelId, username });
+  });
   socket.on('dm_send', ({ toUserId, messageId }) => {
     const target = onlineUsers.get(toUserId);
     if(target) io.to(target.socketId).emit('dm_received', { fromUserId: socket.data.userId, messageId });
@@ -175,7 +205,7 @@ io.on('connection', (socket) => {
     if(!target) socket.emit('friend_invite_offline', { toUserId });
   });
 
-  socket.on('create_room', async ({ name, roomName, userId, inviteFriendIds }) => {
+  socket.on('create_room', async ({ name, roomName, userId, inviteFriendIds, isPublic, tags }) => {
     const roomId = Math.random().toString(36).substr(2, 8).toUpperCase();
     const displayName = name || 'Host';
     const rName = roomName || 'Voice Room';
@@ -188,7 +218,11 @@ io.on('connection', (socket) => {
     });
     socket.join(roomId); socket.data.roomId = roomId; socket.data.name = displayName;
     if (userId) { const o = onlineUsers.get(userId); if(o) o.roomId = roomId; }
+    const roomTags = (tags||[]).map(t=>t.toLowerCase().replace('#','')).filter(Boolean).slice(0,5);
+    rooms.get(roomId).tags = roomTags;
+    rooms.get(roomId).isPublic = !!isPublic;
     socket.emit('room_joined', { roomId, isHost: true, joinMuted: false, state: getRoomPublicState(rooms.get(roomId)) });
+    if(isPublic){ publicRooms.set(roomId, { name: rName, tags: roomTags, hostName: displayName, participants: 1, createdAt: Date.now() }); }
 
     // Auto-invite selected friends — socket + email + browser notification
     if(inviteFriendIds && inviteFriendIds.length){
@@ -258,13 +292,10 @@ io.on('connection', (socket) => {
     socket.emit('room_joined', { roomId, isHost: false, joinMuted, state: getRoomPublicState(room) });
     socket.to(roomId).emit('participant_joined', { id: socket.id, name: displayName, muted: joinMuted, isHost: false, userId: userId||null });
     io.to(roomId).emit('room_state_update', getRoomPublicState(room));
-    // Update online status to show in-room
     if (userId) { const o = onlineUsers.get(userId); if(o) o.roomId = roomId; }
-    // Remove from pending invites if they were invited
-    if(userId && room.pendingInvites && room.pendingInvites.has(userId)){
-      room.pendingInvites.delete(userId);
-      io.to(room.hostId).emit('invite_joined', { userId, name: displayName });
-    }
+    if(room.pendingInvites && room.pendingInvites.has(userId)){ room.pendingInvites.delete(userId); io.to(room.hostId).emit('invite_joined', { userId, name: displayName }); }
+    // Update public room participant count
+    if(room.isPublic && publicRooms.has(roomId)){ publicRooms.get(roomId).participants = room.participants.size; }
   });
 
   socket.on('webrtc_offer',  ({target,sdp})       => io.to(target).emit('webrtc_offer',  {from:socket.id,sdp}));
@@ -373,6 +404,8 @@ io.on('connection', (socket) => {
     }
     io.to(r).emit('participant_left',{id:socket.id});
     io.to(r).emit('room_state_update',getRoomPublicState(room));
+    // Update public room participant count
+    if(room.isPublic){ if(room.participants.size===0) publicRooms.delete(r); else if(publicRooms.has(r)) publicRooms.get(r).participants=room.participants.size; }
   });
 });
 
