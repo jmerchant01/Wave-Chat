@@ -5,6 +5,7 @@ const path = require('path');
 const mongoose = require('mongoose');
 const { router: authRouter, JWT_SECRET } = require('./routes/auth');
 const jwt = require('jsonwebtoken');
+const webpush = require('web-push');
 
 const app = express();
 const server = http.createServer(app);
@@ -15,6 +16,32 @@ const io = new Server(server, {
 
 const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://jaymerch:CarCoop1823!@wave-chat.qoqscw3.mongodb.net/wave?appName=Wave-Chat';
 mongoose.connect(MONGO_URI).then(() => console.log('✅ MongoDB connected')).catch(e => console.error('❌ MongoDB error:', e));
+
+// ── Web Push VAPID config ──
+const VAPID_PUBLIC  = process.env.VAPID_PUBLIC  || 'BAIcTXrbjdqvlDWZh1BHJ43uTPcEoclo3WHVRdIBiDG0Ej4aiQuqBV68ymsbDzKX-BBSUuB8w7WXU8ofMfxhYys';
+const VAPID_PRIVATE = process.env.VAPID_PRIVATE || 'opC0KOkB2gzApaaHRMRG4cd11v3RjXc_z39rvvWz6-g';
+webpush.setVapidDetails('mailto:admin@wave-chat.app', VAPID_PUBLIC, VAPID_PRIVATE);
+
+// ── Send push notification to a user ──
+async function sendPushNotification(userId, payload) {
+  try {
+    const User = require('./models/User');
+    const user = await User.findById(userId).select('pushSubscription');
+    if(!user?.pushSubscription) return;
+    await webpush.sendNotification(user.pushSubscription, JSON.stringify(payload));
+    console.log('✅ Push sent to', userId);
+  } catch(e) {
+    console.log('Push error:', e.message);
+    // If subscription expired/invalid, clear it
+    if(e.statusCode === 410) {
+      const User = require('./models/User');
+      await User.findByIdAndUpdate(userId, { pushSubscription: null }).catch(()=>{});
+    }
+  }
+}
+
+// ── VAPID public key endpoint ──
+app.get('/api/vapid-public-key', (req, res) => res.json({ key: VAPID_PUBLIC }));
 
 app.use(express.json({ limit: '15mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
@@ -92,9 +119,14 @@ io.on('connection', (socket) => {
   });
 
   // ── Real-time friend request notification ──
-  socket.on('notify_friend_request', ({ toUserId, fromUsername }) => {
+  socket.on('notify_friend_request', async ({ toUserId, fromUsername }) => {
     const target = onlineUsers.get(toUserId);
     if(target) io.to(target.socketId).emit('friend_request_received', { from: fromUsername });
+    await sendPushNotification(toUserId, {
+      title: '👥 New Friend Request',
+      body: `${fromUsername} sent you a friend request on WAVE`,
+      tag: 'wave-friend-request'
+    });
   });
 
   // ── Real-time friend accepted notification ──
@@ -113,7 +145,13 @@ io.on('connection', (socket) => {
         roomId
       });
     }
-    // Always send email too
+    // Web push — works even if app is closed
+    await sendPushNotification(toUserId, {
+      title: `📨 Room Invite from ${fromName}`,
+      body: `${fromName} wants you to join "${roomName}" on WAVE!`,
+      roomId, tag: 'wave-invite'
+    });
+    // Email fallback
     try {
       const User = require('./models/User');
       const { Resend } = require('resend');
@@ -167,14 +205,20 @@ io.on('connection', (socket) => {
 
           const target = onlineUsers.get(fid);
           if(target){
-            // Online — send real-time socket invite + browser notification signal
             io.to(target.socketId).emit('friend_invite', { fromName: displayName, roomId, roomName: rName });
             io.to(target.socketId).emit('browser_notification', {
               title: `📨 Room Invite from ${displayName}`,
-              body: `${displayName} invited you to join "${rName}" — tap to join!`,
+              body: `${displayName} invited you to join "${rName}"`,
               roomId
             });
           }
+          // Always send web push (works even if app is closed)
+          await sendPushNotification(fid, {
+            title: `📨 Room Invite from ${displayName}`,
+            body: `${displayName} invited you to join "${rName}" on WAVE — tap to join!`,
+            roomId,
+            tag: 'wave-invite'
+          });
           // Always send email regardless of online status
           const joinUrl = `${appUrl}?room=${roomId}`;
           try {

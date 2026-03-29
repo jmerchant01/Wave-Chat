@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>WAVE — Live Voice Rooms</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#6c63ff">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="WAVE">
+<link rel="apple-touch-icon" href="/icons/icon-192.svg">
 <script src="/socket.io/socket.io.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
@@ -479,6 +485,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
         <input type="file" id="avatar-upload-input" accept="image/*" class="hidden" onchange="handleAvatarUpdate(this)"/>
       </div>
       <button class="theme-toggle" onclick="toggleTheme()" id="theme-btn-landing" title="Toggle light/dark mode">🌙</button>
+      <button class="home-nav-btn" id="install-btn" onclick="installPWA()" style="display:none;border-color:var(--accent);color:var(--accent);">📲 Install App</button>
       <button class="home-nav-btn" onclick="logout()">Log Out</button>
     </div>
   </div>
@@ -771,7 +778,29 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 </div>
 
 <script>
-// ── Theme ──
+// ── PWA Install Prompt ──
+let deferredInstallPrompt = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  const btn = document.getElementById('install-btn');
+  if(btn) btn.style.display = '';
+});
+window.addEventListener('appinstalled', () => {
+  deferredInstallPrompt = null;
+  const btn = document.getElementById('install-btn');
+  if(btn) btn.style.display = 'none';
+  toast('✅ WAVE installed successfully!');
+});
+async function installPWA(){
+  if(!deferredInstallPrompt) return;
+  deferredInstallPrompt.prompt();
+  const { outcome } = await deferredInstallPrompt.userChoice;
+  if(outcome === 'accepted') toast('📲 Installing WAVE…');
+  deferredInstallPrompt = null;
+  const btn = document.getElementById('install-btn');
+  if(btn) btn.style.display = 'none';
+}
 function applyTheme(light){
   document.body.classList.toggle('light', light);
   const icon = light ? '☀️' : '🌙';
@@ -1170,13 +1199,56 @@ function sendRoomInvite(toUserId, toUsername){
   toast(`📨 Invite sent to ${toUsername}!`);
 }
 
-// ── Push Notifications ──
+// ── PWA Service Worker + Web Push ──
+async function registerServiceWorker(){
+  if(!('serviceWorker' in navigator)) return;
+  try{
+    const reg = await navigator.serviceWorker.register('/sw.js');
+    console.log('✅ Service worker registered');
+    // Listen for messages from SW (notification clicks)
+    navigator.serviceWorker.addEventListener('message', e => {
+      if(e.data?.type === 'notification_click' && e.data.url){
+        const url = new URL(e.data.url, location.origin);
+        const room = url.searchParams.get('room');
+        if(room){ document.getElementById('join-code').value = room; joinRoom(); }
+      }
+    });
+    return reg;
+  }catch(e){ console.log('SW registration failed:', e); }
+}
+
 async function setupPushNotifications(){
-  if(!('Notification' in window)) return;
+  if(!('serviceWorker' in navigator) || !('PushManager' in window)) return;
   try{
     const perm = await Notification.requestPermission();
-    if(perm === 'granted') localStorage.setItem('wave-notif','1');
-  }catch(e){}
+    if(perm !== 'granted') return;
+
+    const reg = await navigator.serviceWorker.ready;
+
+    // Get VAPID public key from server
+    const res = await fetch('/api/vapid-public-key');
+    const { key } = await res.json();
+
+    // Convert base64url key to Uint8Array
+    const keyData = Uint8Array.from(atob(key.replace(/-/g,'+').replace(/_/g,'/')), c=>c.charCodeAt(0));
+
+    // Subscribe to push
+    const sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: keyData
+    });
+
+    // Save subscription to server
+    if(authToken){
+      await fetch('/api/push-subscribe', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json', Authorization:`Bearer ${authToken}`},
+        body: JSON.stringify({ subscription: sub.toJSON() })
+      });
+      console.log('✅ Push subscription saved');
+      localStorage.setItem('wave-push','1');
+    }
+  }catch(e){ console.log('Push setup error:', e.message); }
 }
 
 function showBrowserNotification(title, body, rid){
@@ -1576,9 +1648,10 @@ function switchTab(t){
   });
 }
 window.onload=()=>{
+  registerServiceWorker();
   const p=new URLSearchParams(location.search);
   const rc=p.get('room');
-  if(rc){switchTab('join');document.getElementById('join-code').value=rc;}
+  if(rc){document.getElementById('join-code').value=rc;}
   initAuth();
 };
 
