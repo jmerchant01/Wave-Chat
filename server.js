@@ -37,7 +37,49 @@ io.on('connection', (socket) => {
       socket.data.userId = decoded.id;
       socket.data.username = decoded.username;
       onlineUsers.set(decoded.id, { socketId: socket.id, username: decoded.username, roomId: null });
+      // Broadcast online status to this user so they get fresh friend statuses
+      socket.emit('friends_status_refresh');
     } catch {}
+  });
+
+  // ── Get friend statuses (which friends are online/in-room) ──
+  socket.on('get_friend_statuses', ({ friendIds }) => {
+    const statuses = {};
+    (friendIds || []).forEach(fid => {
+      const o = onlineUsers.get(fid);
+      if(o) statuses[fid] = { online: true, roomId: o.roomId || null };
+      else statuses[fid] = { online: false, roomId: null };
+    });
+    socket.emit('friend_statuses', statuses);
+  });
+
+  // ── Request to join a friend's room ──
+  socket.on('request_to_join_room', ({ roomId, fromName, fromUserId }) => {
+    const room = rooms.get(roomId);
+    if(!room) return socket.emit('join_request_failed', { reason: 'Room not found' });
+    io.to(room.hostId).emit('join_request', { fromName, fromUserId, roomId });
+  });
+
+  // ── Host approves/denies join request ──
+  socket.on('join_request_approved', ({ toUserId, roomId }) => {
+    const target = onlineUsers.get(toUserId);
+    if(target) io.to(target.socketId).emit('join_request_result', { approved: true, roomId });
+  });
+  socket.on('join_request_denied', ({ toUserId }) => {
+    const target = onlineUsers.get(toUserId);
+    if(target) io.to(target.socketId).emit('join_request_result', { approved: false });
+  });
+
+  // ── Real-time friend request notification ──
+  socket.on('notify_friend_request', ({ toUserId, fromUsername }) => {
+    const target = onlineUsers.get(toUserId);
+    if(target) io.to(target.socketId).emit('friend_request_received', { from: fromUsername });
+  });
+
+  // ── Real-time friend accepted notification ──
+  socket.on('notify_friend_accepted', ({ toUserId, fromUsername }) => {
+    const target = onlineUsers.get(toUserId);
+    if(target) io.to(target.socketId).emit('friend_accepted', { username: fromUsername });
   });
 
   socket.on('send_friend_invite', ({ toUserId, roomId, roomName, fromName }) => {
@@ -46,7 +88,7 @@ io.on('connection', (socket) => {
     else socket.emit('friend_invite_offline', { toUserId });
   });
 
-  socket.on('create_room', ({ name, roomName, userId }) => {
+  socket.on('create_room', ({ name, roomName, userId, inviteFriendIds }) => {
     const roomId = Math.random().toString(36).substr(2, 8).toUpperCase();
     const displayName = name || 'Host';
     rooms.set(roomId, {
@@ -58,6 +100,13 @@ io.on('connection', (socket) => {
     socket.join(roomId); socket.data.roomId = roomId; socket.data.name = displayName;
     if (userId) { const o = onlineUsers.get(userId); if(o) o.roomId = roomId; }
     socket.emit('room_joined', { roomId, isHost: true, joinMuted: false, state: getRoomPublicState(rooms.get(roomId)) });
+    // Auto-invite selected friends
+    if(inviteFriendIds && inviteFriendIds.length){
+      inviteFriendIds.forEach(fid => {
+        const target = onlineUsers.get(fid);
+        if(target) io.to(target.socketId).emit('friend_invite', { fromName: displayName, roomId, roomName: roomName||'Voice Room' });
+      });
+    }
   });
 
   socket.on('join_room', ({ roomId, name, userId }) => {
@@ -73,6 +122,8 @@ io.on('connection', (socket) => {
     socket.emit('room_joined', { roomId, isHost: false, joinMuted, state: getRoomPublicState(room) });
     socket.to(roomId).emit('participant_joined', { id: socket.id, name: displayName, muted: joinMuted, isHost: false });
     io.to(roomId).emit('room_state_update', getRoomPublicState(room));
+    // Update online status to show in-room
+    if (userId) { const o = onlineUsers.get(userId); if(o) o.roomId = roomId; }
   });
 
   socket.on('webrtc_offer',  ({target,sdp})       => io.to(target).emit('webrtc_offer',  {from:socket.id,sdp}));

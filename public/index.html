@@ -275,7 +275,18 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .save-modal-cancel{margin-top:.75rem;width:100%;padding:.5rem;border:none;background:transparent;color:var(--muted);font-family:'DM Mono',monospace;font-size:.72rem;cursor:pointer;}
 .save-modal-cancel:hover{color:var(--text);}
 
-/* ── Home screen ── */
+/* ── Friend status dots ── */
+.friend-status-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;border:2px solid var(--surface);margin-left:-8px;margin-top:auto;}
+.dot-online{background:#43e97b;}
+.dot-inroom{background:#4fc3f7;cursor:pointer;}
+.dot-offline{background:#444;}
+.start-room-btn{padding:.22rem .5rem;border-radius:5px;border:1px solid var(--accent3);background:transparent;color:var(--accent3);font-size:.62rem;cursor:pointer;font-family:'DM Mono',monospace;transition:all .15s;white-space:nowrap;}
+.start-room-btn.selected{background:var(--accent3);color:#000;}
+.start-room-btn:hover{background:var(--accent3);color:#000;}
+/* Join request banner */
+.join-request-banner{position:fixed;top:5rem;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--accent);border-radius:12px;padding:.85rem 1.2rem;z-index:900;display:none;align-items:center;gap:.75rem;box-shadow:0 8px 32px rgba(0,0,0,.4);animation:msgIn .3s ease;}
+.join-request-banner.visible{display:flex;}
+.join-req-btns{display:flex;gap:.4rem;}
 #landing{min-height:100vh;display:flex;flex-direction:column;background:var(--bg);}
 .home-nav{display:flex;align-items:center;justify-content:space-between;padding:.85rem 2rem;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;}
 .home-nav-logo{font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:800;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
@@ -454,9 +465,6 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 
 <!-- LANDING -->
 <div id="landing">
-  <button class="theme-toggle" onclick="toggleTheme()" id="theme-btn-landing" title="Toggle light/dark mode" style="position:fixed;top:1rem;right:1rem;z-index:100;">🌙</button>
-
-  <!-- Top nav bar -->
   <div class="home-nav">
     <div class="home-nav-logo">WAVE</div>
     <div class="home-nav-right">
@@ -467,6 +475,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
         <span id="home-username-el">—</span>
         <input type="file" id="avatar-upload-input" accept="image/*" class="hidden" onchange="handleAvatarUpdate(this)"/>
       </div>
+      <button class="theme-toggle" onclick="toggleTheme()" id="theme-btn-landing" title="Toggle light/dark mode">🌙</button>
       <button class="home-nav-btn" onclick="logout()">Log Out</button>
     </div>
   </div>
@@ -701,6 +710,15 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
   </div>
 </div>
 
+<!-- JOIN REQUEST BANNER (shown to host) -->
+<div class="join-request-banner" id="join-request-banner">
+  <span id="join-request-text">wants to join your room</span>
+  <div class="join-req-btns">
+    <button class="share-req-btn accept" onclick="hostApproveJoin()">Let In</button>
+    <button class="share-req-btn deny" onclick="hostDenyJoin()">Deny</button>
+  </div>
+</div>
+
 <!-- SAVE LOCATION MODAL -->
 <div id="save-modal-overlay" class="save-modal-overlay hidden">
   <div class="save-modal">
@@ -823,7 +841,7 @@ function onAuthSuccess(){
   const homeUnEl = document.getElementById('home-username-el');
   if(homeUnEl) homeUnEl.textContent = currentUser.username;
   if(homeAvEl){
-    if(currentUser.avatar) homeAvEl.innerHTML = `<img src="${currentUser.avatar}">`;
+    if(currentUser.avatar) homeAvEl.innerHTML = `<img src="${currentUser.avatar}"><div style="position:absolute;inset:0;background:rgba(0,0,0,0);border-radius:50%;display:flex;align-items:center;justify-content:center;opacity:0;transition:all .2s;font-size:.6rem;" id="avatar-hover-overlay">📷</div>`;
     else { homeAvEl.textContent = currentUser.username.slice(0,2).toUpperCase(); homeAvEl.style.background = colorFor(currentUser.id||'x'); }
   }
   // Pre-fill hidden name inputs
@@ -832,6 +850,8 @@ function onAuthSuccess(){
   updateHeaderProfile();
   refreshHomeScreen();
   updateRequestsBadge();
+  // Connect home socket for real-time notifications (presence, invites, friend requests)
+  initHomeSocket();
 }
 
 function switchAuthTab(tab){
@@ -1057,15 +1077,25 @@ async function sendFriendReq(targetId, btn){
   try{
     const res = await fetch(`/api/friend-request/${targetId}`, { method:'POST', headers:{Authorization:`Bearer ${authToken}`} });
     const data = await res.json();
-    if(res.ok){ btn.textContent = 'Sent!'; btn.disabled = true; toast('👥 Friend request sent!'); }
-    else toast('⚠️ '+data.error);
+    if(res.ok){
+      btn.textContent = 'Sent!'; btn.disabled = true;
+      toast('👥 Friend request sent!');
+      // Notify recipient in real-time via socket
+      const sock = homeSocket || socket;
+      if(sock) sock.emit('notify_friend_request', { toUserId: targetId, fromUsername: currentUser.username });
+    } else toast('⚠️ '+data.error);
   }catch(e){}
 }
 
 async function acceptFriendReq(fromId){
   try{
-    await fetch(`/api/friend-accept/${fromId}`, { method:'POST', headers:{Authorization:`Bearer ${authToken}`} });
-    toast('👥 Friend added!'); refreshFriendsData();
+    const res = await fetch(`/api/friend-accept/${fromId}`, { method:'POST', headers:{Authorization:`Bearer ${authToken}`} });
+    if(res.ok){
+      toast('👥 Friend added!');
+      const sock = homeSocket || socket;
+      if(sock) sock.emit('notify_friend_accepted', { toUserId: fromId, fromUsername: currentUser.username });
+      refreshFriendsData();
+    }
   }catch(e){}
 }
 
@@ -1194,6 +1224,47 @@ async function handleAvatarUpdate(input){
   reader.readAsDataURL(file);
 }
 
+// ── Home socket — keeps user online for real-time notifications ──
+let homeSocket = null;
+function initHomeSocket(){
+  if(homeSocket) homeSocket.disconnect();
+  homeSocket = io();
+  homeSocket.on('connect', ()=>{
+    if(authToken) homeSocket.emit('user_online', { token: authToken });
+  });
+  // Real-time friend request received
+  homeSocket.on('friend_request_received', ({ from })=>{
+    toast(`👥 ${from} sent you a friend request!`);
+    showBrowserNotification('👥 Friend Request', `${from} wants to be your friend on WAVE`);
+    refreshHomeScreen(); // refresh list immediately
+  });
+  // Real-time friend accepted
+  homeSocket.on('friend_accepted', ({ username })=>{
+    toast(`✅ ${username} accepted your friend request!`);
+    refreshHomeScreen();
+  });
+  // Friend statuses response
+  homeSocket.on('friend_statuses', (statuses)=>{
+    friendStatuses = { ...friendStatuses, ...statuses };
+    renderHomeFriends();
+  });
+  homeSocket.on('friends_status_refresh', ()=>{ fetchFriendStatuses(); });
+
+  // Join request result (we requested to join someone's room)
+  homeSocket.on('join_request_result', ({ approved, roomId })=>{
+    if(approved){
+      toast('✅ Request approved — joining room!');
+      document.getElementById('join-code').value = roomId;
+      joinRoom();
+    } else {
+      toast('❌ Your request to join was denied.');
+    }
+  });
+  homeSocket.on('friend_invite_offline', ()=>{
+    toast('⚠️ That friend is not online right now — an email has been sent');
+  });
+}
+
 // ── Home screen functions ──
 async function homeSearchFriend(){
   const q = document.getElementById('home-friend-search').value.trim();
@@ -1221,8 +1292,11 @@ async function homeSendFriendReq(targetId, btn){
   try{
     const res=await fetch(`/api/friend-request/${targetId}`,{method:'POST',headers:{Authorization:`Bearer ${authToken}`}});
     const data=await res.json();
-    if(res.ok){btn.textContent='Sent!';btn.disabled=true;toast('👥 Friend request sent!');}
-    else toast('⚠️ '+data.error);
+    if(res.ok){
+      btn.textContent='Sent!'; btn.disabled=true; toast('👥 Friend request sent!');
+      const sock = homeSocket || socket;
+      if(sock) sock.emit('notify_friend_request', { toUserId: targetId, fromUsername: currentUser.username });
+    } else toast('⚠️ '+data.error);
   }catch(e){}
 }
 
@@ -1239,6 +1313,10 @@ async function refreshHomeScreen(){
   }catch(e){}
 }
 
+// ── Friend statuses (updated from server) ──
+let friendStatuses = {}; // userId -> { online, roomId }
+let selectedFriendsForRoom = new Set(); // userIds selected via Start Room
+
 function renderHomeFriends(){
   const el=document.getElementById('home-friends-list');
   if(!el) return;
@@ -1246,15 +1324,67 @@ function renderHomeFriends(){
   if(!friends.length){el.innerHTML='<div class="friends-empty" style="padding:.75rem 0;">No friends yet — search above to add some!</div>';return;}
   el.innerHTML='';
   friends.forEach(f=>{
+    const fid = f.id||f._id;
+    const status = friendStatuses[fid] || { online: false, roomId: null };
+    const dotClass = status.online ? (status.roomId ? 'dot-inroom' : 'dot-online') : 'dot-offline';
+    const dotTitle = status.online ? (status.roomId ? '🔵 In a room — click to request to join' : '🟢 Online') : '⚫ Offline';
+    const isSelected = selectedFriendsForRoom.has(fid);
+
     const div=document.createElement('div');
     div.className='friend-item home-card';
     div.style.cssText='margin-bottom:.5rem;padding:.65rem .85rem;';
     div.innerHTML=`
-      <div class="friend-avatar" style="background:${colorFor(f.id||f._id||'x')};color:#fff;">${f.avatar?`<img src="${f.avatar}">`:(f.username||'?').slice(0,2).toUpperCase()}</div>
-      <div class="friend-info"><div class="friend-name">${esc(f.username)}</div></div>
-      <div class="friend-actions"><button class="friend-btn danger" onclick="removeFriend('${f.id||f._id}','${esc(f.username)}')">Remove</button></div>`;
+      <div style="position:relative;flex-shrink:0;">
+        <div class="friend-avatar" style="background:${colorFor(fid)};color:#fff;">${f.avatar?`<img src="${f.avatar}">`:(f.username||'?').slice(0,2).toUpperCase()}</div>
+        <div class="friend-status-dot ${dotClass}" title="${dotTitle}" onclick="${status.roomId?`requestToJoinRoom('${fid}','${esc(f.username)}','${status.roomId}')`:''}" style="${status.roomId?'cursor:pointer;':''}"></div>
+      </div>
+      <div class="friend-info">
+        <div class="friend-name">${esc(f.username)}</div>
+        <div class="friend-status ${status.online?'online':''}" style="font-size:.62rem;">${status.online?(status.roomId?'🔵 In a room':'🟢 Online'):'⚫ Offline'}</div>
+      </div>
+      <div class="friend-actions" style="gap:.3rem;">
+        <button class="start-room-btn ${isSelected?'selected':''}" id="srb-${fid}" onclick="toggleStartRoom('${fid}','${esc(f.username)}',this)">${isSelected?'✓ Added':'+ Start Room'}</button>
+        <button class="friend-btn danger" onclick="removeFriend('${fid}','${esc(f.username)}')">Remove</button>
+      </div>`;
     el.appendChild(div);
   });
+
+  // Fetch fresh statuses from server
+  fetchFriendStatuses();
+}
+
+function fetchFriendStatuses(){
+  const sock = homeSocket || socket;
+  if(!sock || !currentUser?.friends?.length) return;
+  const ids = (currentUser.friends||[]).map(f=>f.id||f._id).filter(Boolean);
+  sock.emit('get_friend_statuses', { friendIds: ids });
+}
+
+function toggleStartRoom(fid, username, btn){
+  if(selectedFriendsForRoom.has(fid)){
+    selectedFriendsForRoom.delete(fid);
+    btn.textContent = '+ Start Room';
+    btn.classList.remove('selected');
+  } else {
+    selectedFriendsForRoom.add(fid);
+    btn.textContent = '✓ Added';
+    btn.classList.add('selected');
+  }
+  updateCreateRoomBtn();
+}
+
+function updateCreateRoomBtn(){
+  const btn = document.getElementById('create-btn');
+  if(!btn) return;
+  const count = selectedFriendsForRoom.size;
+  btn.textContent = count > 0 ? `🎙️ Create & Invite ${count} Friend${count>1?'s':''}` : '🎙️ Create & Host Room';
+}
+
+function requestToJoinRoom(friendUserId, friendName, roomId){
+  const sock = homeSocket || socket;
+  if(!sock){ toast('Not connected'); return; }
+  sock.emit('request_to_join_room', { roomId, fromName: currentUser.username, fromUserId: currentUser.id });
+  toast(`📨 Requested to join ${friendName}'s room…`);
 }
 
 function renderHomeRequests(){
@@ -1282,8 +1412,13 @@ function renderHomeRequests(){
 
 async function homeAcceptReq(fromId){
   try{
-    await fetch(`/api/friend-accept/${fromId}`,{method:'POST',headers:{Authorization:`Bearer ${authToken}`}});
-    toast('👥 Friend added!'); refreshHomeScreen();
+    const res = await fetch(`/api/friend-accept/${fromId}`,{method:'POST',headers:{Authorization:`Bearer ${authToken}`}});
+    if(res.ok){
+      toast('👥 Friend added!');
+      const sock = homeSocket || socket;
+      if(sock) sock.emit('notify_friend_accepted', { toUserId: fromId, fromUsername: currentUser.username });
+      refreshHomeScreen();
+    }
   }catch(e){}
 }
 
@@ -1337,17 +1472,24 @@ window.onload=()=>{
 
 // ── Socket setup ──
 function connectSocket(){
+  // Disconnect home socket before room socket
+  if(homeSocket){ homeSocket.disconnect(); homeSocket = null; }
   socket=io();
   myId=null;
   socket.on('connect',()=>{
     myId=socket.id;
-    // Register as online with JWT
+    // Register as online with JWT so friends can invite us
     if(authToken) socket.emit('user_online', { token: authToken });
   });
 
   // Friend invite received
-  socket.on('friend_invite', ({fromName, roomId: rid, roomName})=>{
-    showInvitePopup(fromName, rid, roomName);
+  // Friend join request (host receives this)
+  socket.on('join_request', ({ fromName, fromUserId, roomId: rid })=>{
+    if(!isHost) return;
+    pendingJoinRequester = { fromUserId, roomId: rid };
+    document.getElementById('join-request-text').textContent = `${fromName} wants to join your room`;
+    document.getElementById('join-request-banner').classList.add('visible');
+    setTimeout(()=>document.getElementById('join-request-banner').classList.remove('visible'), 20000);
   });
   socket.on('friend_invite_offline', ()=>{ toast('⚠️ That friend is not online right now'); });
 
@@ -1529,12 +1671,32 @@ function connectSocket(){
   socket.on('reconnect',()=>updateConnDot('connected'));
 }
 
+let pendingJoinRequester = null;
+
+function hostApproveJoin(){
+  if(!pendingJoinRequester||!socket) return;
+  socket.emit('join_request_approved', { toUserId: pendingJoinRequester.fromUserId, roomId: pendingJoinRequester.roomId });
+  document.getElementById('join-request-banner').classList.remove('visible');
+  pendingJoinRequester = null;
+  toast('✅ Join request approved');
+}
+function hostDenyJoin(){
+  if(!pendingJoinRequester||!socket) return;
+  socket.emit('join_request_denied', { toUserId: pendingJoinRequester.fromUserId });
+  document.getElementById('join-request-banner').classList.remove('visible');
+  pendingJoinRequester = null;
+  toast('❌ Join request denied');
+}
+
 // ── Room create/join ──
 async function createRoom(){
   myName = (currentUser?.username) || document.getElementById('create-name').value.trim() || 'Host';
   const rName = document.getElementById('room-name-in').value.trim() || 'My Room';
   disableForms(); await initMic(); connectSocket();
-  socket.on('connect',()=>socket.emit('create_room',{name:myName, roomName:rName, userId:currentUser?.id||null}));
+  const inviteIds = Array.from(selectedFriendsForRoom);
+  selectedFriendsForRoom.clear();
+  updateCreateRoomBtn();
+  socket.on('connect',()=>socket.emit('create_room',{name:myName, roomName:rName, userId:currentUser?.id||null, inviteFriendIds: inviteIds}));
 }
 async function joinRoom(){
   myName = (currentUser?.username) || document.getElementById('join-name').value.trim() || 'Guest';
@@ -2731,6 +2893,8 @@ function leaveRoom(forced=false){
   document.getElementById('screen-btn').textContent='🖥️ Screen';
   enableForms();
   history.replaceState(null,'',location.pathname);
+  // Re-register as online on home screen
+  if(authToken) initHomeSocket();
 }
 
 function copyInvite(){
