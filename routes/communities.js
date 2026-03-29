@@ -60,7 +60,9 @@ router.get('/communities/mine', auth, async (req, res) => {
     const communities = await Community.find({ 'members.userId': req.user.id, 'members.banned': { $ne: true } })
       .select('name avatar description isPublic tags members ownerId inviteCode roles channels createdAt')
       .lean();
-    res.json({ communities });
+    // Populate member user info for all communities
+    const populated = await Promise.all(communities.map(c => populateCommunityLean(c)));
+    res.json({ communities: populated });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
