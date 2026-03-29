@@ -32,12 +32,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 #app{position:relative;z-index:1;}
 
 /* LANDING */
-#landing{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem 1rem 4rem;text-align:center;}
-.logo{font-family:'Syne',sans-serif;font-size:clamp(3rem,10vw,7rem);font-weight:800;letter-spacing:-.04em;background:linear-gradient(135deg,#6c63ff 0%,#ff6584 50%,#43e97b 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1;margin-bottom:.5rem;}
-.tagline{color:var(--muted);font-size:.85rem;letter-spacing:.15em;text-transform:uppercase;margin-bottom:3rem;}
-.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:2.5rem;width:100%;max-width:420px;position:relative;overflow:hidden;margin:0 auto;}
-.card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent),var(--accent2),var(--accent3));}
-.tabs{display:flex;background:var(--surface2);border-radius:10px;padding:4px;margin-bottom:2rem;}
+#landing{min-height:100vh;display:flex;flex-direction:column;background:var(--bg);}
 .tab{flex:1;padding:.6rem 1rem;border:none;background:transparent;color:var(--muted);font-family:'DM Mono',monospace;font-size:.8rem;cursor:pointer;border-radius:7px;transition:all .2s;letter-spacing:.05em;}
 .tab.active{background:var(--accent);color:white;}
 .field{margin-bottom:1.2rem;}
@@ -280,7 +275,25 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .save-modal-cancel{margin-top:.75rem;width:100%;padding:.5rem;border:none;background:transparent;color:var(--muted);font-family:'DM Mono',monospace;font-size:.72rem;cursor:pointer;}
 .save-modal-cancel:hover{color:var(--text);}
 
-/* ── Auth screens ── */
+/* ── Home screen ── */
+#landing{min-height:100vh;display:flex;flex-direction:column;background:var(--bg);}
+.home-nav{display:flex;align-items:center;justify-content:space-between;padding:.85rem 2rem;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;}
+.home-nav-logo{font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:800;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.home-nav-right{display:flex;align-items:center;gap:.75rem;}
+.home-user-info{display:flex;align-items:center;gap:.5rem;font-size:.78rem;}
+.home-avatar{width:32px;height:32px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;overflow:hidden;flex-shrink:0;}
+.home-avatar img{width:100%;height:100%;object-fit:cover;}
+.home-nav-btn{padding:.35rem .85rem;border-radius:7px;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:'DM Mono',monospace;font-size:.72rem;cursor:pointer;transition:all .2s;}
+.home-nav-btn:hover{border-color:var(--danger);color:var(--danger);}
+.home-body{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;padding:2rem;flex:1;max-width:960px;margin:0 auto;width:100%;box-sizing:border-box;}
+.home-section{display:flex;flex-direction:column;}
+.home-section-title{font-family:'Syne',sans-serif;font-size:1rem;font-weight:700;margin-bottom:.85rem;display:flex;align-items:center;}
+.home-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.25rem;position:relative;overflow:hidden;}
+.home-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent),var(--accent2));}
+.home-card-icon{font-size:1.8rem;margin-bottom:.4rem;}
+.home-card-label{font-family:'Syne',sans-serif;font-size:.9rem;font-weight:700;margin-bottom:.2rem;}
+.home-card-sub{font-size:.7rem;color:var(--muted);margin-bottom:.5rem;}
+@media(max-width:640px){.home-body{grid-template-columns:1fr;padding:1rem;}}
 .auth-screen{position:fixed;inset:0;background:var(--bg);z-index:500;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:1rem;}
 .auth-card{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:2rem;width:100%;max-width:380px;position:relative;overflow:hidden;}
 .auth-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--accent),var(--accent2),var(--accent3));}
@@ -429,26 +442,81 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 <!-- LANDING -->
 <div id="landing">
   <button class="theme-toggle" onclick="toggleTheme()" id="theme-btn-landing" title="Toggle light/dark mode" style="position:fixed;top:1rem;right:1rem;z-index:100;">🌙</button>
-  <div class="logo">WAVE</div>
-  <div class="tagline">Real-time voice rooms &bull; Any device &bull; No limits</div>
-  <div class="card">
-    <div class="tabs">
-      <button class="tab active" id="tab-btn-create" onclick="switchTab('create')">Create Room</button>
-      <button class="tab" id="tab-btn-join" onclick="switchTab('join')">Join Room</button>
-    </div>
-    <div id="tab-create">
-      <div class="field"><label>Your Name</label><input id="create-name" type="text" placeholder="Display name" maxlength="24"/></div>
-      <div class="field"><label>Room Name</label><input id="room-name-in" type="text" placeholder="My awesome room" maxlength="32"/></div>
-      <button class="btn btn-primary" id="create-btn" onclick="createRoom()">🎙️ Create &amp; Host Room</button>
-    </div>
-    <div id="tab-join" class="hidden">
-      <div class="field"><label>Your Name</label><input id="join-name" type="text" placeholder="Display name" maxlength="24"/></div>
-      <div class="field"><label>Room Code</label><input id="join-code" type="text" placeholder="Paste room code" style="text-transform:uppercase"/></div>
-      <button class="btn btn-primary" id="join-btn" onclick="joinRoom()">🔊 Join Room</button>
+
+  <!-- Top nav bar -->
+  <div class="home-nav">
+    <div class="home-nav-logo">WAVE</div>
+    <div class="home-nav-right">
+      <div class="home-user-info">
+        <div class="home-avatar" id="home-avatar-el">👤</div>
+        <span id="home-username-el">—</span>
+      </div>
+      <button class="home-nav-btn" onclick="logout()">Log Out</button>
     </div>
   </div>
-  <div class="terms-footer">
-    By using WAVE, you agree to our <a href="/terms.html" target="_blank">Terms of Service</a> and confirm that you will only use this service for lawful purposes.<br>
+
+  <!-- Main home content -->
+  <div class="home-body">
+
+    <!-- Left: Room actions -->
+    <div class="home-section">
+      <div class="home-section-title">🎙️ Voice Rooms</div>
+      <div class="home-card">
+        <div class="home-card-icon">🎙️</div>
+        <div class="home-card-label">Create a Room</div>
+        <div class="home-card-sub">Start a new voice room and invite friends</div>
+        <div class="field" style="margin:.75rem 0 .5rem;text-align:left;">
+          <label style="font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:.3rem;">Room Name</label>
+          <input id="room-name-in" type="text" placeholder="My awesome room" maxlength="32" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.5rem .75rem;color:var(--text);font-family:'DM Mono',monospace;font-size:.78rem;outline:none;box-sizing:border-box;"/>
+        </div>
+        <button class="btn btn-primary" id="create-btn" onclick="createRoom()" style="width:100%;">🎙️ Create &amp; Host Room</button>
+      </div>
+      <div class="home-card" style="margin-top:.75rem;">
+        <div class="home-card-icon">🔊</div>
+        <div class="home-card-label">Join a Room</div>
+        <div class="home-card-sub">Enter a room code to join a session</div>
+        <div class="field" style="margin:.75rem 0 .5rem;text-align:left;">
+          <label style="font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:.3rem;">Room Code</label>
+          <input id="join-code" type="text" placeholder="Paste room code" maxlength="12" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.5rem .75rem;color:var(--text);font-family:'DM Mono',monospace;font-size:.78rem;outline:none;box-sizing:border-box;text-transform:uppercase;" onkeydown="if(event.key==='Enter')joinRoom()"/>
+        </div>
+        <button class="btn btn-primary" id="join-btn" onclick="joinRoom()" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);">🔊 Join Room</button>
+      </div>
+      <!-- hidden inputs kept for compat -->
+      <input id="create-name" type="hidden"/>
+      <input id="join-name" type="hidden"/>
+    </div>
+
+    <!-- Right: Friends -->
+    <div class="home-section">
+      <div class="home-section-title">👥 Friends
+        <span id="home-req-badge" class="friend-badge hidden" style="margin-left:.4rem;">0</span>
+      </div>
+
+      <!-- Add friend search -->
+      <div class="home-card" style="margin-bottom:.75rem;">
+        <div class="home-card-label" style="margin-bottom:.5rem;">Find a Friend</div>
+        <div class="friend-search">
+          <input id="home-friend-search" placeholder="Exact username…" onkeydown="if(event.key==='Enter')homeSearchFriend()"/>
+          <button onclick="homeSearchFriend()">Search</button>
+        </div>
+        <div id="home-search-results"></div>
+      </div>
+
+      <!-- Friend requests -->
+      <div id="home-requests-section" class="hidden">
+        <div style="font-size:.72rem;color:var(--muted);margin-bottom:.4rem;font-weight:600;">PENDING REQUESTS</div>
+        <div id="home-requests-list" style="margin-bottom:.75rem;"></div>
+      </div>
+
+      <!-- Friends list -->
+      <div style="font-size:.72rem;color:var(--muted);margin-bottom:.4rem;font-weight:600;">YOUR FRIENDS</div>
+      <div id="home-friends-list"></div>
+    </div>
+
+  </div>
+
+  <div class="terms-footer" style="text-align:center;padding:1rem;">
+    By using WAVE, you agree to our <a href="/terms.html" target="_blank">Terms of Service</a>.<br>
     <a href="/terms.html" target="_blank">📄 View Terms &amp; Conditions</a>
   </div>
 </div>
@@ -708,13 +776,21 @@ function showAuthScreen(){
 
 function onAuthSuccess(){
   document.getElementById('auth-screen').style.display = 'none';
-  document.getElementById('landing').style.display = 'block';
-  updateHeaderProfile();
-  updateFriendsList();
-  updateRequestsBadge();
-  // Pre-fill name from username
+  document.getElementById('landing').style.display = 'flex';
+  // Populate home nav
+  const homeAvEl = document.getElementById('home-avatar-el');
+  const homeUnEl = document.getElementById('home-username-el');
+  if(homeUnEl) homeUnEl.textContent = currentUser.username;
+  if(homeAvEl){
+    if(currentUser.avatar) homeAvEl.innerHTML = `<img src="${currentUser.avatar}">`;
+    else { homeAvEl.textContent = currentUser.username.slice(0,2).toUpperCase(); homeAvEl.style.background = colorFor(currentUser.id||'x'); }
+  }
+  // Pre-fill hidden name inputs
   document.getElementById('create-name').value = currentUser.username;
   document.getElementById('join-name').value = currentUser.username;
+  updateHeaderProfile();
+  refreshHomeScreen();
+  updateRequestsBadge();
 }
 
 function switchAuthTab(tab){
@@ -1010,6 +1086,99 @@ function acceptFriendInvite(){
 function dismissFriendInvite(){
   document.getElementById('invite-popup').classList.add('hidden');
   pendingInvite = null;
+}
+
+// ── Home screen functions ──
+async function homeSearchFriend(){
+  const q = document.getElementById('home-friend-search').value.trim();
+  const el = document.getElementById('home-search-results');
+  if(!q){ el.innerHTML=''; return; }
+  try{
+    const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`,{headers:{Authorization:`Bearer ${authToken}`}});
+    const results = await res.json();
+    if(!results.length){ el.innerHTML='<div style="font-size:.7rem;color:var(--muted);padding:.5rem 0;">No user found.</div>'; return; }
+    el.innerHTML='';
+    results.forEach(u=>{
+      const alreadyFriend=(currentUser.friends||[]).some(f=>f.id===u.id||f._id===u.id);
+      const div=document.createElement('div');
+      div.className='friend-item'; div.style.marginTop='.4rem';
+      div.innerHTML=`
+        <div class="friend-avatar" style="background:${colorFor(u.id||'x')};color:#fff;">${u.avatar?`<img src="${u.avatar}">`:(u.username||'?').slice(0,2).toUpperCase()}</div>
+        <div class="friend-info"><div class="friend-name">${esc(u.username)}</div></div>
+        <div class="friend-actions">${alreadyFriend?'<span style="font-size:.65rem;color:var(--accent3)">✓ Friends</span>':`<button class="friend-btn" onclick="homeSendFriendReq('${u.id}',this)">Add Friend</button>`}</div>`;
+      el.appendChild(div);
+    });
+  }catch(e){}
+}
+
+async function homeSendFriendReq(targetId, btn){
+  try{
+    const res=await fetch(`/api/friend-request/${targetId}`,{method:'POST',headers:{Authorization:`Bearer ${authToken}`}});
+    const data=await res.json();
+    if(res.ok){btn.textContent='Sent!';btn.disabled=true;toast('👥 Friend request sent!');}
+    else toast('⚠️ '+data.error);
+  }catch(e){}
+}
+
+async function refreshHomeScreen(){
+  if(!authToken) return;
+  try{
+    const res=await fetch('/api/me',{headers:{Authorization:`Bearer ${authToken}`}});
+    const data=await res.json();
+    currentUser.friends=data.friends;
+    currentUser.friendRequests=data.friendRequests;
+    renderHomeFriends();
+    renderHomeRequests();
+    updateRequestsBadge();
+  }catch(e){}
+}
+
+function renderHomeFriends(){
+  const el=document.getElementById('home-friends-list');
+  if(!el) return;
+  const friends=currentUser?.friends||[];
+  if(!friends.length){el.innerHTML='<div class="friends-empty" style="padding:.75rem 0;">No friends yet — search above to add some!</div>';return;}
+  el.innerHTML='';
+  friends.forEach(f=>{
+    const div=document.createElement('div');
+    div.className='friend-item home-card';
+    div.style.cssText='margin-bottom:.5rem;padding:.65rem .85rem;';
+    div.innerHTML=`
+      <div class="friend-avatar" style="background:${colorFor(f.id||f._id||'x')};color:#fff;">${f.avatar?`<img src="${f.avatar}">`:(f.username||'?').slice(0,2).toUpperCase()}</div>
+      <div class="friend-info"><div class="friend-name">${esc(f.username)}</div></div>
+      <div class="friend-actions"><button class="friend-btn danger" onclick="removeFriend('${f.id||f._id}','${esc(f.username)}')">Remove</button></div>`;
+    el.appendChild(div);
+  });
+}
+
+function renderHomeRequests(){
+  const section=document.getElementById('home-requests-section');
+  const el=document.getElementById('home-requests-list');
+  if(!el||!section) return;
+  const reqs=currentUser?.friendRequests||[];
+  section.classList.toggle('hidden',reqs.length===0);
+  el.innerHTML='';
+  reqs.forEach(r=>{
+    const f=r.from;
+    const div=document.createElement('div');
+    div.className='friend-item home-card';
+    div.style.cssText='margin-bottom:.5rem;padding:.65rem .85rem;';
+    div.innerHTML=`
+      <div class="friend-avatar" style="background:${colorFor(f._id||'x')};color:#fff;">${f.avatar?`<img src="${f.avatar}">`:(f.username||'?').slice(0,2).toUpperCase()}</div>
+      <div class="friend-info"><div class="friend-name">${esc(f.username)}</div><div class="friend-status">Wants to be friends</div></div>
+      <div class="friend-actions">
+        <button class="friend-btn accept" onclick="homeAcceptReq('${f._id}')">✓ Accept</button>
+        <button class="friend-btn danger" onclick="declineFriendReq('${f._id}')">✕</button>
+      </div>`;
+    el.appendChild(div);
+  });
+}
+
+async function homeAcceptReq(fromId){
+  try{
+    await fetch(`/api/friend-accept/${fromId}`,{method:'POST',headers:{Authorization:`Bearer ${authToken}`}});
+    toast('👥 Friend added!'); refreshHomeScreen();
+  }catch(e){}
 }
 
 let onlineUsers = new Map();
