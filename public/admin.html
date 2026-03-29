@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WAVE Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#050508;--surface:#0d0d14;--surface2:#13131e;--border:#1e1e2e;--accent:#6c63ff;--accent2:#ff6584;--accent3:#43e97b;--text:#e8e8f0;--muted:#6b6b80;--host:#ffd700;--danger:#ff4757;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;min-height:100vh;}
+.admin-header{background:var(--surface);border-bottom:1px solid var(--border);padding:.85rem 2rem;display:flex;align-items:center;justify-content:space-between;}
+.admin-logo{font-family:'Syne',sans-serif;font-size:1.3rem;font-weight:800;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.admin-nav{display:flex;gap:.5rem;}
+.nav-btn{padding:.4rem .85rem;border-radius:7px;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:'DM Mono',monospace;font-size:.72rem;cursor:pointer;transition:all .15s;}
+.nav-btn.active,.nav-btn:hover{border-color:var(--accent);color:var(--accent);}
+.admin-body{padding:2rem;max-width:1100px;margin:0 auto;}
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:2rem;}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.2rem;text-align:center;position:relative;overflow:hidden;}
+.stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent),var(--accent2));}
+.stat-num{font-family:'Syne',sans-serif;font-size:2rem;font-weight:800;color:var(--text);}
+.stat-label{font-size:.65rem;color:var(--muted);margin-top:.2rem;text-transform:uppercase;letter-spacing:.1em;}
+.section-title{font-family:'Syne',sans-serif;font-size:.95rem;font-weight:700;margin-bottom:.85rem;display:flex;align-items:center;gap:.5rem;}
+.search-row{display:flex;gap:.5rem;margin-bottom:.85rem;}
+.search-input{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.5rem .75rem;color:var(--text);font-family:'DM Mono',monospace;font-size:.75rem;outline:none;}
+.search-input:focus{border-color:var(--accent);}
+.filter-btn{padding:.5rem .85rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);font-family:'DM Mono',monospace;font-size:.72rem;cursor:pointer;}
+.filter-btn.active{border-color:var(--accent);color:var(--accent);}
+.data-table{width:100%;border-collapse:collapse;font-size:.72rem;}
+.data-table th{text-align:left;padding:.5rem .75rem;color:var(--muted);font-weight:500;border-bottom:1px solid var(--border);font-size:.65rem;text-transform:uppercase;letter-spacing:.08em;}
+.data-table td{padding:.6rem .75rem;border-bottom:1px solid rgba(30,30,46,.6);vertical-align:middle;}
+.data-table tr:hover td{background:var(--surface2);}
+.user-cell{display:flex;align-items:center;gap:.5rem;}
+.user-av{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;flex-shrink:0;overflow:hidden;}
+.user-av img{width:100%;height:100%;object-fit:cover;}
+.badge{display:inline-block;padding:.18rem .5rem;border-radius:4px;font-size:.6rem;font-weight:600;}
+.badge-pending{background:rgba(255,183,77,.15);color:#ffb74d;}
+.badge-reviewed{background:rgba(67,233,123,.15);color:var(--accent3);}
+.badge-dismissed{background:rgba(107,107,128,.15);color:var(--muted);}
+.badge-danger{background:rgba(255,71,87,.15);color:var(--danger);}
+.action-btn{padding:.22rem .55rem;border-radius:5px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:.62rem;cursor:pointer;font-family:'DM Mono',monospace;margin-left:.25rem;}
+.action-btn.danger{border-color:var(--danger);color:var(--danger);}
+.action-btn:hover{background:var(--surface2);}
+.report-count{background:rgba(255,71,87,.15);color:var(--danger);border-radius:4px;padding:.18rem .5rem;font-size:.6rem;font-weight:700;}
+.report-count.zero{background:transparent;color:var(--muted);}
+.pagination{display:flex;gap:.4rem;margin-top:1rem;justify-content:center;}
+.page-btn{padding:.35rem .65rem;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:.68rem;cursor:pointer;font-family:'DM Mono',monospace;}
+.page-btn.active{border-color:var(--accent);color:var(--accent);}
+.hidden{display:none!important;}
+.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;}
+.login-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:2rem;width:100%;max-width:360px;position:relative;overflow:hidden;}
+.login-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--accent),var(--accent2));}
+.login-title{font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:700;margin-bottom:1.2rem;}
+.field{margin-bottom:.85rem;}
+.field label{display:block;font-size:.65rem;color:var(--muted);margin-bottom:.3rem;text-transform:uppercase;}
+.field input{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.55rem .75rem;color:var(--text);font-family:'DM Mono',monospace;font-size:.78rem;outline:none;}
+.field input:focus{border-color:var(--accent);}
+.btn-primary{width:100%;padding:.65rem;border:none;border-radius:10px;background:var(--accent);color:#fff;font-family:'Syne',sans-serif;font-size:.88rem;font-weight:700;cursor:pointer;}
+.err{color:var(--danger);font-size:.7rem;margin-top:.5rem;text-align:center;}
+.report-desc{color:var(--muted);font-size:.65rem;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:500;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.5rem;width:100%;max-width:460px;position:relative;}
+.modal h3{font-family:'Syne',sans-serif;font-size:.95rem;font-weight:700;margin-bottom:1rem;}
+.modal textarea{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.55rem .75rem;color:var(--text);font-family:'DM Mono',monospace;font-size:.75rem;outline:none;resize:vertical;min-height:80px;}
+.modal-btns{display:flex;gap:.5rem;margin-top:1rem;justify-content:flex-end;}
+.modal-btn{padding:.45rem 1rem;border-radius:7px;border:1px solid var(--border);background:transparent;color:var(--text);font-family:'DM Mono',monospace;font-size:.72rem;cursor:pointer;}
+.modal-btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;}
+.modal-btn.danger{border-color:var(--danger);color:var(--danger);}
+@media(max-width:700px){.stats-grid{grid-template-columns:1fr 1fr;}.admin-nav{display:none;}}
+</style>
+</head>
+<body>
+
+<div id="login-screen" class="login-wrap">
+  <div class="login-card">
+    <div class="login-title">👑 WAVE Admin</div>
+    <div class="field"><label>Username</label><input id="adm-user" type="text" placeholder="Admin username" onkeydown="if(event.key==='Enter')adminLogin()"/></div>
+    <div class="field"><label>Password</label><input id="adm-pass" type="password" placeholder="Password" onkeydown="if(event.key==='Enter')adminLogin()"/></div>
+    <button class="btn-primary" onclick="adminLogin()">Log In →</button>
+    <div class="err" id="login-err"></div>
+  </div>
+</div>
+
+<div id="admin-app" class="hidden">
+  <div class="admin-header">
+    <div class="admin-logo">WAVE Admin</div>
+    <div class="admin-nav">
+      <button class="nav-btn active" onclick="showTab('users')" id="tab-users">👥 Users</button>
+      <button class="nav-btn" onclick="showTab('reports')" id="tab-reports">🚩 Reports <span id="pending-badge" style="background:var(--danger);color:#fff;border-radius:10px;padding:0 5px;font-size:.6rem;"></span></button>
+      <button class="nav-btn" onclick="adminLogout()" style="margin-left:.5rem;color:var(--muted);">Log Out</button>
+    </div>
+  </div>
+
+  <div class="admin-body">
+    <!-- Stats -->
+    <div class="stats-grid" id="stats-grid">
+      <div class="stat-card"><div class="stat-num" id="stat-users">—</div><div class="stat-label">Total Users</div></div>
+      <div class="stat-card"><div class="stat-num" id="stat-reports">—</div><div class="stat-label">Total Reports</div></div>
+      <div class="stat-card"><div class="stat-num" id="stat-pending" style="color:var(--accent2);">—</div><div class="stat-label">Pending Review</div></div>
+      <div class="stat-card"><div class="stat-num" id="stat-top" style="font-size:1rem;margin-top:.3rem;"></div><div class="stat-label">Most Reported</div></div>
+    </div>
+
+    <!-- Users tab -->
+    <div id="tab-users-body">
+      <div class="section-title">👥 All Users</div>
+      <div class="search-row">
+        <input class="search-input" id="user-search" placeholder="Search by username…" oninput="loadUsers(1)" />
+      </div>
+      <table class="data-table">
+        <thead><tr><th>User</th><th>Email</th><th>Joined</th><th>Reports</th><th>Actions</th></tr></thead>
+        <tbody id="users-tbody"></tbody>
+      </table>
+      <div class="pagination" id="users-pages"></div>
+    </div>
+
+    <!-- Reports tab -->
+    <div id="tab-reports-body" class="hidden">
+      <div class="section-title">🚩 Reports</div>
+      <div class="search-row">
+        <button class="filter-btn active" onclick="filterReports('',this)">All</button>
+        <button class="filter-btn" onclick="filterReports('pending',this)">Pending</button>
+        <button class="filter-btn" onclick="filterReports('reviewed',this)">Reviewed</button>
+        <button class="filter-btn" onclick="filterReports('dismissed',this)">Dismissed</button>
+      </div>
+      <table class="data-table">
+        <thead><tr><th>Reported User</th><th>By</th><th>Reason</th><th>Description</th><th>Date</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody id="reports-tbody"></tbody>
+      </table>
+      <div class="pagination" id="reports-pages"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Report detail modal -->
+<div id="report-modal" class="modal-overlay hidden">
+  <div class="modal">
+    <h3>📋 Report Details</h3>
+    <div id="report-modal-content" style="font-size:.75rem;color:var(--muted);line-height:1.8;margin-bottom:1rem;"></div>
+    <div class="field"><label>Admin Note</label><textarea id="admin-note-input" placeholder="Add a note…"></textarea></div>
+    <div class="modal-btns">
+      <button class="modal-btn" onclick="closeReportModal()">Cancel</button>
+      <button class="modal-btn" onclick="updateReport('dismissed')">Dismiss</button>
+      <button class="modal-btn primary" onclick="updateReport('reviewed')">Mark Reviewed</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let adminToken = null;
+let currentReportId = null;
+let reportFilter = '';
+
+async function adminLogin(){
+  const username = document.getElementById('adm-user').value.trim();
+  const password = document.getElementById('adm-pass').value;
+  document.getElementById('login-err').textContent = '';
+  try{
+    const res = await fetch('/api/login', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({username, password}) });
+    const data = await res.json();
+    if(!res.ok){ document.getElementById('login-err').textContent = data.error; return; }
+    // Verify admin
+    const check = await fetch('/api/admin/stats', { headers:{Authorization:`Bearer ${data.token}`} });
+    if(!check.ok){ document.getElementById('login-err').textContent = 'Not an admin account'; return; }
+    adminToken = data.token;
+    localStorage.setItem('wave-admin-token', adminToken);
+    showAdminApp();
+  }catch(e){ document.getElementById('login-err').textContent = 'Server error'; }
+}
+
+function adminLogout(){
+  adminToken = null;
+  localStorage.removeItem('wave-admin-token');
+  document.getElementById('admin-app').classList.add('hidden');
+  document.getElementById('login-screen').classList.remove('hidden');
+}
+
+async function showAdminApp(){
+  document.getElementById('login-screen').classList.add('hidden');
+  document.getElementById('admin-app').classList.remove('hidden');
+  loadStats();
+  loadUsers(1);
+}
+
+function showTab(tab){
+  ['users','reports'].forEach(t=>{
+    document.getElementById(`tab-${t}-body`).classList.toggle('hidden', t!==tab);
+    document.getElementById(`tab-${t}`).classList.toggle('active', t===tab);
+  });
+  if(tab==='reports') loadReports(1);
+}
+
+async function apiFetch(path, opts={}){
+  return fetch(path, { ...opts, headers:{ 'Content-Type':'application/json', Authorization:`Bearer ${adminToken}`, ...(opts.headers||{}) } });
+}
+
+async function loadStats(){
+  try{
+    const res = await apiFetch('/api/admin/stats');
+    const d = await res.json();
+    document.getElementById('stat-users').textContent = d.totalUsers;
+    document.getElementById('stat-reports').textContent = d.totalReports;
+    document.getElementById('stat-pending').textContent = d.pendingReports;
+    const badge = document.getElementById('pending-badge');
+    badge.textContent = d.pendingReports > 0 ? d.pendingReports : '';
+    const topEl = document.getElementById('stat-top');
+    topEl.innerHTML = d.topReported.slice(0,3).map(u=>`<div style="font-size:.7rem;color:var(--text);">${u.username} <span style="color:var(--danger);">(${u.count})</span></div>`).join('') || '<span style="color:var(--muted);font-size:.75rem;">None</span>';
+  }catch(e){}
+}
+
+async function loadUsers(page=1){
+  const search = document.getElementById('user-search')?.value||'';
+  try{
+    const res = await apiFetch(`/api/admin/users?page=${page}&search=${encodeURIComponent(search)}`);
+    const d = await res.json();
+    const tbody = document.getElementById('users-tbody');
+    tbody.innerHTML = '';
+    d.users.forEach(u=>{
+      const tr = document.createElement('tr');
+      const joined = new Date(u.createdAt).toLocaleDateString();
+      tr.innerHTML = `
+        <td><div class="user-cell">
+          <div class="user-av" style="background:#6c63ff;color:#fff;">${u.avatar?`<img src="${u.avatar}">`:(u.username||'?').slice(0,2).toUpperCase()}</div>
+          <span>${esc(u.username)}</span>
+        </div></td>
+        <td style="color:var(--muted);">${esc(u.email||'—')}</td>
+        <td style="color:var(--muted);">${joined}</td>
+        <td><span class="report-count ${u.reportCount===0?'zero':''}">${u.reportCount} report${u.reportCount!==1?'s':''}</span></td>
+        <td>
+          <button class="action-btn" onclick="viewUserReports('${u.id}','${esc(u.username)}')">🚩 Reports</button>
+          <button class="action-btn danger" onclick="deleteUser('${u.id}','${esc(u.username)}')">🗑 Delete</button>
+        </td>`;
+      tbody.appendChild(tr);
+    });
+    renderPagination('users-pages', d.page, d.pages, loadUsers);
+  }catch(e){}
+}
+
+async function deleteUser(id, username){
+  if(!confirm(`Delete user "${username}"? This cannot be undone.`)) return;
+  try{
+    const res = await apiFetch(`/api/admin/users/${id}`, { method:'DELETE' });
+    const d = await res.json();
+    if(d.success){ loadUsers(1); loadStats(); }
+    else alert(d.error);
+  }catch(e){}
+}
+
+async function viewUserReports(userId, username){
+  showTab('reports');
+  // Load reports filtered by this user - set search then load
+  reportFilter = '';
+  await loadReports(1, userId);
+}
+
+async function loadReports(page=1, userId=null){
+  try{
+    let url = `/api/admin/reports?page=${page}`;
+    if(reportFilter) url += `&status=${reportFilter}`;
+    if(userId) url += `&userId=${userId}`;
+    const res = await apiFetch(url);
+    const d = await res.json();
+    const tbody = document.getElementById('reports-tbody');
+    tbody.innerHTML = '';
+    const reasonLabels = { harassment:'Harassment', hate_speech:'Hate Speech', spam:'Spam', inappropriate_content:'Inappropriate Content', impersonation:'Impersonation', threats:'Threats', other:'Other' };
+    d.reports.forEach(r=>{
+      const tr = document.createElement('tr');
+      const date = new Date(r.createdAt).toLocaleDateString();
+      tr.innerHTML = `
+        <td><div class="user-cell">
+          <div class="user-av" style="background:#ff6584;color:#fff;">${(r.reportedUser?.username||'?').slice(0,2).toUpperCase()}</div>
+          <span>${esc(r.reportedUser?.username||'Deleted')}</span>
+        </div></td>
+        <td style="color:var(--muted);">${esc(r.reportedBy?.username||'?')}</td>
+        <td><span class="badge badge-danger">${reasonLabels[r.reason]||r.reason}</span></td>
+        <td><div class="report-desc" title="${esc(r.description)}">${esc(r.description)}</div></td>
+        <td style="color:var(--muted);">${date}</td>
+        <td><span class="badge badge-${r.status}">${r.status}</span></td>
+        <td><button class="action-btn" onclick="openReportModal('${r._id}','${esc(r.description)}','${esc(r.adminNote||'')}')">Review</button></td>`;
+      tbody.appendChild(tr);
+    });
+    renderPagination('reports-pages', d.page, d.pages, loadReports);
+  }catch(e){}
+}
+
+function filterReports(status, btn){
+  reportFilter = status;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  loadReports(1);
+}
+
+function openReportModal(id, desc, note){
+  currentReportId = id;
+  document.getElementById('report-modal-content').innerHTML = `<strong>Description:</strong><br>${esc(desc)}`;
+  document.getElementById('admin-note-input').value = note;
+  document.getElementById('report-modal').classList.remove('hidden');
+}
+
+function closeReportModal(){
+  document.getElementById('report-modal').classList.add('hidden');
+  currentReportId = null;
+}
+
+async function updateReport(status){
+  if(!currentReportId) return;
+  const note = document.getElementById('admin-note-input').value;
+  try{
+    await apiFetch(`/api/admin/reports/${currentReportId}`, { method:'PATCH', body: JSON.stringify({ status, adminNote: note }) });
+    closeReportModal();
+    loadReports(1);
+    loadStats();
+  }catch(e){}
+}
+
+function renderPagination(containerId, current, total, loadFn){
+  const el = document.getElementById(containerId);
+  el.innerHTML = '';
+  if(total <= 1) return;
+  for(let i=1;i<=total;i++){
+    const btn = document.createElement('button');
+    btn.className = 'page-btn' + (i===current?' active':'');
+    btn.textContent = i;
+    btn.onclick = ()=>loadFn(i);
+    el.appendChild(btn);
+  }
+}
+
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// Auto-login if token saved
+window.onload = async ()=>{
+  const t = localStorage.getItem('wave-admin-token');
+  if(t){
+    const check = await fetch('/api/admin/stats', { headers:{Authorization:`Bearer ${t}`} });
+    if(check.ok){ adminToken = t; showAdminApp(); return; }
+    localStorage.removeItem('wave-admin-token');
+  }
+};
+</script>
+</body>
+</html>

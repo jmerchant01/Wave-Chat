@@ -264,7 +264,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .conn-dot.disconnected{background:var(--danger);}
 @keyframes blink{0%,100%{opacity:1;}50%{opacity:.3;}}
 @keyframes recPulse{0%,100%{box-shadow:0 0 0 0 rgba(255,71,87,.4);}50%{box-shadow:0 0 0 6px rgba(255,71,87,0);}}
-.toast-wrap{position:fixed;bottom:2rem;left:50%;transform:translateX(-50%);z-index:1000;display:flex;flex-direction:column;gap:.5rem;align-items:center;}
+.toast-wrap{position:fixed;top:5rem;left:50%;transform:translateX(-50%);z-index:1000;display:flex;flex-direction:column;gap:.5rem;align-items:center;}
 .toast{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:.55rem 1.1rem;font-size:.76rem;animation:msgIn .3s ease;white-space:nowrap;pointer-events:none;}
 /* ── Save Location Modal ── */
 .save-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:600;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);}
@@ -293,7 +293,8 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .pending-invite-item{display:flex;align-items:center;justify-content:space-between;font-size:.68rem;padding:.25rem 0;border-bottom:1px solid var(--border);}
 .pending-invite-item:last-child{border-bottom:none;}
 .pending-invite-name{color:var(--text);}
-.pending-invite-status{color:var(--muted);font-size:.6rem;}top:5rem;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--accent);border-radius:12px;padding:.85rem 1.2rem;z-index:900;display:none;align-items:center;gap:.75rem;box-shadow:0 8px 32px rgba(0,0,0,.4);animation:msgIn .3s ease;}
+.pending-invite-status{color:var(--muted);font-size:.6rem;}
+.join-request-banner{position:fixed;top:1.2rem;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--accent);border-radius:12px;padding:.85rem 1.4rem;z-index:2000;display:none;align-items:center;gap:.75rem;box-shadow:0 8px 32px rgba(0,0,0,.5);animation:msgIn .3s ease;min-width:280px;max-width:90vw;white-space:nowrap;}
 .join-request-banner.visible{display:flex;}
 .join-req-btns{display:flex;gap:.4rem;}
 #landing{min-height:100vh;display:flex;flex-direction:column;background:var(--bg);}
@@ -374,7 +375,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .profile-avatar-sm img{width:100%;height:100%;object-fit:cover;}
 
 /* ── Friend invite popup ── */
-.invite-popup{position:fixed;bottom:5rem;right:1.5rem;background:var(--surface);border:1px solid var(--accent);border-radius:14px;padding:1rem 1.2rem;z-index:800;min-width:260px;box-shadow:0 8px 32px rgba(0,0,0,.4);animation:msgIn .3s ease;}
+.invite-popup{position:fixed;top:1.2rem;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--accent);border-radius:14px;padding:1rem 1.2rem;z-index:800;min-width:260px;box-shadow:0 8px 32px rgba(0,0,0,.4);animation:msgIn .3s ease;}
 .invite-popup h4{font-family:'Syne',sans-serif;font-size:.85rem;font-weight:700;margin-bottom:.25rem;}
 .invite-popup p{font-size:.72rem;color:var(--muted);margin-bottom:.75rem;}
 .invite-popup-btns{display:flex;gap:.5rem;}
@@ -735,6 +736,36 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
   <div class="join-req-btns">
     <button class="share-req-btn accept" onclick="hostApproveJoin()">Let In</button>
     <button class="share-req-btn deny" onclick="hostDenyJoin()">Deny</button>
+  </div>
+</div>
+
+<!-- REPORT USER MODAL -->
+<div id="report-modal-overlay" class="save-modal-overlay hidden">
+  <div class="save-modal" style="max-width:460px;">
+    <h3>🚩 Report User</h3>
+    <p id="report-modal-target" style="color:var(--muted);font-size:.72rem;margin-bottom:1rem;"></p>
+    <div class="auth-field">
+      <label>Reason</label>
+      <select id="report-reason" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.55rem .75rem;color:var(--text);font-family:'DM Mono',monospace;font-size:.75rem;outline:none;">
+        <option value="">Select a reason…</option>
+        <option value="harassment">Harassment or bullying</option>
+        <option value="hate_speech">Hate speech or discrimination</option>
+        <option value="spam">Spam or self-promotion</option>
+        <option value="inappropriate_content">Inappropriate content</option>
+        <option value="impersonation">Impersonation</option>
+        <option value="threats">Threats or violence</option>
+        <option value="other">Other</option>
+      </select>
+    </div>
+    <div class="auth-field" style="margin-top:.75rem;">
+      <label>Description <span style="color:var(--muted);font-weight:400;">(min 10 chars)</span></label>
+      <textarea id="report-description" placeholder="Please describe what happened in detail…" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.55rem .75rem;color:var(--text);font-family:'DM Mono',monospace;font-size:.75rem;outline:none;resize:vertical;min-height:90px;box-sizing:border-box;"></textarea>
+    </div>
+    <div id="report-error" style="color:var(--danger);font-size:.7rem;margin-bottom:.5rem;min-height:1rem;"></div>
+    <div style="display:flex;gap:.5rem;">
+      <button class="save-modal-cancel" style="flex:1;margin-top:0;padding:.6rem;" onclick="closeReportModalUser()">Cancel</button>
+      <button class="auth-btn" style="flex:1;margin-top:0;" onclick="submitReport()">Submit Report</button>
+    </div>
   </div>
 </div>
 
@@ -1358,7 +1389,56 @@ function initHomeSocket(){
   });
 }
 
-// ── Pending invites (host sees who hasn't joined yet) ──
+// ── Report User ──
+let reportTargetSocketId = null;
+let reportTargetUserId = null;
+let reportTargetName = null;
+
+// participantUserIds: socketId -> userId (populated from room state)
+const participantUserIds = new Map();
+
+function openReportModal(socketId, name){
+  reportTargetSocketId = socketId;
+  reportTargetName = name;
+  // Look up userId from participants map
+  const p = participants.get(socketId);
+  reportTargetUserId = p?.userId || null;
+  document.getElementById('report-modal-target').textContent = `Reporting: ${name}`;
+  document.getElementById('report-reason').value = '';
+  document.getElementById('report-description').value = '';
+  document.getElementById('report-error').textContent = '';
+  document.getElementById('report-modal-overlay').classList.remove('hidden');
+}
+
+function closeReportModalUser(){
+  document.getElementById('report-modal-overlay').classList.add('hidden');
+  reportTargetSocketId = null; reportTargetUserId = null; reportTargetName = null;
+}
+
+async function submitReport(){
+  const reason = document.getElementById('report-reason').value;
+  const description = document.getElementById('report-description').value.trim();
+  const errEl = document.getElementById('report-error');
+  errEl.textContent = '';
+  if(!reason){ errEl.textContent = 'Please select a reason'; return; }
+  if(description.length < 10){ errEl.textContent = 'Description must be at least 10 characters'; return; }
+  if(!authToken){ errEl.textContent = 'You must be logged in to report'; return; }
+  if(!reportTargetUserId){
+    errEl.textContent = 'Cannot report guest users';
+    return;
+  }
+  try{
+    const res = await fetch('/api/report', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json', Authorization:`Bearer ${authToken}`},
+      body: JSON.stringify({ reportedUserId: reportTargetUserId, reason, description })
+    });
+    const data = await res.json();
+    if(!res.ok){ errEl.textContent = data.error; return; }
+    closeReportModalUser();
+    toast(`🚩 Report submitted for ${reportTargetName}`);
+  }catch(e){ errEl.textContent = 'Server error — try again'; }
+}
 const pendingInvitesMap = new Map(); // userId -> username
 
 function addPendingInvite(userId, username){
@@ -1702,7 +1782,7 @@ function connectSocket(){
   socket.on('room_joined',({roomId:rid,isHost:ih,state,joinMuted})=>{
     roomId=rid; isHost=ih;
     participants.clear();
-    state.participants.forEach(p=>participants.set(p.id,{name:p.name,muted:p.muted,isHost:p.isHost,speaking:false}));
+    state.participants.forEach(p=>participants.set(p.id,{name:p.name,muted:p.muted,isHost:p.isHost,speaking:false,userId:p.userId||null}));
     isAllMuted=state.allMuted||false;
     isChatLocked=state.chatLocked||false;
     if(joinMuted){isMuted=true;micHostLocked=true;applyMute();}
@@ -1715,9 +1795,9 @@ function connectSocket(){
     state.participants.forEach(p=>{if(p.id!==socket.id)initiateOffer(p.id);});
   });
 
-  socket.on('participant_joined',({id,name,muted,isHost:ih})=>{
+  socket.on('participant_joined',({id,name,muted,isHost:ih,userId})=>{
     if(id===socket.id)return;
-    participants.set(id,{name,muted,isHost:ih,speaking:false});
+    participants.set(id,{name,muted,isHost:ih,speaking:false,userId:userId||null});
     renderParticipants();
   });
   socket.on('participant_left',({id})=>{
@@ -1735,7 +1815,7 @@ function connectSocket(){
   });
   socket.on('room_state_update',(state)=>{
     participants.clear();
-    state.participants.forEach(p=>participants.set(p.id,{name:p.name,muted:p.muted,isHost:p.isHost,speaking:false}));
+    state.participants.forEach(p=>participants.set(p.id,{name:p.name,muted:p.muted,isHost:p.isHost,speaking:false,userId:p.userId||null}));
     isAllMuted=state.allMuted||false; isChatLocked=state.chatLocked||false;
     renderParticipants(); updateBadges();
   });
@@ -2908,6 +2988,11 @@ function renderParticipants(){
         <button class="icon-btn${p.muted?' muted-on':''}" onclick="hostMute('${id}')" title="${p.muted?'Unmute':'Mute'}">${p.muted?'🔇':'🔊'}</button>
         <button class="icon-btn screen-req" onclick="hostRequestScreen('${id}')" title="Request screen share">🖥️</button>
         <button class="icon-btn" onclick="hostKick('${id}')" title="Remove">✕</button>
+        <button class="icon-btn" onclick="openReportModal('${id}','${esc(p.name)}')" title="Report user" style="color:var(--accent2);border-color:var(--accent2);">🚩</button>
+      </div>`;
+    } else if(!isMine){
+      ctrl=`<div class="participant-controls">
+        <button class="icon-btn" onclick="openReportModal('${id}','${esc(p.name)}')" title="Report user" style="color:var(--accent2);border-color:var(--accent2);">🚩</button>
       </div>`;
     }
     card.innerHTML=`<div class="${avClass}" style="background:${color}22;color:${color};border:1.5px solid ${color}55">${initials(p.name)}</div><div class="participant-name">${esc(p.name)}${hostTag}${muteTag}${youTag}</div>${ctrl}`;

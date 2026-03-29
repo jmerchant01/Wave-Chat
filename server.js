@@ -4,6 +4,7 @@ const { Server } = require('socket.io');
 const path = require('path');
 const mongoose = require('mongoose');
 const { router: authRouter, JWT_SECRET } = require('./routes/auth');
+const adminRouter = require('./routes/admin');
 const jwt = require('jsonwebtoken');
 const webpush = require('web-push');
 
@@ -46,6 +47,7 @@ app.get('/api/vapid-public-key', (req, res) => res.json({ key: VAPID_PUBLIC }));
 app.use(express.json({ limit: '15mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/api', authRouter);
+app.use('/api', adminRouter);
 
 function emailTemplate(title, body, sub, url, btnText) {
   return `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#050508;font-family:'Segoe UI',sans-serif;">
@@ -66,7 +68,7 @@ const onlineUsers = new Map(); // userId -> { socketId, username, avatar, roomId
 
 function getRoomPublicState(room) {
   const participants = [];
-  room.participants.forEach((p, id) => participants.push({ id, name: p.name, muted: p.muted, isHost: p.isHost }));
+  room.participants.forEach((p, id) => participants.push({ id, name: p.name, muted: p.muted, isHost: p.isHost, userId: p.userId||null }));
   return { name: room.name, hostId: room.hostId, locked: room.locked, chatLocked: room.chatLocked, allMuted: room.allMuted, participants };
 }
 
@@ -255,7 +257,7 @@ io.on('connection', (socket) => {
     socket.join(roomId); socket.data.roomId = roomId; socket.data.name = displayName;
     if (userId) { const o = onlineUsers.get(userId); if(o) o.roomId = roomId; }
     socket.emit('room_joined', { roomId, isHost: false, joinMuted, state: getRoomPublicState(room) });
-    socket.to(roomId).emit('participant_joined', { id: socket.id, name: displayName, muted: joinMuted, isHost: false });
+    socket.to(roomId).emit('participant_joined', { id: socket.id, name: displayName, muted: joinMuted, isHost: false, userId: userId||null });
     io.to(roomId).emit('room_state_update', getRoomPublicState(room));
     // Update online status to show in-room
     if (userId) { const o = onlineUsers.get(userId); if(o) o.roomId = roomId; }
