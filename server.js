@@ -53,6 +53,13 @@ io.on('connection', (socket) => {
     socket.emit('friend_statuses', statuses);
   });
 
+  // ── Cancel join request ──
+  socket.on('cancel_join_request', ({ roomId, fromUserId }) => {
+    const room = rooms.get(roomId);
+    if(!room) return;
+    io.to(room.hostId).emit('join_request_cancelled', { fromUserId });
+  });
+
   // ── Request to join a friend's room ──
   socket.on('request_to_join_room', ({ roomId, fromName, fromUserId }) => {
     const room = rooms.get(roomId);

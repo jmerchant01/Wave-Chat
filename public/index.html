@@ -1252,12 +1252,14 @@ function initHomeSocket(){
 
   // Join request result (we requested to join someone's room)
   homeSocket.on('join_request_result', ({ approved, roomId })=>{
+    pendingJoinRequests.delete(roomId);
     if(approved){
       toast('✅ Request approved — joining room!');
       document.getElementById('join-code').value = roomId;
       joinRoom();
     } else {
       toast('❌ Your request to join was denied.');
+      renderHomeFriends(); // refresh to reset button state
     }
   });
   homeSocket.on('friend_invite_offline', ()=>{
@@ -1316,6 +1318,7 @@ async function refreshHomeScreen(){
 // ── Friend statuses (updated from server) ──
 let friendStatuses = {}; // userId -> { online, roomId }
 let selectedFriendsForRoom = new Set(); // userIds selected via Start Room
+let pendingJoinRequests = new Set(); // roomIds we've requested to join
 
 function renderHomeFriends(){
   const el=document.getElementById('home-friends-list');
@@ -1327,22 +1330,32 @@ function renderHomeFriends(){
     const fid = f.id||f._id;
     const status = friendStatuses[fid] || { online: false, roomId: null };
     const dotClass = status.online ? (status.roomId ? 'dot-inroom' : 'dot-online') : 'dot-offline';
-    const dotTitle = status.online ? (status.roomId ? '🔵 In a room — click to request to join' : '🟢 Online') : '⚫ Offline';
     const isSelected = selectedFriendsForRoom.has(fid);
+    const isPendingJoin = status.roomId && pendingJoinRequests.has(status.roomId);
 
     const div=document.createElement('div');
     div.className='friend-item home-card';
     div.style.cssText='margin-bottom:.5rem;padding:.65rem .85rem;';
+
+    // Join button — only shown if friend is in a room
+    const joinBtnHtml = status.roomId ? `
+      <button class="start-room-btn ${isPendingJoin?'selected':''}" id="jrb-${fid}"
+        style="border-color:${isPendingJoin?'var(--danger)':'#4fc3f7'};color:${isPendingJoin?'var(--danger)':'#4fc3f7'};"
+        onclick="toggleJoinRequest('${fid}','${esc(f.username)}','${status.roomId}',this)">
+        ${isPendingJoin?'✕ Cancel':'Join'}
+      </button>` : '';
+
     div.innerHTML=`
       <div style="position:relative;flex-shrink:0;">
         <div class="friend-avatar" style="background:${colorFor(fid)};color:#fff;">${f.avatar?`<img src="${f.avatar}">`:(f.username||'?').slice(0,2).toUpperCase()}</div>
-        <div class="friend-status-dot ${dotClass}" title="${dotTitle}" onclick="${status.roomId?`requestToJoinRoom('${fid}','${esc(f.username)}','${status.roomId}')`:''}" style="${status.roomId?'cursor:pointer;':''}"></div>
+        <div class="friend-status-dot ${dotClass}" title="${status.online?(status.roomId?'🔵 In a room':'🟢 Online'):'⚫ Offline'}"></div>
       </div>
       <div class="friend-info">
         <div class="friend-name">${esc(f.username)}</div>
         <div class="friend-status ${status.online?'online':''}" style="font-size:.62rem;">${status.online?(status.roomId?'🔵 In a room':'🟢 Online'):'⚫ Offline'}</div>
       </div>
       <div class="friend-actions" style="gap:.3rem;">
+        ${joinBtnHtml}
         <button class="start-room-btn ${isSelected?'selected':''}" id="srb-${fid}" onclick="toggleStartRoom('${fid}','${esc(f.username)}',this)">${isSelected?'✓ Added':'+ Start Room'}</button>
         <button class="friend-btn danger" onclick="removeFriend('${fid}','${esc(f.username)}')">Remove</button>
       </div>`;
@@ -1380,11 +1393,32 @@ function updateCreateRoomBtn(){
   btn.textContent = count > 0 ? `🎙️ Create & Invite ${count} Friend${count>1?'s':''}` : '🎙️ Create & Host Room';
 }
 
-function requestToJoinRoom(friendUserId, friendName, roomId){
+function toggleJoinRequest(fid, username, rid, btn){
   const sock = homeSocket || socket;
   if(!sock){ toast('Not connected'); return; }
-  sock.emit('request_to_join_room', { roomId, fromName: currentUser.username, fromUserId: currentUser.id });
-  toast(`📨 Requested to join ${friendName}'s room…`);
+  if(pendingJoinRequests.has(rid)){
+    // Cancel the request
+    pendingJoinRequests.delete(rid);
+    sock.emit('cancel_join_request', { roomId: rid, fromUserId: currentUser.id });
+    btn.textContent = 'Join';
+    btn.style.borderColor = '#4fc3f7';
+    btn.style.color = '#4fc3f7';
+    btn.classList.remove('selected');
+    toast(`❌ Request to join ${username}'s room cancelled`);
+  } else {
+    // Send the request
+    pendingJoinRequests.add(rid);
+    sock.emit('request_to_join_room', { roomId: rid, fromName: currentUser.username, fromUserId: currentUser.id });
+    btn.textContent = '✕ Cancel';
+    btn.style.borderColor = 'var(--danger)';
+    btn.style.color = 'var(--danger)';
+    btn.classList.add('selected');
+    toast(`📨 Requested to join ${username}'s room…`);
+  }
+}
+
+function requestToJoinRoom(friendUserId, friendName, roomId){
+  toggleJoinRequest(friendUserId, friendName, roomId, document.getElementById('jrb-'+friendUserId));
 }
 
 function renderHomeRequests(){
@@ -1490,6 +1524,14 @@ function connectSocket(){
     document.getElementById('join-request-text').textContent = `${fromName} wants to join your room`;
     document.getElementById('join-request-banner').classList.add('visible');
     setTimeout(()=>document.getElementById('join-request-banner').classList.remove('visible'), 20000);
+  });
+  // Join request cancelled by requester
+  socket.on('join_request_cancelled', ({ fromUserId })=>{
+    if(pendingJoinRequester && pendingJoinRequester.fromUserId === fromUserId){
+      document.getElementById('join-request-banner').classList.remove('visible');
+      pendingJoinRequester = null;
+      toast('ℹ️ Join request was cancelled');
+    }
   });
   socket.on('friend_invite_offline', ()=>{ toast('⚠️ That friend is not online right now'); });
 
