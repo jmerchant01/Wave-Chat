@@ -341,9 +341,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .drag-handle:hover{opacity:1;}
 .draggable-panel{transition:opacity .15s;}
 .draggable-panel.dragging{opacity:.35;cursor:grabbing;}
-.draggable-panel.drop-before{outline:2px solid var(--accent);outline-offset:-2px;box-shadow:0 -3px 0 0 var(--accent);}
-.draggable-panel.drop-after{outline:2px solid var(--accent2);outline-offset:-2px;box-shadow:0 3px 0 0 var(--accent2);}
-.draggable-panel.drag-ghost{background:rgba(108,99,255,.08);border:2px dashed var(--accent);}
+.draggable-panel.drop-target{outline:2px solid var(--accent);outline-offset:-2px;}
 
 /* ── Global Nav ── */
 #global-nav{position:fixed;top:0;left:0;right:0;z-index:400;display:none;align-items:center;justify-content:space-between;padding:.55rem 1rem;background:var(--surface);border-bottom:1px solid var(--border);backdrop-filter:blur(8px);}
@@ -390,38 +388,79 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .home-nav-btn:hover{border-color:var(--danger);color:var(--danger);}
 /* ── Home Grid Layout ── */
 .home-body{
+  position:relative;
   display:grid;
   grid-template-columns:repeat(var(--grid-cols,3),1fr);
   grid-auto-rows:min-content;
-  gap:.75rem;
+  gap:.6rem;
   padding:1rem;
   flex:1;
   width:100%;
   box-sizing:border-box;
   align-items:start;
-  background-image:
-    linear-gradient(var(--grid-line) 1px,transparent 1px),
-    linear-gradient(90deg,var(--grid-line) 1px,transparent 1px);
-  background-size:calc(100%/var(--grid-cols,3)) 8px;
-  background-position:0 0;
-  --grid-line:rgba(108,99,255,.06);
 }
-/* grid-col assignment via data attribute */
+/* Grid lines — hidden by default, shown during drag */
+.home-body.dragging-active::before{
+  content:'';
+  position:absolute;
+  inset:1rem;
+  background-image:
+    linear-gradient(rgba(108,99,255,.15) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(108,99,255,.15) 1px,transparent 1px);
+  background-size:calc(100%/var(--grid-cols,3)) 80px;
+  pointer-events:none;
+  border-radius:8px;
+  z-index:0;
+}
 .home-body[data-cols="1"]{--grid-cols:1;}
 .home-body[data-cols="2"]{--grid-cols:2;}
 .home-body[data-cols="3"]{--grid-cols:3;}
 .home-body[data-cols="4"]{--grid-cols:4;}
 
-.home-section{display:flex;flex-direction:column;min-width:0;}
-/* Each panel occupies one grid cell by default; col/row set via JS */
-.draggable-panel{grid-column:var(--panel-col,auto);grid-row:var(--panel-row,auto);}
+.home-section{
+  display:flex;flex-direction:column;min-width:0;
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:.75rem;
+  background:var(--surface);
+  transition:box-shadow .15s;
+  position:relative;
+  z-index:1;
+}
+.home-section:hover{box-shadow:0 2px 12px rgba(0,0,0,.15);}
+.draggable-panel.dragging{
+  opacity:.0;
+  pointer-events:none;
+}
+/* Drop target ghost cell */
+.grid-drop-ghost{
+  border:2px dashed var(--accent);
+  border-radius:12px;
+  background:rgba(108,99,255,.07);
+  animation:ghost-pulse .8s ease-in-out infinite alternate;
+  min-height:80px;
+  grid-column:var(--ghost-col,auto);
+  grid-row:var(--ghost-row,auto);
+}
+@keyframes ghost-pulse{from{background:rgba(108,99,255,.04);}to{background:rgba(108,99,255,.12);}}
+/* Floating drag clone */
+.drag-clone{
+  position:fixed;
+  pointer-events:none;
+  z-index:9999;
+  opacity:.88;
+  box-shadow:0 16px 48px rgba(0,0,0,.35);
+  border-radius:12px;
+  transition:none;
+  border:2px solid var(--accent);
+}
 .home-section-title{font-family:'Syne',sans-serif;font-size:.95rem;font-weight:700;margin-bottom:.75rem;display:flex;align-items:center;}
 .home-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.25rem;position:relative;overflow:hidden;}
 .home-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent),var(--accent2));}
 .home-card-icon{font-size:1.8rem;margin-bottom:.4rem;}
 .home-card-label{font-family:'Syne',sans-serif;font-size:.9rem;font-weight:700;margin-bottom:.2rem;}
 .home-card-sub{font-size:.7rem;color:var(--muted);margin-bottom:.5rem;}
-@media(max-width:700px){.home-body{--grid-cols:1!important;background-image:none;padding:.5rem;}}
+@media(max-width:700px){.home-body{--grid-cols:1!important;padding:.5rem;gap:.4rem;}.home-section{border-radius:10px;padding:.6rem;}}
 @media(min-width:701px) and (max-width:1000px){.home-body{--grid-cols:2!important;}}
 .auth-screen{position:fixed;inset:0;background:var(--bg);z-index:500;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:1rem;}
 .auth-card{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:2rem;width:100%;max-width:380px;position:relative;overflow:hidden;}
@@ -1206,18 +1245,10 @@ const PANEL_ORDER_KEY = 'wave-panel-order';
 let dragSrcPanel = null;
 
 // ══════════════════════════════════════════════════
-//  GRID PANEL SYSTEM
+//  FREE-DRAG GRID PANEL SYSTEM
 // ══════════════════════════════════════════════════
-const PANEL_POSITIONS_KEY = 'wave-panel-positions-v2';
+const PANEL_POSITIONS_KEY = 'wave-panel-positions-v3';
 const PANEL_IDS = ['panel-rooms','panel-friends','panel-messages','panel-communities','panel-public-rooms'];
-// Default grid positions [col, row] (1-indexed), 3 cols by default
-const DEFAULT_POSITIONS = {
-  'panel-rooms':        {col:1, row:1},
-  'panel-friends':      {col:2, row:1},
-  'panel-messages':     {col:3, row:1},
-  'panel-communities':  {col:1, row:2},
-  'panel-public-rooms': {col:2, row:2},
-};
 
 function getGridCols(){
   const w = window.innerWidth;
@@ -1226,158 +1257,218 @@ function getGridCols(){
   return 3;
 }
 
-function loadPanelPositions(){
-  try{
-    const saved = localStorage.getItem(PANEL_POSITIONS_KEY);
-    if(saved) return JSON.parse(saved);
-  }catch(e){}
+// positions: { panelId: {col, row} }
+function loadPositions(){
+  try{ const s=localStorage.getItem(PANEL_POSITIONS_KEY); if(s) return JSON.parse(s); }catch(e){}
   return null;
 }
+function savePositions(pos){ try{ localStorage.setItem(PANEL_POSITIONS_KEY,JSON.stringify(pos)); }catch(e){} }
 
-function savePanelPositions(positions){
-  try{ localStorage.setItem(PANEL_POSITIONS_KEY, JSON.stringify(positions)); }catch(e){}
+function defaultPositions(cols){
+  const pos={};
+  PANEL_IDS.forEach((id,i)=>{ pos[id]={col:(i%cols)+1, row:Math.floor(i/cols)+1}; });
+  return pos;
 }
 
 function applyGridLayout(){
-  const body = document.getElementById('home-body');
+  const body=document.getElementById('home-body');
   if(!body) return;
-  const cols = getGridCols();
-  body.setAttribute('data-cols', cols);
-  const positions = loadPanelPositions() || DEFAULT_POSITIONS;
-  // On mobile, just stack vertically in saved order
-  if(cols === 1){
-    PANEL_IDS.forEach(id=>{ const el=document.getElementById(id); if(el){ el.style.gridColumn=''; el.style.gridRow=''; body.appendChild(el); }});
+  const cols=getGridCols();
+  body.setAttribute('data-cols',cols);
+  if(cols===1){
+    PANEL_IDS.forEach(id=>{ const el=document.getElementById(id); if(el){el.style.gridColumn='';el.style.gridRow='';} });
     return;
   }
-  // Apply grid positions
+  let pos=loadPositions();
+  if(!pos) pos=defaultPositions(cols);
+  // Clamp cols to current grid width
   PANEL_IDS.forEach(id=>{
-    const el=document.getElementById(id);
-    const pos=positions[id]||DEFAULT_POSITIONS[id]||{col:1,row:1};
-    if(el){
-      el.style.gridColumn = pos.col;
-      el.style.gridRow = pos.row;
-    }
+    const el=document.getElementById(id); if(!el) return;
+    const p=pos[id]||{col:1,row:1};
+    const col=Math.min(p.col,cols);
+    el.style.gridColumn=col;
+    el.style.gridRow=p.row;
   });
 }
 
 function initDraggablePanels(){
   applyGridLayout();
-  window.addEventListener('resize', ()=>{ applyGridLayout(); });
-  attachDragToAll();
+  window.addEventListener('resize',applyGridLayout);
+  attachFreeDrag();
 }
 
-function attachDragToAll(){
-  const body = document.getElementById('home-body');
+// ── Free drag: clone follows mouse, ghost shows target cell ──
+let dragState=null;
+
+function attachFreeDrag(){
+  const body=document.getElementById('home-body');
   body.querySelectorAll('.draggable-panel').forEach(panel=>{
     if(panel._dragInit) return;
-    panel._dragInit = true;
-    const handle = panel.querySelector('.drag-handle');
-    if(handle) handle.addEventListener('mousedown', ()=>{ panel.draggable=true; });
-    document.addEventListener('mouseup', ()=>{ panel.draggable=false; }, {capture:true});
+    panel._dragInit=true;
+    const handle=panel.querySelector('.drag-handle');
+    if(!handle) return;
 
-    panel.addEventListener('dragstart', e=>{
-      if(!panel.draggable){ e.preventDefault(); return; }
-      dragSrcPanel = panel;
-      panel.classList.add('dragging');
-      e.dataTransfer.effectAllowed='move';
-      e.dataTransfer.setData('text/plain', panel.id);
-    });
-    panel.addEventListener('dragend', ()=>{
-      panel.draggable=false;
-      panel.classList.remove('dragging');
-      clearDropIndicator();
-      dragSrcPanel=null;
-    });
-    panel.addEventListener('dragover', e=>{
+    // Mouse drag
+    handle.addEventListener('mousedown', e=>{
+      if(e.button!==0) return;
       e.preventDefault();
-      if(!dragSrcPanel || panel===dragSrcPanel) return;
-      clearDropIndicator();
-      panel.classList.add('drop-before');
-    });
-    panel.addEventListener('dragleave', e=>{
-      if(!panel.contains(e.relatedTarget)) clearDropIndicator();
-    });
-    panel.addEventListener('drop', e=>{
-      e.preventDefault();
-      if(!dragSrcPanel || dragSrcPanel===panel) return;
-      clearDropIndicator();
-      // Swap grid positions
-      swapPanelPositions(dragSrcPanel.id, panel.id);
+      startDrag(panel, e.clientX, e.clientY, 'mouse');
     });
 
     // Touch drag
-    if(handle){
-      let touchDragging=false, touchClone=null;
-      handle.addEventListener('touchstart', e=>{
-        dragSrcPanel=panel; touchDragging=true;
-        panel.classList.add('dragging');
-        // Create visual clone
-        const r=panel.getBoundingClientRect();
-        touchClone=panel.cloneNode(true);
-        touchClone.style.cssText=`position:fixed;top:${r.top}px;left:${r.left}px;width:${r.width}px;opacity:.7;pointer-events:none;z-index:9999;box-shadow:0 8px 32px rgba(0,0,0,.4);transition:none;border-radius:12px;`;
-        document.body.appendChild(touchClone);
-        e.preventDefault();
-      },{passive:false});
-      handle.addEventListener('touchmove', e=>{
-        if(!touchDragging) return;
-        e.preventDefault();
-        const t=e.touches[0];
-        if(touchClone) touchClone.style.top=(t.clientY-40)+'px', touchClone.style.left=(t.clientX-60)+'px';
-        // Find panel under touch
-        touchClone && (touchClone.style.display='none');
-        const el=document.elementFromPoint(t.clientX,t.clientY);
-        touchClone && (touchClone.style.display='');
-        const over=el?.closest('.draggable-panel');
-        clearDropIndicator();
-        if(over&&over!==panel) over.classList.add('drop-before');
-      },{passive:false});
-      handle.addEventListener('touchend', e=>{
-        if(!touchDragging) return;
-        touchClone?.remove(); touchClone=null;
-        const t=e.changedTouches[0];
-        const el=document.elementFromPoint(t.clientX,t.clientY);
-        const over=el?.closest('.draggable-panel');
-        if(over&&over!==panel) swapPanelPositions(panel.id, over.id);
-        clearDropIndicator();
-        panel.classList.remove('dragging');
-        dragSrcPanel=null; touchDragging=false;
-      });
-    }
+    handle.addEventListener('touchstart', e=>{
+      const t=e.touches[0];
+      e.preventDefault();
+      startDrag(panel, t.clientX, t.clientY, 'touch');
+    },{passive:false});
   });
+
+  document.addEventListener('mousemove', e=>{ if(dragState) moveDrag(e.clientX,e.clientY); });
+  document.addEventListener('mouseup',   e=>{ if(dragState) endDrag(e.clientX,e.clientY); });
+  document.addEventListener('touchmove', e=>{ if(dragState){ const t=e.touches[0]; moveDrag(t.clientX,t.clientY); e.preventDefault(); } },{passive:false});
+  document.addEventListener('touchend',  e=>{ if(dragState){ const t=e.changedTouches[0]; endDrag(t.clientX,t.clientY); } });
 }
 
-function swapPanelPositions(idA, idB){
-  const cols = getGridCols();
-  if(cols===1){
-    // Mobile: reorder DOM
-    const body=document.getElementById('home-body');
-    const a=document.getElementById(idA), b=document.getElementById(idB);
-    if(!a||!b) return;
-    const tmp=document.createElement('div'); a.after(tmp); b.before(a); tmp.after(b); tmp.remove();
-    savePanelOrder();
-    return;
+function startDrag(panel, cx, cy, type){
+  const body=document.getElementById('home-body');
+  const rect=panel.getBoundingClientRect();
+
+  // Clone for visual drag
+  const clone=panel.cloneNode(true);
+  clone.className='home-section drag-clone';
+  clone.style.width=rect.width+'px';
+  clone.style.top=rect.top+'px';
+  clone.style.left=rect.left+'px';
+  document.body.appendChild(clone);
+
+  // Hide original
+  panel.classList.add('dragging');
+
+  // Show grid
+  body.classList.add('dragging-active');
+
+  dragState={panel, clone, body,
+    offsetX: cx-rect.left,
+    offsetY: cy-rect.top,
+    ghost: null,
+    targetCol: null, targetRow: null
+  };
+}
+
+function moveDrag(cx, cy){
+  const {clone, panel, body}=dragState;
+  // Move clone
+  clone.style.left=(cx-dragState.offsetX)+'px';
+  clone.style.top=(cy-dragState.offsetY)+'px';
+
+  // Compute which grid cell the center of clone is over
+  const centerX=cx-dragState.offsetX+clone.offsetWidth/2;
+  const centerY=cy-dragState.offsetY+clone.offsetHeight/2;
+  const cell=getCellAt(centerX, centerY);
+  if(!cell) return;
+
+  if(cell.col!==dragState.targetCol || cell.row!==dragState.targetRow){
+    dragState.targetCol=cell.col;
+    dragState.targetRow=cell.row;
+    updateGhost(cell.col, cell.row);
   }
-  const positions = loadPanelPositions()||{...DEFAULT_POSITIONS};
-  const posA={...(positions[idA]||DEFAULT_POSITIONS[idA]||{col:1,row:1})};
-  const posB={...(positions[idB]||DEFAULT_POSITIONS[idB]||{col:1,row:1})};
-  positions[idA]=posB;
-  positions[idB]=posA;
-  savePanelPositions(positions);
-  applyGridLayout();
+}
+
+function getCellAt(cx, cy){
+  const body=document.getElementById('home-body');
+  const bodyRect=body.getBoundingClientRect();
+  const cols=getGridCols();
+  const style=getComputedStyle(body);
+  const gap=parseFloat(style.gap)||10;
+  const pad=parseFloat(style.paddingLeft)||16;
+  const availW=bodyRect.width-pad*2;
+  const cellW=(availW-(cols-1)*gap)/cols;
+
+  const relX=cx-bodyRect.left-pad;
+  const relY=cy-bodyRect.top-parseFloat(style.paddingTop||16);
+  if(relX<0||relY<0||relX>availW) return null;
+
+  // Row height: find by scanning panels
+  const panels=[...body.querySelectorAll('.draggable-panel:not(.dragging)')];
+  let rowH=200;
+  if(panels.length>0){
+    const r=panels[0].getBoundingClientRect();
+    rowH=Math.max(r.height+gap, 80);
+  }
+  const col=Math.min(Math.floor(relX/(cellW+gap))+1, cols);
+  const row=Math.max(Math.floor(relY/rowH)+1, 1);
+  return {col,row};
+}
+
+function updateGhost(col, row){
+  // Remove old ghost
+  if(dragState.ghost) dragState.ghost.remove();
+  const body=document.getElementById('home-body');
+  // Check if a panel already occupies this cell
+  const occupant=getPanelAtCell(col,row);
+  if(occupant && occupant!==dragState.panel){
+    // Cell is taken — show a swap indicator on occupant
+    document.querySelectorAll('.drop-target').forEach(p=>p.classList.remove('drop-target'));
+    occupant.classList.add('drop-target');
+    dragState.ghost=null;
+  } else {
+    document.querySelectorAll('.drop-target').forEach(p=>p.classList.remove('drop-target'));
+    const ghost=document.createElement('div');
+    ghost.className='grid-drop-ghost';
+    ghost.style.gridColumn=col;
+    ghost.style.gridRow=row;
+    body.appendChild(ghost);
+    dragState.ghost=ghost;
+  }
+}
+
+function getPanelAtCell(col,row){
+  const body=document.getElementById('home-body');
+  for(const panel of body.querySelectorAll('.draggable-panel')){
+    if(panel===dragState?.panel) continue;
+    const c=parseInt(panel.style.gridColumn||'0');
+    const r=parseInt(panel.style.gridRow||'0');
+    if(c===col && r===row) return panel;
+  }
+  return null;
+}
+
+function endDrag(cx, cy){
+  const {panel, clone, body, ghost}=dragState;
+  clone.remove();
+  if(ghost) ghost.remove();
+  document.querySelectorAll('.drop-target').forEach(p=>p.classList.remove('drop-target'));
+  body.classList.remove('dragging-active');
+  panel.classList.remove('dragging');
+
+  if(dragState.targetCol && dragState.targetRow){
+    const col=dragState.targetCol, row=dragState.targetRow;
+    const cols=getGridCols();
+    if(cols===1){ dragState=null; return; }
+    const pos=loadPositions()||defaultPositions(cols);
+    const occupant=getPanelAtCell(col,row);
+    if(occupant){
+      // Swap with occupant
+      const myPos={col:parseInt(panel.style.gridColumn),row:parseInt(panel.style.gridRow)};
+      pos[occupant.id]={...myPos};
+    }
+    pos[panel.id]={col,row};
+    savePositions(pos);
+    applyGridLayout();
+  }
+  dragState=null;
 }
 
 function clearDropIndicator(){
-  document.querySelectorAll('.drop-before,.drop-after,.drag-ghost').forEach(p=>p.classList.remove('drop-before','drop-after','drag-ghost'));
+  document.querySelectorAll('.drop-target,.drop-before,.drop-after').forEach(p=>p.classList.remove('drop-target','drop-before','drop-after'));
 }
-
 function savePanelOrder(){
   const body=document.getElementById('home-body');
   if(!body) return;
   const order=[...body.querySelectorAll('.draggable-panel')].map(p=>p.id);
-  try{ localStorage.setItem(PANEL_ORDER_KEY, JSON.stringify(order)); }catch(e){}
+  try{ localStorage.setItem(PANEL_ORDER_KEY,JSON.stringify(order)); }catch(e){}
 }
-
-function initTouchDrag(){ /* handled inside attachDragToAll */ }
+function initTouchDrag(){ /* handled inside attachFreeDrag */ }
 
 // ── PWA Install Prompt ──
 let deferredInstallPrompt = null;
