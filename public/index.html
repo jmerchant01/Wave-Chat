@@ -341,13 +341,15 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .drag-handle:hover{opacity:1;}
 .draggable-panel{transition:opacity .15s;}
 .draggable-panel.dragging{opacity:.35;cursor:grabbing;}
-.draggable-panel.drop-before{box-shadow:0 -3px 0 0 var(--accent);border-radius:12px 12px 0 0;}
-.draggable-panel.drop-after{box-shadow:0 3px 0 0 var(--accent);border-radius:0 0 12px 12px;}
+.draggable-panel.drop-before{outline:2px solid var(--accent);outline-offset:-2px;box-shadow:0 -3px 0 0 var(--accent);}
+.draggable-panel.drop-after{outline:2px solid var(--accent2);outline-offset:-2px;box-shadow:0 3px 0 0 var(--accent2);}
+.draggable-panel.drag-ghost{background:rgba(108,99,255,.08);border:2px dashed var(--accent);}
 
 /* ── Global Nav ── */
-#global-nav{position:fixed;top:0;left:0;right:0;z-index:400;display:none;align-items:center;justify-content:space-between;padding:.65rem 1.5rem;background:var(--surface);border-bottom:1px solid var(--border);backdrop-filter:blur(8px);}
+#global-nav{position:fixed;top:0;left:0;right:0;z-index:400;display:none;align-items:center;justify-content:space-between;padding:.55rem 1rem;background:var(--surface);border-bottom:1px solid var(--border);backdrop-filter:blur(8px);}
 #global-nav.visible{display:flex;}
 .gnav-logo{font-family:'Syne',sans-serif;font-size:1.3rem;font-weight:800;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;text-decoration:none;}
+@media(max-width:500px){#gnav-username{display:none;}.gnav-right{gap:.35rem;}.home-nav-btn{font-size:.6rem;padding:.2rem .45rem;}.gnav-icon-btn{width:30px;height:30px;font-size:.85rem;}}
 .gnav-right{display:flex;align-items:center;gap:.6rem;}
 .gnav-icon-btn{width:34px;height:34px;border-radius:50%;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.95rem;position:relative;transition:all .15s;}
 .gnav-icon-btn:hover{border-color:var(--accent);color:var(--accent);}
@@ -376,6 +378,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 #landing{padding-top:52px;}
 #room{padding-top:72px;}
 #community-view{padding-top:52px;}
+#landing{padding-top:52px;overflow-x:hidden;}
 .home-nav{display:flex;align-items:center;justify-content:space-between;padding:.85rem 2rem;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;}
 .home-nav-logo{font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:800;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
 .home-nav-right{display:flex;align-items:center;gap:.75rem;}
@@ -385,15 +388,41 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .home-avatar img{width:100%;height:100%;object-fit:cover;}
 .home-nav-btn{padding:.35rem .85rem;border-radius:7px;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:'DM Mono',monospace;font-size:.72rem;cursor:pointer;transition:all .2s;}
 .home-nav-btn:hover{border-color:var(--danger);color:var(--danger);}
-.home-body{display:flex;flex-direction:row;gap:.75rem;padding:1rem;flex:1;width:100%;box-sizing:border-box;align-items:flex-start;flex-wrap:wrap;}
-.home-section{display:flex;flex-direction:column;width:300px;min-width:260px;flex-shrink:0;}
-.home-section-title{font-family:'Syne',sans-serif;font-size:1rem;font-weight:700;margin-bottom:.85rem;display:flex;align-items:center;}
+/* ── Home Grid Layout ── */
+.home-body{
+  display:grid;
+  grid-template-columns:repeat(var(--grid-cols,3),1fr);
+  grid-auto-rows:min-content;
+  gap:.75rem;
+  padding:1rem;
+  flex:1;
+  width:100%;
+  box-sizing:border-box;
+  align-items:start;
+  background-image:
+    linear-gradient(var(--grid-line) 1px,transparent 1px),
+    linear-gradient(90deg,var(--grid-line) 1px,transparent 1px);
+  background-size:calc(100%/var(--grid-cols,3)) 8px;
+  background-position:0 0;
+  --grid-line:rgba(108,99,255,.06);
+}
+/* grid-col assignment via data attribute */
+.home-body[data-cols="1"]{--grid-cols:1;}
+.home-body[data-cols="2"]{--grid-cols:2;}
+.home-body[data-cols="3"]{--grid-cols:3;}
+.home-body[data-cols="4"]{--grid-cols:4;}
+
+.home-section{display:flex;flex-direction:column;min-width:0;}
+/* Each panel occupies one grid cell by default; col/row set via JS */
+.draggable-panel{grid-column:var(--panel-col,auto);grid-row:var(--panel-row,auto);}
+.home-section-title{font-family:'Syne',sans-serif;font-size:.95rem;font-weight:700;margin-bottom:.75rem;display:flex;align-items:center;}
 .home-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.25rem;position:relative;overflow:hidden;}
 .home-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent),var(--accent2));}
 .home-card-icon{font-size:1.8rem;margin-bottom:.4rem;}
 .home-card-label{font-family:'Syne',sans-serif;font-size:.9rem;font-weight:700;margin-bottom:.2rem;}
 .home-card-sub{font-size:.7rem;color:var(--muted);margin-bottom:.5rem;}
-@media(max-width:640px){.home-body{grid-template-columns:1fr;padding:1rem;}}
+@media(max-width:700px){.home-body{--grid-cols:1!important;background-image:none;padding:.5rem;}}
+@media(min-width:701px) and (max-width:1000px){.home-body{--grid-cols:2!important;}}
 .auth-screen{position:fixed;inset:0;background:var(--bg);z-index:500;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:1rem;}
 .auth-card{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:2rem;width:100%;max-width:380px;position:relative;overflow:hidden;}
 .auth-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--accent),var(--accent2),var(--accent3));}
@@ -1176,19 +1205,64 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 const PANEL_ORDER_KEY = 'wave-panel-order';
 let dragSrcPanel = null;
 
-function initDraggablePanels(){
+// ══════════════════════════════════════════════════
+//  GRID PANEL SYSTEM
+// ══════════════════════════════════════════════════
+const PANEL_POSITIONS_KEY = 'wave-panel-positions-v2';
+const PANEL_IDS = ['panel-rooms','panel-friends','panel-messages','panel-communities','panel-public-rooms'];
+// Default grid positions [col, row] (1-indexed), 3 cols by default
+const DEFAULT_POSITIONS = {
+  'panel-rooms':        {col:1, row:1},
+  'panel-friends':      {col:2, row:1},
+  'panel-messages':     {col:3, row:1},
+  'panel-communities':  {col:1, row:2},
+  'panel-public-rooms': {col:2, row:2},
+};
+
+function getGridCols(){
+  const w = window.innerWidth;
+  if(w <= 700) return 1;
+  if(w <= 1000) return 2;
+  return 3;
+}
+
+function loadPanelPositions(){
+  try{
+    const saved = localStorage.getItem(PANEL_POSITIONS_KEY);
+    if(saved) return JSON.parse(saved);
+  }catch(e){}
+  return null;
+}
+
+function savePanelPositions(positions){
+  try{ localStorage.setItem(PANEL_POSITIONS_KEY, JSON.stringify(positions)); }catch(e){}
+}
+
+function applyGridLayout(){
   const body = document.getElementById('home-body');
   if(!body) return;
-
-  // Restore saved order
-  try{
-    const saved = localStorage.getItem(PANEL_ORDER_KEY);
-    if(saved){
-      const order = JSON.parse(saved);
-      order.forEach(id=>{ const el=document.getElementById(id); if(el) body.appendChild(el); });
+  const cols = getGridCols();
+  body.setAttribute('data-cols', cols);
+  const positions = loadPanelPositions() || DEFAULT_POSITIONS;
+  // On mobile, just stack vertically in saved order
+  if(cols === 1){
+    PANEL_IDS.forEach(id=>{ const el=document.getElementById(id); if(el){ el.style.gridColumn=''; el.style.gridRow=''; body.appendChild(el); }});
+    return;
+  }
+  // Apply grid positions
+  PANEL_IDS.forEach(id=>{
+    const el=document.getElementById(id);
+    const pos=positions[id]||DEFAULT_POSITIONS[id]||{col:1,row:1};
+    if(el){
+      el.style.gridColumn = pos.col;
+      el.style.gridRow = pos.row;
     }
-  }catch(e){}
+  });
+}
 
+function initDraggablePanels(){
+  applyGridLayout();
+  window.addEventListener('resize', ()=>{ applyGridLayout(); });
   attachDragToAll();
 }
 
@@ -1198,9 +1272,7 @@ function attachDragToAll(){
     if(panel._dragInit) return;
     panel._dragInit = true;
     const handle = panel.querySelector('.drag-handle');
-    if(handle){
-      handle.addEventListener('mousedown', ()=>{ panel.draggable=true; });
-    }
+    if(handle) handle.addEventListener('mousedown', ()=>{ panel.draggable=true; });
     document.addEventListener('mouseup', ()=>{ panel.draggable=false; }, {capture:true});
 
     panel.addEventListener('dragstart', e=>{
@@ -1215,74 +1287,93 @@ function attachDragToAll(){
       panel.classList.remove('dragging');
       clearDropIndicator();
       dragSrcPanel=null;
-      savePanelOrder();
     });
     panel.addEventListener('dragover', e=>{
       e.preventDefault();
       if(!dragSrcPanel || panel===dragSrcPanel) return;
-      // Determine top or bottom half
-      const rect = panel.getBoundingClientRect();
-      const mid = rect.top + rect.height/2;
-      const insertBefore = e.clientY < mid;
       clearDropIndicator();
-      panel.classList.add(insertBefore ? 'drop-before' : 'drop-after');
+      panel.classList.add('drop-before');
     });
-    panel.addEventListener('dragleave', ()=>{ clearDropIndicator(); });
+    panel.addEventListener('dragleave', e=>{
+      if(!panel.contains(e.relatedTarget)) clearDropIndicator();
+    });
     panel.addEventListener('drop', e=>{
       e.preventDefault();
       if(!dragSrcPanel || dragSrcPanel===panel) return;
-      const rect = panel.getBoundingClientRect();
-      const mid = rect.top + rect.height/2;
-      if(e.clientY < mid) panel.before(dragSrcPanel);
-      else panel.after(dragSrcPanel);
       clearDropIndicator();
-      savePanelOrder();
+      // Swap grid positions
+      swapPanelPositions(dragSrcPanel.id, panel.id);
     });
 
-    // Touch support
-    handle && handle.addEventListener('touchstart', e=>{
-      dragSrcPanel = panel;
-      panel.classList.add('dragging');
-      e.preventDefault();
-    },{passive:false});
-    handle && handle.addEventListener('touchmove', e=>{
-      e.preventDefault();
-      const t=e.touches[0];
-      const el=document.elementFromPoint(t.clientX,t.clientY);
-      const over=el?.closest('.draggable-panel');
-      clearDropIndicator();
-      if(over&&over!==panel){
-        const rect=over.getBoundingClientRect();
-        over.classList.add(t.clientY<rect.top+rect.height/2?'drop-before':'drop-after');
-      }
-    },{passive:false});
-    handle && handle.addEventListener('touchend', e=>{
-      const t=e.changedTouches[0];
-      const el=document.elementFromPoint(t.clientX,t.clientY);
-      const over=el?.closest('.draggable-panel');
-      if(over&&over!==panel){
-        const rect=over.getBoundingClientRect();
-        if(t.clientY<rect.top+rect.height/2) over.before(panel);
-        else over.after(panel);
-      }
-      clearDropIndicator();
-      panel.classList.remove('dragging');
-      dragSrcPanel=null;
-      savePanelOrder();
-    });
+    // Touch drag
+    if(handle){
+      let touchDragging=false, touchClone=null;
+      handle.addEventListener('touchstart', e=>{
+        dragSrcPanel=panel; touchDragging=true;
+        panel.classList.add('dragging');
+        // Create visual clone
+        const r=panel.getBoundingClientRect();
+        touchClone=panel.cloneNode(true);
+        touchClone.style.cssText=`position:fixed;top:${r.top}px;left:${r.left}px;width:${r.width}px;opacity:.7;pointer-events:none;z-index:9999;box-shadow:0 8px 32px rgba(0,0,0,.4);transition:none;border-radius:12px;`;
+        document.body.appendChild(touchClone);
+        e.preventDefault();
+      },{passive:false});
+      handle.addEventListener('touchmove', e=>{
+        if(!touchDragging) return;
+        e.preventDefault();
+        const t=e.touches[0];
+        if(touchClone) touchClone.style.top=(t.clientY-40)+'px', touchClone.style.left=(t.clientX-60)+'px';
+        // Find panel under touch
+        touchClone && (touchClone.style.display='none');
+        const el=document.elementFromPoint(t.clientX,t.clientY);
+        touchClone && (touchClone.style.display='');
+        const over=el?.closest('.draggable-panel');
+        clearDropIndicator();
+        if(over&&over!==panel) over.classList.add('drop-before');
+      },{passive:false});
+      handle.addEventListener('touchend', e=>{
+        if(!touchDragging) return;
+        touchClone?.remove(); touchClone=null;
+        const t=e.changedTouches[0];
+        const el=document.elementFromPoint(t.clientX,t.clientY);
+        const over=el?.closest('.draggable-panel');
+        if(over&&over!==panel) swapPanelPositions(panel.id, over.id);
+        clearDropIndicator();
+        panel.classList.remove('dragging');
+        dragSrcPanel=null; touchDragging=false;
+      });
+    }
   });
+}
+
+function swapPanelPositions(idA, idB){
+  const cols = getGridCols();
+  if(cols===1){
+    // Mobile: reorder DOM
+    const body=document.getElementById('home-body');
+    const a=document.getElementById(idA), b=document.getElementById(idB);
+    if(!a||!b) return;
+    const tmp=document.createElement('div'); a.after(tmp); b.before(a); tmp.after(b); tmp.remove();
+    savePanelOrder();
+    return;
+  }
+  const positions = loadPanelPositions()||{...DEFAULT_POSITIONS};
+  const posA={...(positions[idA]||DEFAULT_POSITIONS[idA]||{col:1,row:1})};
+  const posB={...(positions[idB]||DEFAULT_POSITIONS[idB]||{col:1,row:1})};
+  positions[idA]=posB;
+  positions[idB]=posA;
+  savePanelPositions(positions);
+  applyGridLayout();
 }
 
 function clearDropIndicator(){
-  document.querySelectorAll('.drop-before,.drop-after').forEach(p=>{
-    p.classList.remove('drop-before','drop-after');
-  });
+  document.querySelectorAll('.drop-before,.drop-after,.drag-ghost').forEach(p=>p.classList.remove('drop-before','drop-after','drag-ghost'));
 }
 
 function savePanelOrder(){
-  const body = document.getElementById('home-body');
+  const body=document.getElementById('home-body');
   if(!body) return;
-  const order = [...body.querySelectorAll('.draggable-panel')].map(p=>p.id);
+  const order=[...body.querySelectorAll('.draggable-panel')].map(p=>p.id);
   try{ localStorage.setItem(PANEL_ORDER_KEY, JSON.stringify(order)); }catch(e){}
 }
 
