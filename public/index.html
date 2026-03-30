@@ -293,7 +293,8 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .dot-offline{background:#444;}
 .start-room-btn{padding:.28rem .65rem;border-radius:6px;border:1px solid var(--accent3);background:transparent;color:var(--accent3);font-size:.7rem;font-weight:500;cursor:pointer;white-space:nowrap;transition:all .15s;}
 .dm-btn{padding:.28rem .65rem;border-radius:6px;border:1px solid var(--accent);background:transparent;color:var(--accent);font-size:.7rem;font-weight:500;cursor:pointer;white-space:nowrap;transition:all .15s;}
-.friend-bell-btn{width:22px;height:22px;border-radius:5px;border:1px solid var(--border);background:transparent;cursor:pointer;font-size:.72rem;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0;padding:0;opacity:.3;filter:grayscale(1);}
+.report-btn{width:22px;height:22px;border-radius:5px;border:1px solid transparent;background:transparent;cursor:pointer;font-size:.72rem;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0;padding:0;opacity:.3;}
+.report-btn:hover{opacity:1;border-color:var(--accent2);background:rgba(255,101,132,.1);}border-radius:5px;border:1px solid var(--border);background:transparent;cursor:pointer;font-size:.72rem;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0;padding:0;opacity:.3;filter:grayscale(1);}
 .friend-bell-btn:hover{opacity:.65;filter:grayscale(.3);}
 .friend-bell-btn.bell-on{border-color:#f5a623;background:rgba(245,166,35,.12);opacity:1;filter:grayscale(0);}
 .start-room-btn.selected{background:var(--accent3);color:#000;}
@@ -830,6 +831,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
             <div class="dm-chat-avatar" id="dm-chat-avatar"></div>
             <span id="dm-chat-username"></span>
           </div>
+          <button class="report-btn" id="dm-report-btn" onclick="reportUser(activeDMUserId,activeDMUsername)" title="Report user" style="margin-left:.5rem;opacity:.5;">🚩</button>
           <div id="dm-typing-indicator" class="dm-typing" style="display:none;">typing…</div>
         </div>
         <div class="dm-messages" id="dm-messages-list"></div>
@@ -2521,10 +2523,21 @@ const participantUserIds = new Map();
 function openReportModal(socketId, name){
   reportTargetSocketId = socketId;
   reportTargetName = name;
-  // Look up userId from participants map
   const p = participants.get(socketId);
   reportTargetUserId = p?.userId || null;
   document.getElementById('report-modal-target').textContent = `Reporting: ${name}`;
+  document.getElementById('report-reason').value = '';
+  document.getElementById('report-description').value = '';
+  document.getElementById('report-error').textContent = '';
+  document.getElementById('report-modal-overlay').classList.remove('hidden');
+}
+
+// General-purpose report — works anywhere (friends, DMs, communities)
+function reportUser(userId, username){
+  reportTargetSocketId = null;
+  reportTargetUserId = userId;
+  reportTargetName = username;
+  document.getElementById('report-modal-target').textContent = `Reporting: ${username}`;
   document.getElementById('report-reason').value = '';
   document.getElementById('report-description').value = '';
   document.getElementById('report-error').textContent = '';
@@ -2545,7 +2558,7 @@ async function submitReport(){
   if(description.length < 10){ errEl.textContent = 'Description must be at least 10 characters'; return; }
   if(!authToken){ errEl.textContent = 'You must be logged in to report'; return; }
   if(!reportTargetUserId){
-    errEl.textContent = 'Cannot report guest users';
+    errEl.textContent = 'Cannot report this user (no account found)';
     return;
   }
   try{
@@ -2688,6 +2701,7 @@ function renderHomeFriends(){
         <button class="friend-bell-btn${isBellOn(fid)?' bell-on':''}" id="bell-${fid}" onclick="toggleFriendBell('${fid}','${esc(f.username)}')" title="${isBellOn(fid)?'Mute':'Notify when online'}">🔔</button>
         <button class="friend-btn" id="srb-${fid}" onclick="toggleStartRoom('${fid}','${esc(f.username)}',this)" style="${isSelected?'border-color:var(--accent3);color:var(--accent3);background:rgba(67,233,123,.08);':''}" title="${isSelected?'Remove from room':'Add to room'}">🎙️</button>
         <button class="friend-btn danger" onclick="removeFriend('${fid}','${esc(f.username)}')" title="Remove friend">✕</button>
+        <button class="report-btn" onclick="reportUser('${fid}','${esc(f.username)}')" title="Report ${esc(f.username)}">🚩</button>
       </div>`;
     el.appendChild(div);
   });
@@ -3557,7 +3571,7 @@ function renderCVMembers(members){
     const div=document.createElement('div');
     div.style.cssText='display:flex;align-items:center;gap:.4rem;font-size:.68rem;color:var(--muted);';
     const isOnline=friendStatuses[userId]?.online;
-    div.innerHTML=`<div style="width:20px;height:20px;border-radius:50%;background:${colorFor(userId||'x')};color:#fff;display:flex;align-items:center;justify-content:center;font-size:.55rem;font-weight:700;flex-shrink:0;">${username.slice(0,2).toUpperCase()}</div><span style="color:${isOnline?'var(--accent3)':'var(--muted)'};">${esc(username)}</span>`;
+    div.innerHTML=`<div style="width:20px;height:20px;border-radius:50%;background:${colorFor(userId||'x')};color:#fff;display:flex;align-items:center;justify-content:center;font-size:.55rem;font-weight:700;flex-shrink:0;">${username.slice(0,2).toUpperCase()}</div><span style="flex:1;color:${isOnline?'var(--accent3)':'var(--muted)'};">${esc(username)}</span><button class="report-btn" onclick="reportUser('${userId}','${esc(username)}')" title="Report" style="width:16px;height:16px;font-size:.6rem;">🚩</button>`;
     el.appendChild(div);
   });
   if(active.length>8){ const more=document.createElement('div'); more.style.cssText='font-size:.62rem;color:var(--muted);padding:.2rem .3rem;'; more.textContent=`+${active.length-8} more`; el.appendChild(more); }
@@ -3643,6 +3657,7 @@ function renderCVMessage(m, container){
         <span style="font-size:.75rem;font-weight:600;color:${isMine?'var(--accent)':'var(--text)'};">${esc(user.username||'?')}</span>
         <span style="font-size:.58rem;color:var(--muted);">${time}</span>
         ${(isMine||isAdmin)?`<button onclick="deleteCVMessage('${m._id}',this)" style="border:none;background:transparent;color:var(--muted);cursor:pointer;font-size:.6rem;margin-left:.2rem;opacity:0;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0">✕</button>`:''}
+        ${!isMine?`<button onclick="reportUser('${user._id||''}','${esc(user.username||'?')}')" title="Report" style="border:none;background:transparent;cursor:pointer;font-size:.6rem;margin-left:.1rem;opacity:0;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0">🚩</button>`:``}
       </div>
       <div>${content}</div>
     </div>`;
@@ -3856,7 +3871,8 @@ function renderCSMembers(){
     div.innerHTML=`
       <div style="width:24px;height:24px;border-radius:50%;background:${colorFor(userId||'x')};color:#fff;display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:700;flex-shrink:0;">${user.avatar?`<img src="${user.avatar}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`:username.slice(0,2).toUpperCase()}</div>
       <span style="flex:1;">${esc(username)} ${isOwner?'👑':''}</span>
-      ${!isOwner?`<button onclick="kickMember('${userId}','${esc(username)}')" style="border:1px solid var(--danger);background:transparent;color:var(--danger);border-radius:4px;padding:.15rem .4rem;font-size:.6rem;cursor:pointer;font-family:'Inter',system-ui,sans-serif;">Kick</button>`:''}`;
+      ${!isOwner?`<button onclick="kickMember('${userId}','${esc(username)}')" style="border:1px solid var(--danger);background:transparent;color:var(--danger);border-radius:4px;padding:.15rem .4rem;font-size:.6rem;cursor:pointer;">Kick</button>`:''}
+      <button class="report-btn" onclick="reportUser('${userId}','${esc(username)}')" title="Report">🚩</button>`;
     el.appendChild(div);
   });
 }
@@ -3954,6 +3970,7 @@ function renderDMInbox(conversations){
       <div class="dm-conv-meta">
         <span class="dm-conv-time">${time}</span>
         ${c.unread>0?`<span class="dm-unread-dot">${c.unread}</span>`:''}
+        <button class="report-btn" onclick="event.stopPropagation();reportUser('${c.userId}','${esc(c.username)}')" title="Report ${esc(c.username)}">🚩</button>
       </div>`;
     el.appendChild(div);
   });
@@ -4018,7 +4035,8 @@ function renderDMMessage(m, container){
   }
   const time = new Date(m.createdAt).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
   content += `<div class="dm-msg-time">${time}</div>`;
-  if(isMine) content += `<button class="dm-delete-btn" onclick="deleteDMMessage('${m._id}',this)" title="Delete">✕</button>`;
+  if(isMine){ content += `<button class="dm-delete-btn" onclick="deleteDMMessage('${m._id}',this)" title="Delete">✕</button>`; }
+  if(!isMine){ const _fromId = String(m.from?._id||m.from||''); const _fromName = esc(m.from?.username||'?'); content += `<button class="dm-delete-btn" onclick="reportUser('${_fromId}','${_fromName}')" title="Report" style="background:transparent;border:1px solid var(--accent2);color:var(--accent2);">🚩</button>`; }
   div.innerHTML = content;
   if(container) container.appendChild(div);
   return div;
