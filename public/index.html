@@ -338,9 +338,10 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 #panel-messages{display:flex;flex-direction:column;}
 .drag-handle{font-size:1rem;color:var(--muted);cursor:grab;margin-right:.4rem;user-select:none;opacity:.5;transition:opacity .15s;}
 .drag-handle:hover{opacity:1;}
-.draggable-panel{transition:opacity .2s;}
-.draggable-panel.dragging{opacity:.4;cursor:grabbing;}
-.draggable-panel.drag-over{outline:2px dashed var(--accent);outline-offset:4px;border-radius:14px;}
+.draggable-panel{transition:opacity .15s;}
+.draggable-panel.dragging{opacity:.35;cursor:grabbing;}
+.draggable-panel.drop-before{box-shadow:0 -3px 0 0 var(--accent);border-radius:12px 12px 0 0;}
+.draggable-panel.drop-after{box-shadow:0 3px 0 0 var(--accent);border-radius:0 0 12px 12px;}
 .home-nav{display:flex;align-items:center;justify-content:space-between;padding:.85rem 2rem;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;}
 .home-nav-logo{font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:800;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
 .home-nav-right{display:flex;align-items:center;gap:.75rem;}
@@ -350,8 +351,8 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .home-avatar img{width:100%;height:100%;object-fit:cover;}
 .home-nav-btn{padding:.35rem .85rem;border-radius:7px;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:'DM Mono',monospace;font-size:.72rem;cursor:pointer;transition:all .2s;}
 .home-nav-btn:hover{border-color:var(--danger);color:var(--danger);}
-.home-body{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:.75rem;padding:1rem;flex:1;width:100%;box-sizing:border-box;align-items:start;}
-.home-section{display:flex;flex-direction:column;min-width:0;}
+.home-body{display:flex;flex-direction:row;gap:.75rem;padding:1rem;flex:1;width:100%;box-sizing:border-box;align-items:flex-start;flex-wrap:wrap;}
+.home-section{display:flex;flex-direction:column;width:300px;min-width:260px;flex-shrink:0;}
 .home-section-title{font-family:'Syne',sans-serif;font-size:1rem;font-weight:700;margin-bottom:.85rem;display:flex;align-items:center;}
 .home-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.25rem;position:relative;overflow:hidden;}
 .home-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent),var(--accent2));}
@@ -1095,63 +1096,98 @@ function initDraggablePanels(){
   try{
     const saved = localStorage.getItem(PANEL_ORDER_KEY);
     if(saved){
-      const order = JSON.parse(saved); // e.g. ['panel-rooms','panel-friends','panel-messages','panel-communities','panel-public-rooms']
-      order.forEach(id=>{
-        const el = document.getElementById(id);
-        if(el) body.appendChild(el);
-      });
+      const order = JSON.parse(saved);
+      order.forEach(id=>{ const el=document.getElementById(id); if(el) body.appendChild(el); });
     }
   }catch(e){}
 
-  // Attach drag events to all panels
-  body.querySelectorAll('.draggable-panel').forEach(panel=>{
-    const handle = panel.querySelector('.drag-handle');
+  attachDragToAll();
+}
 
-    // Enable dragging only when handle is pressed
+function attachDragToAll(){
+  const body = document.getElementById('home-body');
+  body.querySelectorAll('.draggable-panel').forEach(panel=>{
+    if(panel._dragInit) return;
+    panel._dragInit = true;
+    const handle = panel.querySelector('.drag-handle');
     if(handle){
-      handle.addEventListener('mousedown', ()=>{
-        panel.draggable = true;
-      });
+      handle.addEventListener('mousedown', ()=>{ panel.draggable=true; });
     }
-    // Always disable draggable on mouseup globally so text selection works elsewhere
-    document.addEventListener('mouseup', ()=>{ panel.draggable = false; }, { capture: true });
+    document.addEventListener('mouseup', ()=>{ panel.draggable=false; }, {capture:true});
 
     panel.addEventListener('dragstart', e=>{
       if(!panel.draggable){ e.preventDefault(); return; }
       dragSrcPanel = panel;
       panel.classList.add('dragging');
-      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.effectAllowed='move';
       e.dataTransfer.setData('text/plain', panel.id);
     });
     panel.addEventListener('dragend', ()=>{
-      panel.draggable = false;
+      panel.draggable=false;
       panel.classList.remove('dragging');
-      body.querySelectorAll('.draggable-panel').forEach(p=>p.classList.remove('drag-over'));
-      dragSrcPanel = null;
+      clearDropIndicator();
+      dragSrcPanel=null;
       savePanelOrder();
     });
     panel.addEventListener('dragover', e=>{
       e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
-      if(panel !== dragSrcPanel){
-        body.querySelectorAll('.draggable-panel').forEach(p=>p.classList.remove('drag-over'));
-        panel.classList.add('drag-over');
-      }
+      if(!dragSrcPanel || panel===dragSrcPanel) return;
+      // Determine top or bottom half
+      const rect = panel.getBoundingClientRect();
+      const mid = rect.top + rect.height/2;
+      const insertBefore = e.clientY < mid;
+      clearDropIndicator();
+      panel.classList.add(insertBefore ? 'drop-before' : 'drop-after');
     });
-    panel.addEventListener('dragleave', ()=>{
-      panel.classList.remove('drag-over');
-    });
+    panel.addEventListener('dragleave', ()=>{ clearDropIndicator(); });
     panel.addEventListener('drop', e=>{
       e.preventDefault();
-      panel.classList.remove('drag-over');
-      if(!dragSrcPanel || dragSrcPanel === panel) return;
-      const panels = [...body.querySelectorAll('.draggable-panel')];
-      const srcIdx = panels.indexOf(dragSrcPanel);
-      const tgtIdx = panels.indexOf(panel);
-      if(srcIdx < tgtIdx) panel.after(dragSrcPanel);
-      else panel.before(dragSrcPanel);
+      if(!dragSrcPanel || dragSrcPanel===panel) return;
+      const rect = panel.getBoundingClientRect();
+      const mid = rect.top + rect.height/2;
+      if(e.clientY < mid) panel.before(dragSrcPanel);
+      else panel.after(dragSrcPanel);
+      clearDropIndicator();
       savePanelOrder();
     });
+
+    // Touch support
+    handle && handle.addEventListener('touchstart', e=>{
+      dragSrcPanel = panel;
+      panel.classList.add('dragging');
+      e.preventDefault();
+    },{passive:false});
+    handle && handle.addEventListener('touchmove', e=>{
+      e.preventDefault();
+      const t=e.touches[0];
+      const el=document.elementFromPoint(t.clientX,t.clientY);
+      const over=el?.closest('.draggable-panel');
+      clearDropIndicator();
+      if(over&&over!==panel){
+        const rect=over.getBoundingClientRect();
+        over.classList.add(t.clientY<rect.top+rect.height/2?'drop-before':'drop-after');
+      }
+    },{passive:false});
+    handle && handle.addEventListener('touchend', e=>{
+      const t=e.changedTouches[0];
+      const el=document.elementFromPoint(t.clientX,t.clientY);
+      const over=el?.closest('.draggable-panel');
+      if(over&&over!==panel){
+        const rect=over.getBoundingClientRect();
+        if(t.clientY<rect.top+rect.height/2) over.before(panel);
+        else over.after(panel);
+      }
+      clearDropIndicator();
+      panel.classList.remove('dragging');
+      dragSrcPanel=null;
+      savePanelOrder();
+    });
+  });
+}
+
+function clearDropIndicator(){
+  document.querySelectorAll('.drop-before,.drop-after').forEach(p=>{
+    p.classList.remove('drop-before','drop-after');
   });
 }
 
@@ -1162,50 +1198,7 @@ function savePanelOrder(){
   try{ localStorage.setItem(PANEL_ORDER_KEY, JSON.stringify(order)); }catch(e){}
 }
 
-// Touch drag support for mobile
-function initTouchDrag(){
-  const body = document.getElementById('home-body');
-  if(!body) return;
-  let touchPanel = null, touchClone = null, startX = 0, startY = 0;
-
-  body.querySelectorAll('.drag-handle').forEach(handle=>{
-    handle.addEventListener('touchstart', e=>{
-      touchPanel = handle.closest('.draggable-panel');
-      const touch = e.touches[0];
-      startX = touch.clientX; startY = touch.clientY;
-      touchPanel.classList.add('dragging');
-      e.preventDefault();
-    },{passive:false});
-
-    handle.addEventListener('touchmove', e=>{
-      if(!touchPanel) return;
-      e.preventDefault();
-      const touch = e.touches[0];
-      const el = document.elementFromPoint(touch.clientX, touch.clientY);
-      const overPanel = el?.closest('.draggable-panel');
-      body.querySelectorAll('.draggable-panel').forEach(p=>p.classList.remove('drag-over'));
-      if(overPanel && overPanel !== touchPanel) overPanel.classList.add('drag-over');
-    },{passive:false});
-
-    handle.addEventListener('touchend', e=>{
-      if(!touchPanel) return;
-      const touch = e.changedTouches[0];
-      const el = document.elementFromPoint(touch.clientX, touch.clientY);
-      const overPanel = el?.closest('.draggable-panel');
-      body.querySelectorAll('.draggable-panel').forEach(p=>p.classList.remove('drag-over'));
-      if(overPanel && overPanel !== touchPanel){
-        const panels = [...body.querySelectorAll('.draggable-panel')];
-        const srcIdx = panels.indexOf(touchPanel);
-        const tgtIdx = panels.indexOf(overPanel);
-        if(srcIdx < tgtIdx) overPanel.after(touchPanel);
-        else overPanel.before(touchPanel);
-        savePanelOrder();
-      }
-      touchPanel.classList.remove('dragging');
-      touchPanel = null;
-    });
-  });
-}
+function initTouchDrag(){ /* handled inside attachDragToAll */ }
 
 // ── PWA Install Prompt ──
 let deferredInstallPrompt = null;
