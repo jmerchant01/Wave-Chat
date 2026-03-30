@@ -386,90 +386,99 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .home-avatar img{width:100%;height:100%;object-fit:cover;}
 .home-nav-btn{padding:.35rem .85rem;border-radius:7px;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:'DM Mono',monospace;font-size:.72rem;cursor:pointer;transition:all .2s;}
 .home-nav-btn:hover{border-color:var(--danger);color:var(--danger);}
-/* ── Home Masonry/Flow Layout ── */
+/* ══════════════════════════════════════
+   DOT-GRID PANEL LAYOUT (Robinhood-style)
+   ══════════════════════════════════════ */
+:root{--gcell:68px;--ggap:8px;--gcols:12;}
 .home-body{
-  display:flex;
-  flex-wrap:wrap;
-  align-items:flex-start;
-  align-content:flex-start;
-  gap:.65rem;
-  padding:1rem;
-  flex:1;
+  position:relative;
   width:100%;
+  flex:1;
   box-sizing:border-box;
-  min-height:calc(100vh - 60px);
+  padding:var(--ggap);
+  min-height:calc(100vh - 52px);
+  background:var(--bg);
+  overflow:hidden;
 }
+/* Dot grid — hidden until panel selected */
+.home-body::before{
+  content:'';
+  position:absolute;
+  inset:0;
+  background-image:radial-gradient(circle,rgba(108,99,255,.4) 1.5px,transparent 1.5px);
+  background-size:calc(var(--gcell) + var(--ggap)) calc(var(--gcell) + var(--ggap));
+  background-position:calc(var(--ggap)) calc(var(--ggap));
+  pointer-events:none;
+  opacity:0;
+  transition:opacity .25s;
+  z-index:0;
+}
+.home-body.grid-active::before{opacity:1;}
+/* Panels — absolutely positioned */
 .home-section{
-  display:flex;flex-direction:column;
-  min-width:0;
+  position:absolute;
+  display:flex;
+  flex-direction:column;
   border:1px solid var(--border);
   border-radius:12px;
   padding:.75rem;
   background:var(--surface);
-  box-shadow:0 1px 4px rgba(0,0,0,.07);
-  transition:box-shadow .15s;
-  flex-shrink:0;
-  width:calc(33.333% - .65rem * 2 / 3);
+  box-shadow:0 1px 6px rgba(0,0,0,.08);
   box-sizing:border-box;
+  overflow:hidden;
+  transition:box-shadow .15s,border-color .15s;
+  z-index:1;
+  min-width:0;
 }
-@media(max-width:1000px) and (min-width:701px){
-  .home-section{width:calc(50% - .65rem / 2);}
-}
-@media(max-width:700px){
-  .home-section{width:100%;}
-}
-.home-section:hover{box-shadow:0 2px 12px rgba(0,0,0,.13);}
-
-/* Drop ghost — inline placeholder in the flex flow */
-.drop-ghost{
-  width:calc(33.333% - .65rem * 2 / 3);
-  box-sizing:border-box;
-  border:2px dashed var(--accent);
-  border-radius:12px;
-  background:rgba(108,99,255,.06);
-  flex-shrink:0;
-  transition:all .12s;
-  animation:ghost-pulse .9s ease-in-out infinite alternate;
-}
-@media(max-width:1000px) and (min-width:701px){.drop-ghost{width:calc(50% - .65rem / 2);}}
-@media(max-width:700px){.drop-ghost{width:100%;}}
-@keyframes ghost-pulse{from{background:rgba(108,99,255,.03);}to{background:rgba(108,99,255,.11);}}
-
-/* Floating drag clone */
-.drag-clone{
-  position:fixed;
-  pointer-events:none;
-  z-index:9999;
-  opacity:.85;
-  box-shadow:0 16px 48px rgba(0,0,0,.35);
-  border-radius:12px;
-  border:2px solid var(--accent);
-  background:var(--surface);
-  transition:none;
-  box-sizing:border-box;
-}
-
-/* Dragging — hide original */
-.draggable-panel.is-dragging{
-  display:none;
-  pointer-events:none;
-}
-.drop-slot{
-  flex-shrink:0;
-  width:calc(33.333% - .65rem * 2 / 3);
-  box-sizing:border-box;
-  border:2px dashed rgba(108,99,255,.3);
-  border-radius:12px;
-  background:rgba(108,99,255,.03);
-  transition:border-color .1s, background .1s;
-}
-.drop-slot-active{
+.home-section.panel-selected{
   border-color:var(--accent);
-  background:rgba(108,99,255,.1);
-  box-shadow:0 0 0 3px rgba(108,99,255,.15);
+  box-shadow:0 0 0 2px rgba(108,99,255,.25),0 4px 20px rgba(0,0,0,.18);
+  z-index:10;
+  overflow:visible;
 }
-@media(max-width:1000px) and (min-width:701px){.drop-slot{width:calc(50% - .65rem / 2);}}
-@media(max-width:700px){.drop-slot{width:100%;}}
+.home-section.panel-dragging{
+  opacity:.8;
+  box-shadow:0 16px 40px rgba(0,0,0,.35);
+  z-index:100;
+  cursor:grabbing;
+  border-color:var(--accent);
+  transition:none;
+}
+/* Resize handles */
+.resize-handle{
+  position:absolute;
+  z-index:30;
+  background:var(--accent);
+  opacity:0;
+  transition:opacity .15s;
+  border-radius:3px;
+}
+.panel-selected .resize-handle{opacity:1;}
+.rh-r{right:-4px;top:25%;height:50%;width:8px;cursor:ew-resize;border-radius:4px;}
+.rh-b{bottom:-4px;left:25%;width:50%;height:8px;cursor:ns-resize;border-radius:4px;}
+.rh-l{left:-4px;top:25%;height:50%;width:8px;cursor:ew-resize;border-radius:4px;}
+.rh-t{top:-4px;left:25%;width:50%;height:8px;cursor:ns-resize;border-radius:4px;}
+.rh-br{right:-5px;bottom:-5px;width:12px;height:12px;cursor:nwse-resize;border-radius:50%;}
+.rh-bl{left:-5px;bottom:-5px;width:12px;height:12px;cursor:nesw-resize;border-radius:50%;}
+.rh-tr{right:-5px;top:-5px;width:12px;height:12px;cursor:nesw-resize;border-radius:50%;}
+.rh-tl{left:-5px;top:-5px;width:12px;height:12px;cursor:nwse-resize;border-radius:50%;}
+/* Drop preview */
+.drop-preview{
+  position:absolute;
+  border:2px solid var(--accent);
+  border-radius:12px;
+  background:rgba(108,99,255,.07);
+  pointer-events:none;
+  z-index:5;
+}
+/* Mobile */
+@media(max-width:700px){
+  .home-body{min-height:auto;overflow:visible;}
+  .home-body::before{display:none;}
+  .home-section{position:relative!important;left:0!important;top:0!important;width:calc(100% - 1rem)!important;height:auto!important;margin:.4rem .5rem;overflow:visible;}
+  .resize-handle{display:none;}
+}
+
 .home-section-title{font-family:'Syne',sans-serif;font-size:.95rem;font-weight:700;margin-bottom:.75rem;display:flex;align-items:center;}
 .home-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.25rem;position:relative;overflow:hidden;}
 .home-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent),var(--accent2));}
@@ -1259,172 +1268,262 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 const PANEL_ORDER_KEY = 'wave-panel-order';
 let dragSrcPanel = null;
 
-// ══════════════════════════════════════════════════
-//  FLOW-DRAG PANEL SYSTEM v4
-// ══════════════════════════════════════════════════
-const PANEL_ORDER_KEY_V4 = 'wave-panel-order-v4';
-const PANEL_IDS = ['panel-rooms','panel-friends','panel-messages','panel-communities','panel-public-rooms'];
+// ══════════════════════════════════════════════════════
+//  DOT-GRID PANEL SYSTEM  (Robinhood-style)
+// ══════════════════════════════════════════════════════
 
-let dragState = null;
+const PANEL_LAYOUT_KEY = 'wave-grid-layout-v1';
+const PANEL_IDS = ['panel-rooms','panel-friends','panel-messages','panel-communities','panel-public-rooms'];
+const CELL = 68, GAP = 8; // must match CSS vars
+
+// Default layout: col, row, w (cols), h (rows) — 12-col grid
+const DEFAULT_LAYOUT = {
+  'panel-rooms':        {c:0, r:0, w:4, h:8},
+  'panel-friends':      {c:4, r:0, w:4, h:6},
+  'panel-messages':     {c:8, r:0, w:4, h:6},
+  'panel-communities':  {c:4, r:6, w:4, h:6},
+  'panel-public-rooms': {c:8, r:6, w:4, h:5},
+};
+
+let gridLayout = {};
+let selectedPanel = null;
+let interaction = null; // {type:'drag'|'resize', panel, ...}
+let dropPreviewEl = null;
+
+function gx(col){ return GAP + col*(CELL+GAP); }
+function gy(row){ return GAP + row*(CELL+GAP); }
+function snapCol(px){ return Math.max(0, Math.round((px - GAP) / (CELL+GAP))); }
+function snapRow(py){ return Math.max(0, Math.round((py - GAP) / (CELL+GAP))); }
+function gridW(cols){ return cols*(CELL+GAP) - GAP; }
+function gridH(rows){ return rows*(CELL+GAP) - GAP; }
+function totalCols(){ return Math.floor((document.getElementById('home-body')?.offsetWidth - GAP) / (CELL+GAP)) || 12; }
+
+function loadLayout(){
+  try{ const s=localStorage.getItem(PANEL_LAYOUT_KEY); if(s) return JSON.parse(s); }catch(e){}
+  return null;
+}
+function saveLayout(){
+  try{ localStorage.setItem(PANEL_LAYOUT_KEY, JSON.stringify(gridLayout)); }catch(e){}
+}
 
 function initDraggablePanels(){
-  restorePanelOrder();
-  attachFreeDrag();
-}
-
-function restorePanelOrder(){
-  try{
-    const saved = localStorage.getItem(PANEL_ORDER_KEY_V4);
-    if(!saved) return;
-    const order = JSON.parse(saved);
-    const body = document.getElementById('home-body');
-    order.forEach(id=>{ const el=document.getElementById(id); if(el) body.appendChild(el); });
-  }catch(e){}
-}
-
-function savePanelOrder(){ savePanelOrder2(); }
-function savePanelOrder2(){
   const body = document.getElementById('home-body');
   if(!body) return;
-  const order = [...body.querySelectorAll('.draggable-panel')].map(p=>p.id);
-  try{ localStorage.setItem(PANEL_ORDER_KEY_V4, JSON.stringify(order)); }catch(e){}
+  const saved = loadLayout();
+  gridLayout = saved || JSON.parse(JSON.stringify(DEFAULT_LAYOUT));
+  applyLayout();
+  addResizeHandles();
+  attachGridInteraction();
+  // Click outside to deselect
+  document.addEventListener('mousedown', e=>{
+    if(!e.target.closest('.home-section') && !e.target.closest('.drop-preview')) deselectPanel();
+  });
+  window.addEventListener('resize', ()=>applyLayout());
 }
 
-function attachFreeDrag(){
+function applyLayout(){
   const body = document.getElementById('home-body');
-  body.querySelectorAll('.draggable-panel').forEach(panel=>{
-    if(panel._dragInit) return;
-    panel._dragInit = true;
-    const handle = panel.querySelector('.drag-handle');
-    if(!handle) return;
-    handle.addEventListener('mousedown', e=>{
-      if(e.button!==0) return; e.preventDefault();
-      startDrag(panel, e.clientX, e.clientY);
+  if(!body || window.innerWidth <= 700) return;
+  // Set body height to fit all panels
+  let maxBottom = 0;
+  PANEL_IDS.forEach(id=>{
+    const p = gridLayout[id]; if(!p) return;
+    maxBottom = Math.max(maxBottom, p.r + p.h);
+  });
+  body.style.height = (gy(maxBottom) + GAP) + 'px';
+  PANEL_IDS.forEach(id=>{
+    const el = document.getElementById(id);
+    const p = gridLayout[id];
+    if(!el || !p) return;
+    el.style.left   = gx(p.c) + 'px';
+    el.style.top    = gy(p.r) + 'px';
+    el.style.width  = gridW(p.w) + 'px';
+    el.style.height = gridH(p.h) + 'px';
+  });
+}
+
+function addResizeHandles(){
+  PANEL_IDS.forEach(id=>{
+    const el = document.getElementById(id); if(!el) return;
+    if(el.querySelector('.resize-handle')) return;
+    ['rh-r','rh-b','rh-l','rh-t','rh-br','rh-bl','rh-tr','rh-tl'].forEach(cls=>{
+      const h = document.createElement('div');
+      h.className = 'resize-handle ' + cls;
+      h.dataset.dir = cls.replace('rh-','');
+      el.appendChild(h);
     });
-    handle.addEventListener('touchstart', e=>{
-      const t=e.touches[0]; e.preventDefault();
-      startDrag(panel, t.clientX, t.clientY);
-    },{passive:false});
   });
-  document.addEventListener('mousemove', e=>{ if(dragState) moveDrag(e.clientX,e.clientY); });
-  document.addEventListener('mouseup',   ()=>{ if(dragState) endDrag(); });
-  document.addEventListener('touchmove', e=>{
-    if(dragState){ const t=e.touches[0]; moveDrag(t.clientX,t.clientY); e.preventDefault(); }
+}
+
+function attachGridInteraction(){
+  const body = document.getElementById('home-body');
+
+  body.addEventListener('mousedown', onGridMouseDown);
+  body.addEventListener('touchstart', e=>{
+    const t=e.touches[0];
+    onGridMouseDown({target:e.target, clientX:t.clientX, clientY:t.clientY, preventDefault:()=>e.preventDefault()});
   },{passive:false});
-  document.addEventListener('touchend',  ()=>{ if(dragState) endDrag(); });
+
+  document.addEventListener('mousemove', onGridMouseMove);
+  document.addEventListener('mouseup',   onGridMouseUp);
+  document.addEventListener('touchmove', e=>{
+    if(interaction){ const t=e.touches[0]; onGridMouseMove({clientX:t.clientX,clientY:t.clientY}); e.preventDefault(); }
+  },{passive:false});
+  document.addEventListener('touchend', onGridMouseUp);
 }
 
-function startDrag(panel, cx, cy){
+function onGridMouseDown(e){
+  if(window.innerWidth <= 700) return;
+  const panel = e.target.closest('.draggable-panel');
+  if(!panel) return;
+
+  const resizeHandle = e.target.closest('.resize-handle');
+  const dragHandle   = e.target.closest('.drag-handle');
+
+  if(!resizeHandle && !dragHandle) {
+    // Just select the panel
+    selectPanel(panel);
+    return;
+  }
+  e.preventDefault();
+  selectPanel(panel);
+
   const body = document.getElementById('home-body');
-  const rect = panel.getBoundingClientRect();
+  const bodyRect = body.getBoundingClientRect();
+  const p = gridLayout[panel.id];
 
-  // Floating clone
-  const clone = document.createElement('div');
-  clone.className = 'home-section drag-clone';
-  clone.style.cssText = `width:${rect.width}px;height:${rect.height}px;left:${rect.left}px;top:${rect.top}px;`;
-  clone.innerHTML = panel.innerHTML;
-  document.body.appendChild(clone);
-
-  // Hide dragged panel but keep its space temporarily
-  panel.classList.add('is-dragging');
-
-  // Build all drop slots — one for each gap BETWEEN panels and at start/end
-  buildDropSlots(panel, rect.height);
-
-  dragState = {
-    panel, clone, body,
-    offsetX: cx - rect.left,
-    offsetY: cy - rect.top,
-    activeSlot: null
-  };
-}
-
-function buildDropSlots(draggingPanel, panelH){
-  removeDropSlots();
-  const body = document.getElementById('home-body');
-  const panels = [...body.querySelectorAll('.draggable-panel:not(.is-dragging)')];
-
-  // Create a slot BEFORE each panel and one at the very end
-  panels.forEach(p=>{
-    const slot = createSlot(panelH);
-    slot.dataset.insertBefore = p.id;
-    body.insertBefore(slot, p);
-  });
-  // Slot at end
-  const endSlot = createSlot(panelH);
-  endSlot.dataset.insertBefore = '__end__';
-  body.appendChild(endSlot);
-}
-
-function createSlot(h){
-  const slot = document.createElement('div');
-  slot.className = 'drop-slot';
-  slot.style.height = h+'px';
-  slot.style.minHeight = h+'px';
-  return slot;
-}
-
-function removeDropSlots(){
-  document.querySelectorAll('.drop-slot').forEach(s=>s.remove());
-}
-
-function moveDrag(cx, cy){
-  if(!dragState) return;
-  const {clone, offsetX, offsetY} = dragState;
-  clone.style.left = (cx-offsetX)+'px';
-  clone.style.top  = (cy-offsetY)+'px';
-
-  // Find the slot nearest to clone center
-  const cloneCX = cx - offsetX + clone.offsetWidth/2;
-  const cloneCY = cy - offsetY + clone.offsetHeight/2;
-
-  let bestSlot = null, bestDist = Infinity;
-  document.querySelectorAll('.drop-slot').forEach(slot=>{
-    const r = slot.getBoundingClientRect();
-    const sx = r.left + r.width/2;
-    const sy = r.top  + r.height/2;
-    const dist = Math.hypot(cloneCX-sx, cloneCY-sy);
-    if(dist < bestDist){ bestDist=dist; bestSlot=slot; }
-  });
-
-  if(bestSlot !== dragState.activeSlot){
-    // Deactivate old
-    if(dragState.activeSlot) dragState.activeSlot.classList.remove('drop-slot-active');
-    dragState.activeSlot = bestSlot;
-    if(bestSlot) bestSlot.classList.add('drop-slot-active');
+  if(resizeHandle){
+    const dir = resizeHandle.dataset.dir;
+    interaction = {
+      type:'resize', panel, dir,
+      startX: e.clientX, startY: e.clientY,
+      startC: p.c, startR: p.r, startW: p.w, startH: p.h,
+      bodyLeft: bodyRect.left, bodyTop: bodyRect.top
+    };
+  } else if(dragHandle){
+    const panelRect = panel.getBoundingClientRect();
+    showDropPreview(panel);
+    panel.classList.add('panel-dragging');
+    body.classList.add('grid-active');
+    interaction = {
+      type:'drag', panel,
+      offsetX: e.clientX - panelRect.left,
+      offsetY: e.clientY - panelRect.top,
+      bodyLeft: bodyRect.left, bodyTop: bodyRect.top,
+      startC: p.c, startR: p.r
+    };
   }
 }
 
-function endDrag(){
-  if(!dragState) return;
-  const {panel, clone, activeSlot} = dragState;
-  clone.remove();
-  panel.classList.remove('is-dragging');
+function onGridMouseMove(e){
+  if(!interaction) return;
+  const {type, panel, bodyLeft, bodyTop} = interaction;
+  const p = gridLayout[panel.id];
+  const cols = totalCols();
 
-  if(activeSlot){
-    const insertBeforeId = activeSlot.dataset.insertBefore;
-    const body = document.getElementById('home-body');
-    removeDropSlots();
-    if(insertBeforeId === '__end__'){
-      body.appendChild(panel);
-    } else {
-      const target = document.getElementById(insertBeforeId);
-      if(target) body.insertBefore(panel, target);
-      else body.appendChild(panel);
+  if(type === 'drag'){
+    const relX = e.clientX - bodyLeft - interaction.offsetX;
+    const relY = e.clientY - bodyTop  - interaction.offsetY;
+    const newC = Math.max(0, Math.min(snapCol(relX + CELL*p.w/2), cols - p.w));
+    const newR = Math.max(0, snapRow(relY + CELL*p.h/2));
+    // Move panel freely (pixel)
+    panel.style.left = (e.clientX - bodyLeft - interaction.offsetX) + 'px';
+    panel.style.top  = (e.clientY - bodyTop  - interaction.offsetY) + 'px';
+    // Update drop preview to snapped position
+    if(dropPreviewEl){
+      dropPreviewEl.style.left   = gx(newC) + 'px';
+      dropPreviewEl.style.top    = gy(newR) + 'px';
+      dropPreviewEl.style.width  = gridW(p.w) + 'px';
+      dropPreviewEl.style.height = gridH(p.h) + 'px';
     }
-  } else {
-    removeDropSlots();
+    interaction.snapC = newC;
+    interaction.snapR = newR;
   }
 
-  dragState = null;
-  savePanelOrder2();
+  if(type === 'resize'){
+    const dx = e.clientX - interaction.startX;
+    const dy = e.clientY - interaction.startY;
+    const dir = interaction.dir;
+    let {startC:c, startR:r, startW:w, startH:h} = interaction;
+    const dCols = Math.round(dx/(CELL+GAP));
+    const dRows = Math.round(dy/(CELL+GAP));
+    if(dir.includes('r')){ w = Math.max(2, startW + dCols); }
+    if(dir.includes('l')){ w = Math.max(2, startW - dCols); c = Math.max(0, startC + dCols); }
+    if(dir.includes('b')){ h = Math.max(2, startH + dRows); }
+    if(dir.includes('t')){ h = Math.max(2, startH - dRows); r = Math.max(0, startR + dRows); }
+    // Clamp
+    w = Math.min(w, cols - c);
+    panel.style.left   = gx(c) + 'px';
+    panel.style.top    = gy(r) + 'px';
+    panel.style.width  = gridW(w) + 'px';
+    panel.style.height = gridH(h) + 'px';
+    interaction.liveC=c; interaction.liveR=r; interaction.liveW=w; interaction.liveH=h;
+  }
 }
 
-function clearDropIndicator(){ removeDropSlots(); }
-function applyGridLayout(){}
+function onGridMouseUp(){
+  if(!interaction) return;
+  const {type, panel} = interaction;
+  const p = gridLayout[panel.id];
+
+  if(type === 'drag'){
+    p.c = interaction.snapC ?? p.c;
+    p.r = interaction.snapR ?? p.r;
+    panel.classList.remove('panel-dragging');
+    hideDropPreview();
+  }
+  if(type === 'resize'){
+    if(interaction.liveC !== undefined){ p.c=interaction.liveC; p.r=interaction.liveR; p.w=interaction.liveW; p.h=interaction.liveH; }
+  }
+  interaction = null;
+  saveLayout();
+  applyLayout();
+  // keep grid dots visible while panel selected
+}
+
+function selectPanel(panel){
+  if(selectedPanel === panel) return;
+  deselectPanel();
+  selectedPanel = panel;
+  panel.classList.add('panel-selected');
+  document.getElementById('home-body').classList.add('grid-active');
+}
+
+function deselectPanel(){
+  if(selectedPanel){
+    selectedPanel.classList.remove('panel-selected','panel-dragging');
+    selectedPanel = null;
+  }
+  document.getElementById('home-body')?.classList.remove('grid-active');
+  hideDropPreview();
+}
+
+function showDropPreview(panel){
+  hideDropPreview();
+  const p = gridLayout[panel.id]; if(!p) return;
+  const body = document.getElementById('home-body');
+  dropPreviewEl = document.createElement('div');
+  dropPreviewEl.className = 'drop-preview';
+  dropPreviewEl.style.left   = gx(p.c) + 'px';
+  dropPreviewEl.style.top    = gy(p.r) + 'px';
+  dropPreviewEl.style.width  = gridW(p.w) + 'px';
+  dropPreviewEl.style.height = gridH(p.h) + 'px';
+  body.appendChild(dropPreviewEl);
+}
+
+function hideDropPreview(){
+  if(dropPreviewEl){ dropPreviewEl.remove(); dropPreviewEl=null; }
+}
+
+// Stubs for compatibility
+function savePanelOrder(){}
+function savePanelOrder2(){}
+function restorePanelOrder(){}
+function clearDropIndicator(){}
 function savePositions(){}
 function loadPositions(){ return null; }
-function initTouchDrag(){ /* handled inside attachFreeDrag */ }
+function applyGridLayout(){ applyLayout(); }
+function initTouchDrag(){ /* handled inside attachGridInteraction */ }
 
 // ── PWA Install Prompt ──
 let deferredInstallPrompt = null;
