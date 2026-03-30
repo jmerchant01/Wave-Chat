@@ -270,6 +270,10 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .save-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:600;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);}
 .save-modal{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:1.75rem;width:100%;max-width:420px;position:relative;overflow:hidden;}
 .save-modal::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--danger),var(--accent2),var(--accent));}
+
+.modal-close-x{position:absolute;top:.75rem;right:.85rem;border:none;background:transparent;color:var(--muted);font-size:1.1rem;cursor:pointer;line-height:1;padding:.15rem .3rem;border-radius:4px;z-index:10;}
+.modal-close-x:hover{color:var(--text);background:var(--surface2);}
+.save-modal{position:relative;}
 .save-modal h3{font-family:'Syne',sans-serif;font-size:1rem;font-weight:700;margin-bottom:.35rem;}
 .save-modal p{font-size:.72rem;color:var(--muted);margin-bottom:1.2rem;line-height:1.6;}
 .save-modal-btns{display:flex;flex-direction:column;gap:.5rem;}
@@ -895,7 +899,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 <!-- CREATE COMMUNITY MODAL -->
 <div id="create-community-overlay" class="save-modal-overlay hidden">
   <div class="save-modal" style="max-width:480px;">
-    <h3>🏘️ Create Community</h3>
+    <h3>🏘️ Create Community</h3><button class="modal-close-x" onclick="closeCreateCommunity()" title="Close">✕</button>
     <div class="auth-field">
       <label>Community Name</label>
       <input id="cc-name" type="text" placeholder="My Awesome Community" maxlength="64" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.55rem .75rem;color:var(--text);font-family:'DM Mono',monospace;font-size:.78rem;outline:none;box-sizing:border-box;"/>
@@ -972,7 +976,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 <!-- COMMUNITY SETTINGS MODAL -->
 <div id="community-settings-overlay" class="save-modal-overlay hidden">
   <div class="save-modal" style="max-width:520px;max-height:80vh;overflow-y:auto;">
-    <h3>⚙️ Community Settings</h3>
+    <h3>⚙️ Community Settings</h3><button class="modal-close-x" onclick="closeCommunitySettings()" title="Close">✕</button>
     <div class="auth-field"><label>Name</label><input id="cs-name" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.5rem .75rem;color:var(--text);font-family:'DM Mono',monospace;font-size:.78rem;outline:none;box-sizing:border-box;"/></div>
     <div class="auth-field" style="margin-top:.5rem;"><label>Description</label><textarea id="cs-desc" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.5rem .75rem;color:var(--text);font-family:'DM Mono',monospace;font-size:.75rem;outline:none;resize:vertical;min-height:60px;box-sizing:border-box;"></textarea></div>
     <div class="auth-field" style="margin-top:.5rem;"><label>Tags</label><input id="cs-tags" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.5rem .75rem;color:var(--text);font-family:'DM Mono',monospace;font-size:.78rem;outline:none;box-sizing:border-box;"/></div>
@@ -980,9 +984,13 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
       <input type="checkbox" id="cs-public" style="accent-color:var(--accent);"/>
       Public community
     </label>
+    <!-- Channels management -->
+    <div style="font-size:.72rem;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.08em;margin:.75rem 0 .4rem;">Channels</div>
+    <div id="cs-channels-list" style="border:1px solid var(--border);border-radius:8px;padding:.4rem;margin-bottom:.5rem;"></div>
+    <button onclick="addChannelFromSettings()" style="font-size:.68rem;padding:.35rem .75rem;border-radius:6px;border:1px solid var(--accent);background:transparent;color:var(--accent);cursor:pointer;font-family:'DM Mono',monospace;">+ Add Channel</button>
     <!-- Members management -->
     <div style="font-size:.72rem;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.08em;margin:.75rem 0 .4rem;">Members</div>
-    <div id="cs-members-list" style="max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:.4rem;"></div>
+    <div id="cs-members-list" style="max-height:180px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:.4rem;"></div>
     <!-- Roles -->
     <div style="font-size:.72rem;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.08em;margin:.75rem 0 .4rem;">Roles</div>
     <div id="cs-roles-list" style="margin-bottom:.5rem;"></div>
@@ -998,7 +1006,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 <!-- INVITE FRIENDS MODAL (rooms + communities) -->
 <div id="invite-friends-overlay" class="save-modal-overlay hidden">
   <div class="save-modal" style="max-width:420px;">
-    <h3 id="invite-friends-title">👥 Invite Friends</h3>
+    <h3 id="invite-friends-title">👥 Invite Friends</h3><button class="modal-close-x" onclick="closeInviteFriendsModal()" title="Close">✕</button>
     <p id="invite-friends-sub" style="font-size:.7rem;color:var(--muted);margin-bottom:.85rem;line-height:1.6;"></p>
     <div id="invite-friends-list" style="max-height:320px;overflow-y:auto;display:flex;flex-direction:column;gap:.35rem;"></div>
     <button class="save-modal-cancel" style="width:100%;margin-top:.75rem;padding:.6rem;" onclick="closeInviteFriendsModal()">Close</button>
@@ -1008,7 +1016,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 <!-- REPORT USER MODAL -->
 <div id="report-modal-overlay" class="save-modal-overlay hidden">
   <div class="save-modal" style="max-width:460px;">
-    <h3>🚩 Report User</h3>
+    <h3>🚩 Report User</h3><button class="modal-close-x" onclick="closeReportModalUser()" title="Close">✕</button>
     <p id="report-modal-target" style="color:var(--muted);font-size:.72rem;margin-bottom:1rem;"></p>
     <div class="auth-field">
       <label>Reason</label>
@@ -1038,7 +1046,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 <!-- SAVE LOCATION MODAL -->
 <div id="save-modal-overlay" class="save-modal-overlay hidden">
   <div class="save-modal">
-    <h3>⏺ Save Recording As…</h3>
+    <h3>⏺ Save Recording As…</h3><button class="modal-close-x" onclick="closeSaveModal()" title="Close">✕</button>
     <p>Choose where to save your recording. The file will be in <strong>.webm</strong> format (opens in Chrome, VLC, or any video editor).</p>
     <div class="save-modal-btns">
       <button class="save-opt" id="save-opt-picker" onclick="startRecordingWithPicker()">
@@ -2573,15 +2581,182 @@ function renderCVChannels(channels){
   const el = document.getElementById('cv-channels-list');
   if(!el) return;
   el.innerHTML='';
-  const typeIcon = {text:'#',announcement:'📢',voice:'🔊'};
+  const isOwnerOrAdmin = checkIsOwner(currentCommunity) || checkIsAdmin(currentCommunity);
+  const typeIcon = {text:'#', announcement:'📢', room:'🎙️'};
+
   channels.forEach(ch=>{
+    const isLocked = ch.locked;
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText='position:relative;';
+
     const btn=document.createElement('button');
-    btn.style.cssText='width:100%;text-align:left;padding:.4rem .6rem;border:none;background:transparent;color:var(--muted);font-family:"DM Mono",monospace;font-size:.75rem;cursor:pointer;border-radius:6px;display:flex;align-items:center;gap:.4rem;';
-    btn.innerHTML=`<span>${typeIcon[ch.type]||'#'}</span><span>${esc(ch.name)}</span>`;
-    btn.onclick=()=>{ if(ch.type==='voice'){ toast('🔊 Voice channels coming soon — use Create Room for now!'); return; } openChannel(ch); };
+    btn.style.cssText=`width:100%;text-align:left;padding:.4rem .6rem;border:none;background:transparent;color:${isLocked?'var(--muted)':'var(--muted)'};font-family:"DM Mono",monospace;font-size:.75rem;cursor:pointer;border-radius:6px;display:flex;align-items:center;gap:.4rem;opacity:${isLocked&&!isOwnerOrAdmin?'0.5':'1'};`;
+    btn.innerHTML=`<span>${typeIcon[ch.type]||'#'}</span><span style="flex:1;">${esc(ch.name)}</span>${isLocked?'<span style="font-size:.6rem;color:var(--muted);">🔒</span>':''}`;
     btn.dataset.channelId=ch._id;
-    el.appendChild(btn);
+
+    if(ch.type==='room'){
+      btn.onclick=()=> handleRoomChannel(ch);
+    } else {
+      btn.onclick=()=>{
+        if(isLocked && !isOwnerOrAdmin){ toast('🔒 This channel is locked'); return; }
+        openChannel(ch);
+      };
+    }
+
+    // Right-click context menu for owner/admin
+    if(isOwnerOrAdmin){
+      btn.addEventListener('contextmenu', e=>{
+        e.preventDefault();
+        showChannelContextMenu(e.clientX, e.clientY, ch);
+      });
+    }
+
+    wrapper.appendChild(btn);
+
+    // Show active room link below room channels
+    if(ch.type==='room' && ch.activeRoomId){
+      const link=document.createElement('div');
+      link.style.cssText='padding:.2rem .6rem .4rem 1.8rem;font-size:.65rem;';
+      link.innerHTML=`<span style="color:var(--accent3);cursor:pointer;" onclick="joinCommunityRoom('${ch.activeRoomId}')">🟢 Room active — click to join</span>`;
+      wrapper.appendChild(link);
+    }
+
+    el.appendChild(wrapper);
   });
+}
+
+function checkIsOwner(community){
+  if(!currentUser||!community) return false;
+  const ownerId = (community.ownerId?._id||community.ownerId||'').toString();
+  return ownerId === currentUser.id;
+}
+
+// Channel context menu
+let ctxMenuChannel = null;
+function showChannelContextMenu(x, y, ch){
+  removeChannelContextMenu();
+  ctxMenuChannel = ch;
+  const menu = document.createElement('div');
+  menu.id='ch-ctx-menu';
+  menu.style.cssText=`position:fixed;left:${x}px;top:${y}px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:.35rem;z-index:9999;min-width:160px;box-shadow:0 4px 16px rgba(0,0,0,.4);`;
+  const isLocked = ch.locked;
+  menu.innerHTML=`
+    <div onclick="toggleChannelLock('${ch._id}',${!isLocked})" style="padding:.4rem .65rem;font-size:.73rem;cursor:pointer;border-radius:5px;display:flex;align-items:center;gap:.5rem;" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background='transparent'">
+      ${isLocked?'🔓 Unlock Channel':'🔒 Lock Channel'}
+    </div>
+    ${ch.type==='text'?`<div onclick="toggleChatLockChannel('${ch._id}')" style="padding:.4rem .65rem;font-size:.73rem;cursor:pointer;border-radius:5px;display:flex;align-items:center;gap:.5rem;" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background='transparent'">
+      ${ch.chatLocked?'💬 Unlock Chat':'💬 Lock Chat'}
+    </div>`:''}
+    <hr style="border:none;border-top:1px solid var(--border);margin:.3rem 0;">
+    <div onclick="deleteChannelFromMenu('${ch._id}')" style="padding:.4rem .65rem;font-size:.73rem;cursor:pointer;border-radius:5px;color:var(--danger);display:flex;align-items:center;gap:.5rem;" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background='transparent'">
+      🗑 Delete Channel
+    </div>`;
+  document.body.appendChild(menu);
+  // Close on click outside
+  setTimeout(()=>document.addEventListener('click', removeChannelContextMenu, {once:true}), 50);
+}
+function removeChannelContextMenu(){
+  const m=document.getElementById('ch-ctx-menu'); if(m) m.remove();
+}
+async function toggleChannelLock(channelId, lock){
+  removeChannelContextMenu();
+  if(!currentCommunity||!authToken) return;
+  try{
+    const res=await fetch(`/api/communities/${currentCommunity._id}/channels/${channelId}/lock`,{
+      method:'PATCH', headers:{'Content-Type':'application/json',Authorization:`Bearer ${authToken}`},
+      body:JSON.stringify({locked:lock})
+    });
+    if(res.ok){
+      toast(lock?'🔒 Channel locked':'🔓 Channel unlocked');
+      await refreshCurrentCommunity();
+      renderCSChannels(); // also refresh settings if open
+    } else{ const d=await res.json(); toast('⚠️ '+d.error); }
+  }catch(e){}
+}
+async function toggleChatLockChannel(channelId){
+  removeChannelContextMenu();
+  if(!currentCommunity||!authToken) return;
+  const ch = currentCommunity.channels?.find(c=>c._id===channelId||c._id?.toString()===channelId);
+  const newLock = !ch?.chatLocked;
+  try{
+    const res=await fetch(`/api/communities/${currentCommunity._id}/channels/${channelId}/lock`,{
+      method:'PATCH', headers:{'Content-Type':'application/json',Authorization:`Bearer ${authToken}`},
+      body:JSON.stringify({chatLocked:newLock})
+    });
+    if(res.ok){ toast(newLock?'💬 Chat locked':'💬 Chat unlocked'); await refreshCurrentCommunity(); }
+    else{ const d=await res.json(); toast('⚠️ '+d.error); }
+  }catch(e){}
+}
+async function deleteChannelFromMenu(channelId){
+  removeChannelContextMenu();
+  currentChannelId = channelId;
+  await deleteChannel();
+}
+async function refreshCurrentCommunity(){
+  if(!currentCommunity) return;
+  const res=await fetch(`/api/communities/${currentCommunity._id}`,{headers:{Authorization:`Bearer ${authToken}`}});
+  const {community}=await res.json();
+  currentCommunity=community;
+  renderCVChannels(community.channels||[]);
+  if(currentChannelId){
+    const ch=community.channels?.find(c=>c._id===currentChannelId||c._id?.toString()===currentChannelId);
+    if(ch) openChannel(ch);
+  }
+}
+
+// Room channel handling
+async function handleRoomChannel(ch){
+  const isOwnerOrAdmin = checkIsOwner(currentCommunity)||checkIsAdmin(currentCommunity);
+  if(ch.locked && !isOwnerOrAdmin){ toast('🔒 Room creation is locked for this channel'); return; }
+
+  if(ch.activeRoomId){
+    // Room already exists — join it
+    joinCommunityRoom(ch.activeRoomId);
+  } else {
+    // Create a new private room
+    if(!confirm(`Create a new voice room for "${ch.name}"? Only community members will get the link.`)) return;
+    await createCommunityRoom(ch);
+  }
+}
+
+async function createCommunityRoom(ch){
+  // Create room via socket then post link to channel
+  const roomName = `${currentCommunity.name} — ${ch.name}`;
+  // We need to create a room first, get its ID, then post in channel
+  await initMic();
+  connectSocket();
+  socket.once('connect', ()=>{
+    socket.emit('create_room',{name:currentUser.username, roomName, userId:currentUser?.id||null, isPublic:false, tags:[]});
+  });
+  socket.once('room_joined', async ({roomId:rid})=>{
+    // Post room link in the community channel
+    const joinUrl = `${location.origin}${location.pathname}?room=${rid}`;
+    const text = `🎙️ Voice room created! Join here: ${joinUrl}`;
+    try{
+      const res=await fetch(`/api/communities/${currentCommunity._id}/channels/${ch._id}/messages`,{
+        method:'POST', headers:{'Content-Type':'application/json',Authorization:`Bearer ${authToken}`},
+        body:JSON.stringify({text})
+      });
+      if(res.ok){
+        const {message}=await res.json();
+        const sock=homeSocket||socket;
+        if(sock) sock.emit('community_message',{communityId:currentCommunity._id,channelId:ch._id,message});
+      }
+    }catch(e){}
+    // Update channel activeRoomId on server
+    fetch(`/api/communities/${currentCommunity._id}/channels/${ch._id}/active-room`,{
+      method:'PATCH', headers:{'Content-Type':'application/json',Authorization:`Bearer ${authToken}`},
+      body:JSON.stringify({roomId:rid})
+    }).catch(()=>{});
+    // Open the room
+    closeCommunityView();
+    toast(`🎙️ Room created! Link posted in #${ch.name}`);
+  });
+}
+
+function joinCommunityRoom(roomId){
+  document.getElementById('join-code').value=roomId;
+  joinRoom();
 }
 
 function renderCVMembers(members){
@@ -2612,10 +2787,27 @@ async function openChannel(channel){
   document.getElementById('cv-msg-input').placeholder=`Message #${channel.name}…`;
   // Highlight active channel
   document.querySelectorAll('#cv-channels-list button').forEach(b=>{ b.style.background=b.dataset.channelId===channel._id?'var(--surface2)':'transparent'; b.style.color=b.dataset.channelId===channel._id?'var(--text)':'var(--muted)'; });
-  const isAdmin=checkIsAdmin(currentCommunity);
-  const isAnnounceCh=channel.type==='announcement';
-  document.getElementById('cv-input-area').style.display=isAnnounceCh&&!isAdmin?'none':'flex';
-  document.getElementById('cv-delete-channel-btn').classList.toggle('hidden',!isAdmin);
+  const isOwnerOrAdmin = checkIsOwner(currentCommunity)||checkIsAdmin(currentCommunity);
+  const isAnnounceCh = channel.type==='announcement';
+  const isChatLocked = channel.chatLocked;
+  const inputArea = document.getElementById('cv-input-area');
+  // Hide input for announcement channels (non-admin), locked chat channels, or room channels
+  if(channel.type==='room'){
+    inputArea.style.display='none';
+  } else if((isAnnounceCh||isChatLocked) && !isOwnerOrAdmin){
+    inputArea.style.display='none';
+    // Show lock notice
+    const msgs = document.getElementById('cv-messages');
+    if(msgs && isChatLocked){
+      const notice = document.createElement('div');
+      notice.style.cssText='text-align:center;color:var(--muted);font-size:.7rem;padding:.5rem;';
+      notice.textContent='🔒 Chat is locked in this channel';
+      msgs.appendChild(notice);
+    }
+  } else {
+    inputArea.style.display='flex';
+  }
+  document.getElementById('cv-delete-channel-btn').classList.toggle('hidden',!isOwnerOrAdmin);
   await loadChannelMessages();
 }
 
@@ -2665,6 +2857,10 @@ async function sendCommunityMessage(){
   const text=inp.value.trim();
   if(!text&&!cvPendingFile) return;
   if(!currentCommunity||!currentChannelId) return;
+  // Check if chat is locked
+  const ch = currentCommunity.channels?.find(c=>c._id===currentChannelId||c._id?.toString()===currentChannelId);
+  const isOwnerOrAdmin = checkIsOwner(currentCommunity)||checkIsAdmin(currentCommunity);
+  if(ch?.chatLocked && !isOwnerOrAdmin){ toast('🔒 Chat is locked in this channel'); return; }
   inp.value='';
   const fileData=cvPendingFile; clearCVFile();
   try{
@@ -2767,9 +2963,67 @@ function openCommunitySettings(){
   document.getElementById('cs-desc').value=currentCommunity.description||'';
   document.getElementById('cs-tags').value=(currentCommunity.tags||[]).map(t=>'#'+t).join(' ');
   document.getElementById('cs-public').checked=currentCommunity.isPublic!==false;
+  renderCSChannels();
   renderCSMembers();
   renderCSRoles();
   document.getElementById('community-settings-overlay').classList.remove('hidden');
+}
+
+function renderCSChannels(){
+  const el=document.getElementById('cs-channels-list');
+  if(!el||!currentCommunity) return;
+  el.innerHTML='';
+  const typeIcon={text:'#',announcement:'📢',room:'🎙️',voice:'🔊'};
+  (currentCommunity.channels||[]).forEach(ch=>{
+    const div=document.createElement('div');
+    div.style.cssText='display:flex;align-items:center;gap:.5rem;padding:.4rem .5rem;border-bottom:1px solid var(--border);font-size:.72rem;';
+    div.innerHTML=`
+      <span style="color:var(--muted);">${typeIcon[ch.type]||'#'}</span>
+      <span style="flex:1;font-weight:500;">${esc(ch.name)}</span>
+      <label style="display:flex;align-items:center;gap:.25rem;font-size:.65rem;color:var(--muted);cursor:pointer;user-select:none;" title="Lock channel (hide from non-admins)">
+        <input type="checkbox" ${ch.locked?'checked':''} onchange="toggleChannelLock('${ch._id}',this.checked)" style="accent-color:var(--accent);cursor:pointer;"/> 🔒 Locked
+      </label>
+      ${ch.type!=='room'?`<label style="display:flex;align-items:center;gap:.25rem;font-size:.65rem;color:var(--muted);cursor:pointer;user-select:none;margin-left:.4rem;" title="Lock chat (only admins can post)">
+        <input type="checkbox" ${ch.chatLocked?'checked':''} onchange="toggleChatLockByCheckbox('${ch._id}',this.checked)" style="accent-color:var(--accent2);cursor:pointer;"/> 💬 Chat locked
+      </label>`:''}
+      <button onclick="deleteChannelFromMenu('${ch._id}')" style="border:none;background:transparent;color:var(--danger);cursor:pointer;font-size:.75rem;padding:.1rem .3rem;" title="Delete channel">🗑</button>`;
+    el.appendChild(div);
+  });
+  if(!(currentCommunity.channels||[]).length){
+    el.innerHTML='<div style="font-size:.7rem;color:var(--muted);padding:.4rem;">No channels yet.</div>';
+  }
+}
+
+async function toggleChatLockByCheckbox(channelId, locked){
+  if(!currentCommunity||!authToken) return;
+  try{
+    await fetch(`/api/communities/${currentCommunity._id}/channels/${channelId}/lock`,{
+      method:'PATCH', headers:{'Content-Type':'application/json',Authorization:`Bearer ${authToken}`},
+      body:JSON.stringify({chatLocked:locked})
+    });
+    await refreshCurrentCommunity();
+    renderCSChannels();
+  }catch(e){}
+}
+
+async function addChannelFromSettings(){
+  const name=prompt('Channel name:');
+  if(!name||!currentCommunity) return;
+  const typeChoice=prompt('Type:\n1 = Text\n2 = Announcement (admin-post only)\n3 = Room (voice room creator)','1');
+  const types={'1':'text','2':'announcement','3':'room'};
+  const type=types[typeChoice?.trim()]||'text';
+  try{
+    const res=await fetch(`/api/communities/${currentCommunity._id}/channels`,{
+      method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${authToken}`},
+      body:JSON.stringify({name,type})
+    });
+    const data=await res.json();
+    if(res.ok){
+      await refreshCurrentCommunity();
+      renderCSChannels();
+      toast('✅ Channel added');
+    } else toast('⚠️ '+data.error);
+  }catch(e){}
 }
 function closeCommunitySettings(){ document.getElementById('community-settings-overlay').classList.add('hidden'); }
 

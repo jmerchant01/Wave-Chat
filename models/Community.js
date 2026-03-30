@@ -2,11 +2,14 @@ const mongoose = require('mongoose');
 
 const channelSchema = new mongoose.Schema({
   name: { type: String, required: true, trim: true },
-  type: { type: String, enum: ['text', 'voice', 'announcement'], default: 'text' },
+  type: { type: String, enum: ['text', 'voice', 'announcement', 'room'], default: 'text' },
   description: { type: String, default: '' },
   order: { type: Number, default: 0 },
   // Per-channel permission overrides (roleId -> { canRead, canWrite })
-  permissions: [{ roleId: String, canRead: Boolean, canWrite: Boolean }]
+  permissions: [{ roleId: String, canRead: Boolean, canWrite: Boolean }],
+  locked: { type: Boolean, default: false },
+  chatLocked: { type: Boolean, default: false },
+  activeRoomId: { type: String, default: null }
 });
 
 const roleSchema = new mongoose.Schema({

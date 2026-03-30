@@ -46,7 +46,7 @@ router.post('/communities', auth, async (req, res) => {
       channels: [
         { name: 'general', type: 'text', description: 'General discussion', order: 0 },
         { name: 'announcements', type: 'announcement', description: 'Community announcements', order: 1 },
-        { name: 'voice', type: 'voice', description: 'Voice channel', order: 2 }
+        { name: 'room', type: 'room', description: 'Create voice rooms', order: 2 }
       ],
       members: [{ userId: req.user.id, roles: [], joinedAt: new Date() }]
     });
@@ -288,6 +288,37 @@ async function populateCommunity(community) {
   await community.populate('members.userId', 'username avatar lastSeen');
   return community;
 }
+
+
+// ── Lock/unlock channel ──
+router.patch('/communities/:id/channels/:channelId/lock', auth, async (req, res) => {
+  try {
+    const community = await Community.findById(req.params.id);
+    if (!community) return res.status(404).json({ error: 'Not found' });
+    if (!hasPermission(community, req.user.id, 'isAdmin') && community.ownerId.toString() !== req.user.id)
+      return res.status(403).json({ error: 'No permission' });
+    const ch = community.channels.id(req.params.channelId);
+    if (!ch) return res.status(404).json({ error: 'Channel not found' });
+    if (req.body.locked !== undefined) ch.locked = req.body.locked;
+    if (req.body.chatLocked !== undefined) ch.chatLocked = req.body.chatLocked;
+    await community.save();
+    res.json({ success: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── Set active room on a room channel ──
+router.patch('/communities/:id/channels/:channelId/active-room', auth, async (req, res) => {
+  try {
+    const community = await Community.findById(req.params.id);
+    if (!community) return res.status(404).json({ error: 'Not found' });
+    if (!getMember(community, req.user.id)) return res.status(403).json({ error: 'Not a member' });
+    const ch = community.channels.id(req.params.channelId);
+    if (!ch) return res.status(404).json({ error: 'Channel not found' });
+    ch.activeRoomId = req.body.roomId || null;
+    await community.save();
+    res.json({ success: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
 
 async function populateCommunityLean(community) {
   const memberIds = community.members.map(m => m.userId);
