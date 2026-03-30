@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-title" content="WAVE">
 <link rel="apple-touch-icon" href="/icons/icon-192.svg">
 <script src="/socket.io/socket.io.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#050508;--surface:#0d0d14;--surface2:#13131e;--border:#1e1e2e;--accent:#6c63ff;--accent2:#ff6584;--accent3:#43e97b;--text:#e8e8f0;--muted:#6b6b80;--host:#ffd700;--danger:#ff4757;}
 body.light{--bg:#f0f0f8;--surface:#ffffff;--surface2:#f4f4fb;--border:#d8d8e8;--accent:#6c63ff;--accent2:#ff6584;--accent3:#1db954;--text:#1a1a2e;--muted:#7070a0;--host:#c49a00;--danger:#e0202f;}
@@ -33,17 +33,17 @@ body.light .card::before{opacity:.6;}
 .theme-toggle{width:36px;height:36px;border-radius:50%;border:1px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1rem;transition:all .2s;flex-shrink:0;}
 .theme-toggle:hover{border-color:var(--accent);background:var(--accent);color:#fff;}
 *{margin:0;padding:0;box-sizing:border-box;}
-body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;min-height:100vh;overflow-x:hidden;}
+body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;min-height:100vh;overflow-x:hidden;}
 body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 80% 50% at 20% 20%,rgba(108,99,255,.08) 0%,transparent 60%),radial-gradient(ellipse 60% 40% at 80% 80%,rgba(255,101,132,.06) 0%,transparent 60%),radial-gradient(ellipse 40% 60% at 50% 50%,rgba(67,233,123,.03) 0%,transparent 70%);pointer-events:none;z-index:0;}
 #app{position:relative;z-index:1;}
 
 /* LANDING */
 #landing{min-height:100vh;display:flex;flex-direction:column;background:var(--bg);}
-.tab{flex:1;padding:.6rem 1rem;border:none;background:transparent;color:var(--muted);font-family:'DM Mono',monospace;font-size:.8rem;cursor:pointer;border-radius:7px;transition:all .2s;letter-spacing:.05em;}
+.tab{flex:1;padding:.6rem 1rem;border:none;background:transparent;color:var(--muted);font-family:'Inter',system-ui,sans-serif;font-size:.8rem;cursor:pointer;border-radius:7px;transition:all .2s;letter-spacing:.05em;}
 .tab.active{background:var(--accent);color:white;}
 .field{margin-bottom:1.2rem;}
 .field label{display:block;font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:.5rem;}
-.field input{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.75rem 1rem;color:var(--text);font-family:'DM Mono',monospace;font-size:.9rem;outline:none;transition:border-color .2s;}
+.field input{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.75rem 1rem;color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:.9rem;outline:none;transition:border-color .2s;}
 .field input:focus{border-color:var(--accent);}
 .field input::placeholder{color:var(--muted);}
 .btn{width:100%;padding:.9rem;border:none;border-radius:10px;font-family:'Syne',sans-serif;font-weight:700;font-size:.95rem;letter-spacing:.05em;cursor:pointer;transition:all .2s;}
@@ -133,7 +133,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .img-preview-wrap .remove-img{position:absolute;top:-5px;right:-5px;width:15px;height:15px;border-radius:50%;background:var(--danger);color:white;border:none;cursor:pointer;font-size:.55rem;display:flex;align-items:center;justify-content:center;}
 .chat-input-wrap{padding:.55rem;border-top:1px solid var(--border);display:flex;gap:.4rem;align-items:center;flex-shrink:0;}
 .chat-input-wrap.drag-over{border-color:var(--accent);background:rgba(108,99,255,.05);}
-.chat-input{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:.5rem .75rem;color:var(--text);font-family:'DM Mono',monospace;font-size:.76rem;outline:none;transition:border-color .2s;}
+.chat-input{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:.5rem .75rem;color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:.76rem;outline:none;transition:border-color .2s;}
 .chat-input:focus{border-color:var(--accent);}
 .img-attach-btn{width:30px;height:30px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:.78rem;}
 .img-attach-btn:hover{border-color:var(--accent);color:var(--accent);}
@@ -200,7 +200,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .focus-overlay video{width:100%;height:100%;object-fit:contain;}
 .focus-header{display:flex;align-items:center;justify-content:space-between;padding:.6rem 1rem;background:rgba(5,5,8,.92);flex-shrink:0;}
 .focus-label{font-family:'Syne',sans-serif;font-size:.85rem;font-weight:700;color:#fff;}
-.focus-close-btn{padding:.35rem .9rem;border-radius:7px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.07);color:#fff;font-family:'DM Mono',monospace;font-size:.72rem;cursor:pointer;transition:all .15s;}
+.focus-close-btn{padding:.35rem .9rem;border-radius:7px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.07);color:#fff;font-family:'Inter',system-ui,sans-serif;font-size:.72rem;cursor:pointer;transition:all .15s;}
 .focus-close-btn:hover{background:rgba(255,71,87,.25);border-color:var(--danger);}
 
 /* ── CONTROLS SIDEBAR (right col) ── */
@@ -216,7 +216,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .volume-bar{height:3px;background:var(--border);border-radius:2px;margin-top:.55rem;overflow:hidden;}
 .volume-fill{height:100%;background:linear-gradient(90deg,var(--accent3),var(--accent));width:0%;transition:width .1s;}
 .media-controls{display:flex;gap:.35rem;margin-top:.5rem;}
-.media-btn{flex:1;height:34px;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);font-size:.68rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:.3rem;transition:all .2s;font-family:'DM Mono',monospace;}
+.media-btn{flex:1;height:34px;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);font-size:.68rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:.3rem;transition:all .2s;font-family:'Inter',system-ui,sans-serif;}
 .media-btn:hover{border-color:var(--accent);color:var(--accent);}
 .media-btn.active{border-color:var(--accent3);color:var(--accent3);background:rgba(67,233,123,.08);}
 .media-btn.screenshare-active{border-color:var(--accent2);color:var(--accent2);background:rgba(255,101,132,.08);}
@@ -241,7 +241,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .host-panel::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--host),transparent);}
 .host-title{font-size:.63rem;letter-spacing:.12em;text-transform:uppercase;color:var(--host);margin-bottom:.7rem;}
 .host-actions{display:flex;flex-direction:column;gap:.3rem;}
-.host-btn{width:100%;padding:.45rem .8rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:'DM Mono',monospace;font-size:.7rem;cursor:pointer;text-align:left;transition:all .2s;display:flex;align-items:center;gap:.4rem;}
+.host-btn{width:100%;padding:.45rem .8rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:.7rem;cursor:pointer;text-align:left;transition:all .2s;display:flex;align-items:center;gap:.4rem;}
 .host-btn:hover{border-color:var(--host);color:var(--host);}
 .host-btn.active-state{border-color:var(--accent3);color:var(--accent3);}
 .host-btn.danger:hover{border-color:var(--danger);color:var(--danger);}
@@ -253,7 +253,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .share-request-banner{display:none;align-items:center;justify-content:space-between;padding:.6rem 1rem;background:rgba(255,101,132,.1);border:1px solid rgba(255,101,132,.3);border-radius:9px;margin-bottom:.65rem;font-size:.75rem;}
 .share-request-banner.visible{display:flex;}
 .share-req-btns{display:flex;gap:.4rem;}
-.share-req-btn{padding:.3rem .75rem;border-radius:6px;border:none;font-family:'DM Mono',monospace;font-size:.7rem;cursor:pointer;}
+.share-req-btn{padding:.3rem .75rem;border-radius:6px;border:none;font-family:'Inter',system-ui,sans-serif;font-size:.7rem;cursor:pointer;}
 .share-req-btn.accept{background:var(--accent3);color:#000;}
 .share-req-btn.deny{background:var(--surface2);color:var(--muted);border:1px solid var(--border);}
 
@@ -278,12 +278,12 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .save-modal h3{font-family:'Syne',sans-serif;font-size:1rem;font-weight:700;margin-bottom:.35rem;}
 .save-modal p{font-size:.72rem;color:var(--muted);margin-bottom:1.2rem;line-height:1.6;}
 .save-modal-btns{display:flex;flex-direction:column;gap:.5rem;}
-.save-opt{width:100%;padding:.7rem 1rem;border-radius:9px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:'DM Mono',monospace;font-size:.76rem;cursor:pointer;text-align:left;display:flex;align-items:center;gap:.65rem;transition:all .2s;}
+.save-opt{width:100%;padding:.7rem 1rem;border-radius:9px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:.76rem;cursor:pointer;text-align:left;display:flex;align-items:center;gap:.65rem;transition:all .2s;}
 .save-opt:hover{border-color:var(--accent);color:var(--accent);}
 .save-opt .opt-icon{font-size:1.1rem;flex-shrink:0;}
 .save-opt .opt-title{font-weight:600;font-size:.78rem;}
 .save-opt .opt-sub{font-size:.65rem;color:var(--muted);margin-top:.1rem;}
-.save-modal-cancel{margin-top:.75rem;width:100%;padding:.5rem;border:none;background:transparent;color:var(--muted);font-family:'DM Mono',monospace;font-size:.72rem;cursor:pointer;}
+.save-modal-cancel{margin-top:.75rem;width:100%;padding:.5rem;border:none;background:transparent;color:var(--muted);font-family:'Inter',system-ui,sans-serif;font-size:.72rem;cursor:pointer;}
 .save-modal-cancel:hover{color:var(--text);}
 
 /* ── Friend status dots ── */
@@ -291,8 +291,8 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .dot-online{background:#43e97b;}
 .dot-inroom{background:#4fc3f7;cursor:pointer;}
 .dot-offline{background:#444;}
-.start-room-btn{padding:.22rem .5rem;border-radius:5px;border:1px solid var(--accent3);background:transparent;color:var(--accent3);font-size:.62rem;cursor:pointer;font-family:'DM Mono',monospace;white-space:nowrap;}
-.dm-btn{padding:.22rem .5rem;border-radius:5px;border:1px solid var(--accent);background:transparent;color:var(--accent);font-size:.62rem;cursor:pointer;font-family:'DM Mono',monospace;white-space:nowrap;}
+.start-room-btn{padding:.28rem .65rem;border-radius:6px;border:1px solid var(--accent3);background:transparent;color:var(--accent3);font-size:.7rem;font-weight:500;cursor:pointer;white-space:nowrap;transition:all .15s;}
+.dm-btn{padding:.28rem .65rem;border-radius:6px;border:1px solid var(--accent);background:transparent;color:var(--accent);font-size:.7rem;font-weight:500;cursor:pointer;white-space:nowrap;transition:all .15s;}
 .friend-bell-btn{width:22px;height:22px;border-radius:5px;border:1px solid var(--border);background:transparent;cursor:pointer;font-size:.72rem;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0;padding:0;opacity:.3;filter:grayscale(1);}
 .friend-bell-btn:hover{opacity:.65;filter:grayscale(.3);}
 .friend-bell-btn.bell-on{border-color:#f5a623;background:rgba(245,166,35,.12);opacity:1;filter:grayscale(0);}
@@ -319,7 +319,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .dm-conv-time{font-size:.6rem;color:var(--muted);}
 .dm-unread-dot{width:18px;height:18px;border-radius:50%;background:var(--accent2);color:#fff;font-size:.6rem;display:flex;align-items:center;justify-content:center;font-weight:700;}
 .dm-chat-header{display:flex;align-items:center;gap:.6rem;padding:.6rem .5rem;border-bottom:1px solid var(--border);margin-bottom:.5rem;}
-.dm-back-btn{border:none;background:transparent;color:var(--accent);font-size:.75rem;cursor:pointer;font-family:'DM Mono',monospace;padding:.2rem .4rem;}
+.dm-back-btn{border:none;background:transparent;color:var(--accent);font-size:.75rem;cursor:pointer;font-family:'Inter',system-ui,sans-serif;padding:.2rem .4rem;}
 .dm-chat-avatar{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;overflow:hidden;flex-shrink:0;}
 .dm-chat-avatar img{width:100%;height:100%;object-fit:cover;}
 .dm-typing{font-size:.65rem;color:var(--muted);font-style:italic;margin-left:auto;}
@@ -335,7 +335,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .dm-input-area{border-top:1px solid var(--border);padding:.5rem 0 0;}
 .dm-input-row{display:flex;gap:.35rem;align-items:center;}
 .dm-attach-btn{width:30px;height:30px;border-radius:7px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;font-size:.85rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
-.dm-input{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.45rem .65rem;color:var(--text);font-family:'DM Mono',monospace;font-size:.75rem;outline:none;}
+.dm-input{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.45rem .65rem;color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:.75rem;outline:none;}
 .dm-input:focus{border-color:var(--accent);}
 .dm-send-btn{width:30px;height:30px;border-radius:7px;border:none;background:var(--accent);color:#fff;cursor:pointer;font-size:.8rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 .dm-attach-preview{background:var(--surface2);border-radius:7px;padding:.4rem .6rem;font-size:.68rem;color:var(--text);display:flex;align-items:center;justify-content:space-between;margin-bottom:.3rem;}
@@ -361,7 +361,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .notif-panel.open{display:flex;}
 .notif-panel-header{display:flex;align-items:center;justify-content:space-between;padding:.75rem 1rem;border-bottom:1px solid var(--border);flex-shrink:0;}
 .notif-panel-title{font-family:'Syne',sans-serif;font-size:.85rem;font-weight:700;}
-.notif-clear-btn{font-size:.65rem;color:var(--muted);border:none;background:transparent;cursor:pointer;font-family:'DM Mono',monospace;}
+.notif-clear-btn{font-size:.65rem;color:var(--muted);border:none;background:transparent;cursor:pointer;font-family:'Inter',system-ui,sans-serif;}
 .notif-clear-btn:hover{color:var(--text);}
 .notif-list{overflow-y:auto;flex:1;}
 .notif-item{display:flex;align-items:flex-start;gap:.65rem;padding:.7rem 1rem;border-bottom:1px solid rgba(30,30,46,.5);cursor:pointer;transition:background .15s;}
@@ -373,7 +373,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .notif-text{font-size:.72rem;line-height:1.4;color:var(--text);}
 .notif-time{font-size:.6rem;color:var(--muted);margin-top:.15rem;}
 .notif-action{display:flex;gap:.35rem;margin-top:.4rem;}
-.notif-action-btn{padding:.2rem .55rem;border-radius:5px;border:1px solid var(--border);background:transparent;font-size:.62rem;cursor:pointer;font-family:'DM Mono',monospace;color:var(--text);}
+.notif-action-btn{padding:.2rem .55rem;border-radius:5px;border:1px solid var(--border);background:transparent;font-size:.62rem;cursor:pointer;font-family:'Inter',system-ui,sans-serif;color:var(--text);}
 .notif-action-btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;}
 .notif-empty{text-align:center;padding:2rem 1rem;color:var(--muted);font-size:.75rem;}
 /* Adjust pages for fixed nav */
@@ -388,7 +388,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .home-avatar{width:36px;height:36px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;overflow:hidden;flex-shrink:0;position:relative;}
 .home-avatar:hover #avatar-hover-overlay{opacity:1!important;background:rgba(0,0,0,.55)!important;}
 .home-avatar img{width:100%;height:100%;object-fit:cover;}
-.home-nav-btn{padding:.35rem .85rem;border-radius:7px;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:'DM Mono',monospace;font-size:.72rem;cursor:pointer;transition:all .2s;}
+.home-nav-btn{padding:.35rem .85rem;border-radius:7px;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:'Inter',system-ui,sans-serif;font-size:.72rem;cursor:pointer;transition:all .2s;}
 .home-nav-btn:hover{border-color:var(--danger);color:var(--danger);}
 /* ══════════════════════════════════════
    DOT-GRID PANEL LAYOUT (Robinhood-style)
@@ -399,7 +399,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
   width:100%;
   flex:1;
   box-sizing:border-box;
-  padding:var(--ggap);
+  padding:0;
   min-height:calc(100vh - 52px);
   background:var(--bg);
   overflow:auto;
@@ -411,7 +411,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
   inset:0;
   background-image:radial-gradient(circle,rgba(108,99,255,.6) 2.5px,transparent 2.5px);
   background-size:calc(var(--gcell) + var(--ggap)) calc(var(--gcell) + var(--ggap));
-  background-position:var(--ggap) var(--ggap);
+  background-position:0 0;
   pointer-events:none;
   opacity:0;
   transition:opacity .25s;
@@ -495,11 +495,11 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .auth-logo{font-family:'Syne',sans-serif;font-size:2.2rem;font-weight:800;background:linear-gradient(135deg,var(--accent),var(--accent2),var(--accent3));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;text-align:center;margin-bottom:.2rem;}
 .auth-sub{text-align:center;font-size:.72rem;color:var(--muted);margin-bottom:1.5rem;}
 .auth-tabs{display:flex;background:var(--surface2);border-radius:10px;padding:3px;gap:3px;margin-bottom:1.3rem;}
-.auth-tab{flex:1;padding:.5rem;border:none;background:transparent;color:var(--muted);font-family:'DM Mono',monospace;font-size:.75rem;border-radius:8px;cursor:pointer;transition:all .2s;}
+.auth-tab{flex:1;padding:.5rem;border:none;background:transparent;color:var(--muted);font-family:'Inter',system-ui,sans-serif;font-size:.75rem;border-radius:8px;cursor:pointer;transition:all .2s;}
 .auth-tab.active{background:var(--accent);color:#fff;}
 .auth-field{margin-bottom:.9rem;}
 .auth-field label{display:block;font-size:.65rem;color:var(--muted);margin-bottom:.3rem;text-transform:uppercase;letter-spacing:.05em;}
-.auth-field input{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.55rem .75rem;color:var(--text);font-family:'DM Mono',monospace;font-size:.78rem;outline:none;transition:border-color .2s;box-sizing:border-box;}
+.auth-field input{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.55rem .75rem;color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:.78rem;outline:none;transition:border-color .2s;box-sizing:border-box;}
 .auth-field input:focus{border-color:var(--accent);}
 .auth-avatar-wrap{display:flex;align-items:center;gap:.75rem;margin-bottom:.9rem;}
 .auth-avatar-preview{width:56px;height:56px;border-radius:50%;background:var(--surface2);border:2px solid var(--border);overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.4rem;cursor:pointer;}
@@ -520,32 +520,33 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .friends-title{font-family:'Syne',sans-serif;font-size:.9rem;font-weight:700;}
 .friends-close{background:none;border:none;color:var(--muted);font-size:1.1rem;cursor:pointer;}
 .friends-tabs{display:flex;border-bottom:1px solid var(--border);}
-.friends-tab{flex:1;padding:.6rem;border:none;background:transparent;color:var(--muted);font-family:'DM Mono',monospace;font-size:.68rem;cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;}
+.friends-tab{flex:1;padding:.6rem;border:none;background:transparent;color:var(--muted);font-family:'Inter',system-ui,sans-serif;font-size:.68rem;cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;}
 .friends-tab.active{color:var(--accent);border-bottom-color:var(--accent);}
 .friends-body{flex:1;overflow-y:auto;padding:.75rem;}
 .friend-search{display:flex;gap:.4rem;margin-bottom:.75rem;}
-.friend-search input{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:.45rem .65rem;color:var(--text);font-family:'DM Mono',monospace;font-size:.72rem;outline:none;}
+.friend-search input{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:.45rem .65rem;color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:.72rem;outline:none;}
 .friend-search input:focus{border-color:var(--accent);}
 .friend-search button{padding:.45rem .7rem;border:none;border-radius:7px;background:var(--accent);color:#fff;font-size:.75rem;cursor:pointer;}
-.friend-item{display:flex;align-items:center;gap:.6rem;padding:.5rem .4rem;border-radius:8px;transition:background .15s;}
+.friend-item{display:flex;align-items:center;gap:.7rem;padding:.55rem .5rem;border-radius:10px;transition:background .15s;}
 .friend-item:hover{background:var(--surface2);}
-.friend-avatar{width:36px;height:36px;border-radius:50%;overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.85rem;font-weight:700;}
+.friend-avatar{width:38px;height:38px;border-radius:50%;overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.85rem;font-weight:600;position:relative;}
 .friend-avatar img{width:100%;height:100%;object-fit:cover;}
 .friend-info{flex:1;min-width:0;}
-.friend-name{font-size:.78rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.friend-status{font-size:.63rem;color:var(--muted);}
+.friend-name{font-size:.82rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.01em;}
+.friend-status{font-size:.68rem;color:var(--muted);margin-top:.05rem;}
 .friend-status.online{color:var(--accent3);}
-.friend-actions{display:flex;gap:.3rem;flex-shrink:0;}
-.friend-btn{padding:.25rem .5rem;border-radius:5px;border:1px solid var(--border);background:transparent;color:var(--text);font-size:.65rem;cursor:pointer;font-family:'DM Mono',monospace;white-space:nowrap;}
-.friend-btn:hover{border-color:var(--accent);color:var(--accent);}
-.friend-btn.danger:hover{border-color:var(--danger);color:var(--danger);}
+.friend-actions{display:flex;gap:.35rem;flex-shrink:0;align-items:center;}
+.friend-btn{padding:.3rem .65rem;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:.72rem;font-weight:500;cursor:pointer;white-space:nowrap;transition:all .15s;}
+.friend-btn:hover{border-color:var(--accent);color:var(--accent);background:rgba(108,99,255,.06);}
+.friend-btn.danger{color:var(--muted);}
+.friend-btn.danger:hover{border-color:var(--danger);color:var(--danger);background:rgba(255,71,87,.06);}
 .friend-btn.accept{border-color:var(--accent3);color:var(--accent3);}
-.friend-btn.accept:hover{background:var(--accent3);color:#000;}
+.friend-btn.accept:hover{background:var(--accent3);color:#000;border-color:var(--accent3);}
 .friends-empty{text-align:center;color:var(--muted);font-size:.72rem;padding:2rem 1rem;line-height:1.8;}
 .friend-badge{background:var(--danger);color:#fff;border-radius:50%;width:16px;height:16px;font-size:.6rem;display:inline-flex;align-items:center;justify-content:center;margin-left:.3rem;vertical-align:middle;}
 
 /* ── Profile button in header ── */
-.profile-btn{display:flex;align-items:center;gap:.4rem;padding:.35rem .65rem;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-family:'DM Mono',monospace;font-size:.72rem;cursor:pointer;transition:all .2s;}
+.profile-btn{display:flex;align-items:center;gap:.4rem;padding:.35rem .65rem;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:.72rem;cursor:pointer;transition:all .2s;}
 .profile-btn:hover{border-color:var(--accent);}
 .profile-avatar-sm{width:22px;height:22px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:700;flex-shrink:0;}
 .profile-avatar-sm img{width:100%;height:100%;object-fit:cover;}
@@ -555,7 +556,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .invite-popup h4{font-family:'Syne',sans-serif;font-size:.85rem;font-weight:700;margin-bottom:.25rem;}
 .invite-popup p{font-size:.72rem;color:var(--muted);margin-bottom:.75rem;}
 .invite-popup-btns{display:flex;gap:.5rem;}
-.invite-popup-btn{flex:1;padding:.4rem;border-radius:7px;border:none;font-family:'DM Mono',monospace;font-size:.72rem;cursor:pointer;}
+.invite-popup-btn{flex:1;padding:.4rem;border-radius:7px;border:none;font-family:'Inter',system-ui,sans-serif;font-size:.72rem;cursor:pointer;}
 .invite-popup-btn.join{background:var(--accent);color:#fff;}
 .invite-popup-btn.dismiss{background:var(--surface2);color:var(--muted);}
 
@@ -578,7 +579,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     <!-- Avatar / username -->
     <div class="home-user-info" style="cursor:pointer;" onclick="document.getElementById('avatar-upload-input-nav')?.click()" title="Change photo">
       <div class="home-avatar" id="gnav-avatar">👤</div>
-      <span id="gnav-username" style="font-size:.78rem;color:var(--text);font-family:'DM Mono',monospace;"></span>
+      <span id="gnav-username" style="font-size:.78rem;color:var(--text);font-family:'Inter',system-ui,sans-serif;"></span>
     </div>
     <input type="file" id="avatar-upload-input-nav" accept="image/*" class="hidden" onchange="handleAvatarUpdate(this)"/>
     <!-- Install -->
@@ -742,7 +743,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
         <div class="home-card-sub">Start a new voice room and invite friends</div>
         <div class="field" style="margin:.75rem 0 .5rem;text-align:left;">
           <label style="font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:.3rem;">Room Name</label>
-          <input id="room-name-in" type="text" placeholder="My awesome room" maxlength="32" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.5rem .75rem;color:var(--text);font-family:'DM Mono',monospace;font-size:.78rem;outline:none;box-sizing:border-box;"/>
+          <input id="room-name-in" type="text" placeholder="My awesome room" maxlength="32" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.5rem .75rem;color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:.78rem;outline:none;box-sizing:border-box;"/>
         </div>
         <button class="btn btn-primary" id="create-btn" onclick="createRoom()" style="width:100%;">🎙️ Create &amp; Host Room</button>
         <div style="display:flex;align-items:center;gap:.75rem;margin-top:.6rem;flex-wrap:wrap;">
@@ -750,7 +751,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
             <input type="checkbox" id="room-public" style="accent-color:var(--accent);cursor:pointer;"/>
             🔍 Public room
           </label>
-          <input id="room-tags" placeholder="#tags #space-separated" style="flex:1;min-width:120px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:.35rem .6rem;color:var(--text);font-family:'DM Mono',monospace;font-size:.68rem;outline:none;"/>
+          <input id="room-tags" placeholder="#tags #space-separated" style="flex:1;min-width:120px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:.35rem .6rem;color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:.68rem;outline:none;"/>
         </div>
       </div>
       <div class="home-card" style="margin-top:.75rem;">
@@ -759,7 +760,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
         <div class="home-card-sub">Enter a room code to join a session</div>
         <div class="field" style="margin:.75rem 0 .5rem;text-align:left;">
           <label style="font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:.3rem;">Room Code</label>
-          <input id="join-code" type="text" placeholder="Paste room code" maxlength="12" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.5rem .75rem;color:var(--text);font-family:'DM Mono',monospace;font-size:.78rem;outline:none;box-sizing:border-box;text-transform:uppercase;" onkeydown="if(event.key==='Enter')joinRoom()"/>
+          <input id="join-code" type="text" placeholder="Paste room code" maxlength="12" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.5rem .75rem;color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:.78rem;outline:none;box-sizing:border-box;text-transform:uppercase;" onkeydown="if(event.key==='Enter')joinRoom()"/>
         </div>
         <button class="btn btn-primary" id="join-btn" onclick="joinRoom()" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);">🔊 Join Room</button>
       </div>
@@ -843,7 +844,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
       <div class="home-section-title">
         <span class="drag-handle" title="Drag to reorder">⠿</span>
         🏘️ Communities
-        <button onclick="showCreateCommunity()" style="margin-left:auto;padding:.2rem .55rem;border-radius:6px;border:1px solid var(--accent);background:transparent;color:var(--accent);font-size:.65rem;cursor:pointer;font-family:'DM Mono',monospace;">+ New</button>
+        <button onclick="showCreateCommunity()" style="margin-left:auto;padding:.2rem .55rem;border-radius:6px;border:1px solid var(--accent);background:transparent;color:var(--accent);font-size:.65rem;cursor:pointer;font-family:'Inter',system-ui,sans-serif;">+ New</button>
       </div>
       <div class="panel-inner">
       <!-- Search communities -->
@@ -959,7 +960,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
             <span id="cam-count" style="font-size:.63rem;color:var(--accent);">0 cameras</span>
             <!-- Dropdown to pick which cameras to show — visible whenever 2+ cams -->
             <div id="cam-selector-wrap" style="display:none;position:relative;">
-              <button id="cam-dropdown-btn" onclick="event.stopPropagation();toggleCamDropdown()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'DM Mono',monospace;font-size:.63rem;border-radius:5px;padding:.18rem .5rem;cursor:pointer;display:flex;align-items:center;gap:.3rem;">
+              <button id="cam-dropdown-btn" onclick="event.stopPropagation();toggleCamDropdown()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:.63rem;border-radius:5px;padding:.18rem .5rem;cursor:pointer;display:flex;align-items:center;gap:.3rem;">
                 <span id="cam-dropdown-label">All</span> ▾
               </button>
               <div id="cam-dropdown-menu" style="display:none;position:absolute;right:0;top:110%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:.4rem;z-index:50;min-width:140px;box-shadow:0 8px 24px rgba(0,0,0,.4);" onclick="event.stopPropagation()">
@@ -1073,15 +1074,15 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     <h3>🏘️ Create Community</h3><button class="modal-close-x" onclick="closeCreateCommunity()" title="Close">✕</button>
     <div class="auth-field">
       <label>Community Name</label>
-      <input id="cc-name" type="text" placeholder="My Awesome Community" maxlength="64" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.55rem .75rem;color:var(--text);font-family:'DM Mono',monospace;font-size:.78rem;outline:none;box-sizing:border-box;"/>
+      <input id="cc-name" type="text" placeholder="My Awesome Community" maxlength="64" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.55rem .75rem;color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:.78rem;outline:none;box-sizing:border-box;"/>
     </div>
     <div class="auth-field" style="margin-top:.65rem;">
       <label>Description</label>
-      <textarea id="cc-desc" placeholder="What is this community about?" maxlength="500" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.55rem .75rem;color:var(--text);font-family:'DM Mono',monospace;font-size:.75rem;outline:none;resize:vertical;min-height:70px;box-sizing:border-box;"></textarea>
+      <textarea id="cc-desc" placeholder="What is this community about?" maxlength="500" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.55rem .75rem;color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:.75rem;outline:none;resize:vertical;min-height:70px;box-sizing:border-box;"></textarea>
     </div>
     <div class="auth-field" style="margin-top:.65rem;">
       <label>Tags (up to 10, space-separated)</label>
-      <input id="cc-tags" type="text" placeholder="#gaming #music #tech" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.55rem .75rem;color:var(--text);font-family:'DM Mono',monospace;font-size:.78rem;outline:none;box-sizing:border-box;"/>
+      <input id="cc-tags" type="text" placeholder="#gaming #music #tech" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.55rem .75rem;color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:.78rem;outline:none;box-sizing:border-box;"/>
     </div>
     <label style="display:flex;align-items:center;gap:.5rem;font-size:.72rem;color:var(--muted);cursor:pointer;margin-top:.65rem;user-select:none;">
       <input type="checkbox" id="cc-public" checked style="accent-color:var(--accent);cursor:pointer;"/>
@@ -1099,7 +1100,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 <div id="community-view" class="hidden" style="position:fixed;inset:0;background:var(--bg);z-index:300;display:flex;flex-direction:column;">
   <div class="home-nav" style="flex-shrink:0;">
     <div style="display:flex;align-items:center;gap:.75rem;">
-      <button onclick="closeCommunityView()" style="border:none;background:transparent;color:var(--accent);font-size:.8rem;cursor:pointer;font-family:'DM Mono',monospace;">← Back</button>
+      <button onclick="closeCommunityView()" style="border:none;background:transparent;color:var(--accent);font-size:.8rem;cursor:pointer;font-family:'Inter',system-ui,sans-serif;">← Back</button>
       <div class="community-view-avatar" id="cv-avatar" style="width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;overflow:hidden;flex-shrink:0;"></div>
       <span id="cv-name" style="font-family:'Syne',sans-serif;font-weight:700;font-size:1rem;"></span>
     </div>
@@ -1133,8 +1134,8 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
         <!-- Room channel buttons (shown only for room type) -->
         <div id="cv-room-btns" class="hidden" style="display:flex;gap:.5rem;margin-left:auto;align-items:center;flex-wrap:wrap;">
           <div id="cv-room-status" style="display:flex;align-items:center;gap:.4rem;font-size:.68rem;color:var(--muted);"></div>
-          <button id="cv-create-room-btn" onclick="handleRoomChannelBtn()" style="padding:.35rem .75rem;border-radius:7px;border:none;background:var(--accent);color:#fff;font-size:.72rem;cursor:pointer;font-family:'DM Mono',monospace;font-weight:600;">🎙️ Create Room</button>
-          <button id="cv-join-room-btn" onclick="joinActiveCommunityRoom()" class="hidden" style="padding:.35rem .75rem;border-radius:7px;border:1px solid var(--accent3);background:transparent;color:var(--accent3);font-size:.72rem;cursor:pointer;font-family:'DM Mono',monospace;font-weight:600;">🔊 Join Room</button>
+          <button id="cv-create-room-btn" onclick="handleRoomChannelBtn()" style="padding:.35rem .75rem;border-radius:7px;border:none;background:var(--accent);color:#fff;font-size:.72rem;cursor:pointer;font-family:'Inter',system-ui,sans-serif;font-weight:600;">🎙️ Create Room</button>
+          <button id="cv-join-room-btn" onclick="joinActiveCommunityRoom()" class="hidden" style="padding:.35rem .75rem;border-radius:7px;border:1px solid var(--accent3);background:transparent;color:var(--accent3);font-size:.72rem;cursor:pointer;font-family:'Inter',system-ui,sans-serif;font-weight:600;">🔊 Join Room</button>
         </div>
         <button id="cv-delete-channel-btn" class="hidden" onclick="deleteChannel()" style="margin-left:auto;border:none;background:transparent;color:var(--danger);cursor:pointer;font-size:.75rem;">🗑</button>
       </div>
@@ -1158,7 +1159,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
       <div id="cv-input-area" style="padding:.6rem 1rem;border-top:1px solid var(--border);display:flex;gap:.5rem;">
         <button onclick="document.getElementById('cv-file-input').click()" style="width:30px;height:30px;border-radius:7px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;font-size:.85rem;flex-shrink:0;">📎</button>
         <input type="file" id="cv-file-input" class="hidden" accept="image/*,video/*,.pdf,.doc,.docx,.txt,.zip" onchange="handleCVFile(this)"/>
-        <input id="cv-msg-input" placeholder="Message #general…" style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.5rem .75rem;color:var(--text);font-family:'DM Mono',monospace;font-size:.78rem;outline:none;" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendCommunityMessage();}" oninput="cvTyping()"/>
+        <input id="cv-msg-input" placeholder="Message #general…" style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.5rem .75rem;color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:.78rem;outline:none;" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendCommunityMessage();}" oninput="cvTyping()"/>
         <button onclick="sendCommunityMessage()" style="width:30px;height:30px;border-radius:7px;border:none;background:var(--accent);color:#fff;cursor:pointer;font-size:.8rem;flex-shrink:0;">➤</button>
       </div>
     </div>
@@ -1169,9 +1170,9 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 <div id="community-settings-overlay" class="save-modal-overlay hidden">
   <div class="save-modal" style="max-width:520px;max-height:80vh;overflow-y:auto;">
     <h3>⚙️ Community Settings</h3><button class="modal-close-x" onclick="closeCommunitySettings()" title="Close">✕</button>
-    <div class="auth-field"><label>Name</label><input id="cs-name" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.5rem .75rem;color:var(--text);font-family:'DM Mono',monospace;font-size:.78rem;outline:none;box-sizing:border-box;"/></div>
-    <div class="auth-field" style="margin-top:.5rem;"><label>Description</label><textarea id="cs-desc" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.5rem .75rem;color:var(--text);font-family:'DM Mono',monospace;font-size:.75rem;outline:none;resize:vertical;min-height:60px;box-sizing:border-box;"></textarea></div>
-    <div class="auth-field" style="margin-top:.5rem;"><label>Tags</label><input id="cs-tags" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.5rem .75rem;color:var(--text);font-family:'DM Mono',monospace;font-size:.78rem;outline:none;box-sizing:border-box;"/></div>
+    <div class="auth-field"><label>Name</label><input id="cs-name" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.5rem .75rem;color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:.78rem;outline:none;box-sizing:border-box;"/></div>
+    <div class="auth-field" style="margin-top:.5rem;"><label>Description</label><textarea id="cs-desc" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.5rem .75rem;color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:.75rem;outline:none;resize:vertical;min-height:60px;box-sizing:border-box;"></textarea></div>
+    <div class="auth-field" style="margin-top:.5rem;"><label>Tags</label><input id="cs-tags" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.5rem .75rem;color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:.78rem;outline:none;box-sizing:border-box;"/></div>
     <label style="display:flex;align-items:center;gap:.5rem;font-size:.72rem;color:var(--muted);cursor:pointer;margin:.65rem 0;user-select:none;">
       <input type="checkbox" id="cs-public" style="accent-color:var(--accent);"/>
       Public community
@@ -1179,19 +1180,19 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     <!-- Channels management -->
     <div style="font-size:.72rem;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.08em;margin:.75rem 0 .4rem;">Channels</div>
     <div id="cs-channels-list" style="border:1px solid var(--border);border-radius:8px;padding:.4rem;margin-bottom:.5rem;"></div>
-    <button onclick="addChannelFromSettings()" style="font-size:.68rem;padding:.35rem .75rem;border-radius:6px;border:1px solid var(--accent);background:transparent;color:var(--accent);cursor:pointer;font-family:'DM Mono',monospace;">+ Add Channel</button>
+    <button onclick="addChannelFromSettings()" style="font-size:.68rem;padding:.35rem .75rem;border-radius:6px;border:1px solid var(--accent);background:transparent;color:var(--accent);cursor:pointer;font-family:'Inter',system-ui,sans-serif;">+ Add Channel</button>
     <!-- Members management -->
     <div style="font-size:.72rem;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.08em;margin:.75rem 0 .4rem;">Members</div>
     <div id="cs-members-list" style="max-height:180px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:.4rem;"></div>
     <!-- Roles -->
     <div style="font-size:.72rem;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.08em;margin:.75rem 0 .4rem;">Roles</div>
     <div id="cs-roles-list" style="margin-bottom:.5rem;"></div>
-    <button onclick="addRole()" style="font-size:.68rem;padding:.35rem .75rem;border-radius:6px;border:1px solid var(--accent);background:transparent;color:var(--accent);cursor:pointer;font-family:'DM Mono',monospace;">+ Add Role</button>
+    <button onclick="addRole()" style="font-size:.68rem;padding:.35rem .75rem;border-radius:6px;border:1px solid var(--accent);background:transparent;color:var(--accent);cursor:pointer;font-family:'Inter',system-ui,sans-serif;">+ Add Role</button>
     <div style="display:flex;gap:.5rem;margin-top:1rem;">
       <button class="save-modal-cancel" style="flex:1;margin-top:0;padding:.6rem;" onclick="closeCommunitySettings()">Close</button>
       <button class="auth-btn" style="flex:1;margin-top:0;" onclick="saveCommunitySettings()">Save Changes</button>
     </div>
-    <button onclick="deleteCommunity()" style="width:100%;margin-top:.5rem;padding:.5rem;border:1px solid var(--danger);background:transparent;color:var(--danger);border-radius:8px;cursor:pointer;font-family:'DM Mono',monospace;font-size:.72rem;">🗑 Delete Community</button>
+    <button onclick="deleteCommunity()" style="width:100%;margin-top:.5rem;padding:.5rem;border:1px solid var(--danger);background:transparent;color:var(--danger);border-radius:8px;cursor:pointer;font-family:'Inter',system-ui,sans-serif;font-size:.72rem;">🗑 Delete Community</button>
   </div>
 </div>
 
@@ -1212,7 +1213,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     <p id="report-modal-target" style="color:var(--muted);font-size:.72rem;margin-bottom:1rem;"></p>
     <div class="auth-field">
       <label>Reason</label>
-      <select id="report-reason" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.55rem .75rem;color:var(--text);font-family:'DM Mono',monospace;font-size:.75rem;outline:none;">
+      <select id="report-reason" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.55rem .75rem;color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:.75rem;outline:none;">
         <option value="">Select a reason…</option>
         <option value="harassment">Harassment or bullying</option>
         <option value="hate_speech">Hate speech or discrimination</option>
@@ -1225,7 +1226,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     </div>
     <div class="auth-field" style="margin-top:.75rem;">
       <label>Description <span style="color:var(--muted);font-weight:400;">(min 10 chars)</span></label>
-      <textarea id="report-description" placeholder="Please describe what happened in detail…" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.55rem .75rem;color:var(--text);font-family:'DM Mono',monospace;font-size:.75rem;outline:none;resize:vertical;min-height:90px;box-sizing:border-box;"></textarea>
+      <textarea id="report-description" placeholder="Please describe what happened in detail…" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.55rem .75rem;color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:.75rem;outline:none;resize:vertical;min-height:90px;box-sizing:border-box;"></textarea>
     </div>
     <div id="report-error" style="color:var(--danger);font-size:.7rem;margin-bottom:.5rem;min-height:1rem;"></div>
     <div style="display:flex;gap:.5rem;">
@@ -1283,7 +1284,7 @@ let dragSrcPanel = null;
 //  DOT-GRID PANEL SYSTEM  v2
 // ══════════════════════════════════════════════════════
 
-const PANEL_LAYOUT_KEY = 'wave-grid-layout-v2';
+const PANEL_LAYOUT_KEY = 'wave-grid-layout-v3';
 const PANEL_IDS = ['panel-rooms','panel-friends','panel-messages','panel-communities','panel-public-rooms'];
 const CELL = 68, GAP = 8;
 
@@ -1466,24 +1467,22 @@ function attachGridInteraction(){
     }
 
     if(type==='resize'){
+      const STEP = CELL + GAP;
       const dx = cx - interaction.startX;
       const dy = cy - interaction.startY;
       const dir = interaction.dir;
-      // Use floor so we only shrink/grow by whole cells, and only after moving >half a cell
-      const dC = dx >= 0 ? Math.floor(dx/(CELL+GAP)) : Math.ceil(dx/(CELL+GAP));
-      const dR = dy >= 0 ? Math.floor(dy/(CELL+GAP)) : Math.ceil(dy/(CELL+GAP));
+      // Snap to nearest dot: round to closest STEP
+      const dC = Math.round(dx / STEP);
+      const dR = Math.round(dy / STEP);
       let c=interaction.startC, r=interaction.startR, w=interaction.startW, h=interaction.startH;
-      if(dir.includes('r')){ w = Math.max(2, interaction.startW + dC); }
-      if(dir.includes('l')){ const dc2=Math.max(-(interaction.startW-2), Math.min(dC, 0)); w=interaction.startW-dc2; c=interaction.startC+dc2; }
-      if(dir.includes('b')){ h = Math.max(2, interaction.startH + dR); }
-      if(dir.includes('t')){ const dr2=Math.max(-(interaction.startH-2), Math.min(dR, 0)); h=interaction.startH-dr2; r=interaction.startR+dr2; }
-      // Clamp within grid bounds
+      if(dir.includes('r')){ w = Math.max(1, interaction.startW + dC); }
+      if(dir.includes('l')){ const dc2=Math.min(dC, interaction.startW-1); w=Math.max(1,interaction.startW-dc2); c=Math.max(0,interaction.startC+dc2); }
+      if(dir.includes('b')){ h = Math.max(1, interaction.startH + dR); }
+      if(dir.includes('t')){ const dr2=Math.min(dR, interaction.startH-1); h=Math.max(1,interaction.startH-dr2); r=Math.max(0,interaction.startR+dr2); }
       c = Math.max(0, c);
       r = Math.max(0, r);
-      w = Math.max(2, Math.min(w, cols - c));
-      h = Math.max(2, h);
-      if(c + w > cols) w = cols - c;
-      // Only apply if no collision
+      w = Math.max(1, Math.min(w, cols - c));
+      h = Math.max(1, h);
       if(!hasCollision(panel.id, c, r, w, h)){
         interaction.liveC=c; interaction.liveR=r; interaction.liveW=w; interaction.liveH=h;
       }
@@ -2668,18 +2667,18 @@ function renderHomeFriends(){
     div.innerHTML=`
       <div style="position:relative;flex-shrink:0;">
         <div class="friend-avatar" style="background:${colorFor(fid)};color:#fff;">${f.avatar?`<img src="${f.avatar}">`:(f.username||'?').slice(0,2).toUpperCase()}</div>
-        <div class="friend-status-dot ${dotClass}" data-peer-dot="${fid}" title="${status.online?(status.roomId?'🔵 In a room':'🟢 Online'):'⚫ Offline'}"></div>
+        <div class="friend-status-dot ${dotClass}" data-peer-dot="${fid}" title="${status.online?(status.roomId?'In a room':'Online'):'Offline'}"></div>
       </div>
       <div class="friend-info">
         <div class="friend-name">${esc(f.username)}</div>
-        <div class="friend-status ${status.online?'online':''}" data-peer-status="${fid}" style="font-size:.62rem;">${status.online?(status.roomId?'🔵 In a room':'🟢 Online'):'⚫ Offline'}</div>
+        <div class="friend-status ${status.online?'online':''}" data-peer-status="${fid}">${status.online?(status.roomId?'In a room':'Online'):(f.lastSeen?lastSeenText(f.lastSeen):'Offline')}</div>
       </div>
-      <div class="friend-actions" style="gap:.3rem;">
-        ${joinBtnHtml}
-        <button class="dm-btn" onclick="openDMChat('${fid}','${esc(f.username)}','${f.avatar||''}')">💬</button>
-        <button class="friend-bell-btn${isBellOn(fid)?' bell-on':''}" id="bell-${fid}" onclick="toggleFriendBell('${fid}','${esc(f.username)}')" title="${isBellOn(fid)?'Mute online notifications':'Notify when online'}">🔔</button>
-        <button class="start-room-btn ${isSelected?'selected':''}" id="srb-${fid}" onclick="toggleStartRoom('${fid}','${esc(f.username)}',this)">${isSelected?'✓ Added':'+ Start Room'}</button>
-        <button class="friend-btn danger" onclick="removeFriend('${fid}','${esc(f.username)}')">Remove</button>
+      <div class="friend-actions">
+        ${status.roomId ? `<button class="friend-btn" style="border-color:#4fc3f7;color:#4fc3f7;" onclick="toggleJoinRequest('${fid}','${esc(f.username)}','${status.roomId}',this)" id="jrb-${fid}">${isPendingJoin?'Cancel':'Join'}</button>` : ''}
+        <button class="friend-btn" onclick="openDMChat('${fid}','${esc(f.username)}','${f.avatar||''}')" title="Message">💬</button>
+        <button class="friend-bell-btn${isBellOn(fid)?' bell-on':''}" id="bell-${fid}" onclick="toggleFriendBell('${fid}','${esc(f.username)}')" title="${isBellOn(fid)?'Mute':'Notify when online'}">🔔</button>
+        <button class="friend-btn" id="srb-${fid}" onclick="toggleStartRoom('${fid}','${esc(f.username)}',this)" style="${isSelected?'border-color:var(--accent3);color:var(--accent3);background:rgba(67,233,123,.08);':''}" title="${isSelected?'Remove from room':'Add to room'}">🎙️</button>
+        <button class="friend-btn danger" onclick="removeFriend('${fid}','${esc(f.username)}')" title="Remove friend">✕</button>
       </div>`;
     el.appendChild(div);
   });
@@ -3203,7 +3202,7 @@ function renderCVChannels(channels){
     wrapper.style.cssText='position:relative;';
 
     const btn=document.createElement('button');
-    btn.style.cssText=`width:100%;text-align:left;padding:.4rem .6rem;border:none;background:transparent;color:${isLocked?'var(--muted)':'var(--muted)'};font-family:"DM Mono",monospace;font-size:.75rem;cursor:pointer;border-radius:6px;display:flex;align-items:center;gap:.4rem;opacity:${isLocked&&!isOwnerOrAdmin?'0.5':'1'};${hasActiveRoom?'color:var(--accent3);font-weight:600;':''};`;
+    btn.style.cssText=`width:100%;text-align:left;padding:.4rem .6rem;border:none;background:transparent;color:${isLocked?'var(--muted)':'var(--muted)'};font-family:"Inter",system-ui,sans-serif;font-size:.75rem;cursor:pointer;border-radius:6px;display:flex;align-items:center;gap:.4rem;opacity:${isLocked&&!isOwnerOrAdmin?'0.5':'1'};${hasActiveRoom?'color:var(--accent3);font-weight:600;':''};`;
     if(hasActiveRoom){
       btn.style.outline='1.5px solid var(--accent3)';
       btn.style.outlineOffset='-1px';
@@ -3728,7 +3727,7 @@ function renderCSMembers(){
     div.innerHTML=`
       <div style="width:24px;height:24px;border-radius:50%;background:${colorFor(userId||'x')};color:#fff;display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:700;flex-shrink:0;">${user.avatar?`<img src="${user.avatar}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`:username.slice(0,2).toUpperCase()}</div>
       <span style="flex:1;">${esc(username)} ${isOwner?'👑':''}</span>
-      ${!isOwner?`<button onclick="kickMember('${userId}','${esc(username)}')" style="border:1px solid var(--danger);background:transparent;color:var(--danger);border-radius:4px;padding:.15rem .4rem;font-size:.6rem;cursor:pointer;font-family:'DM Mono',monospace;">Kick</button>`:''}`;
+      ${!isOwner?`<button onclick="kickMember('${userId}','${esc(username)}')" style="border:1px solid var(--danger);background:transparent;color:var(--danger);border-radius:4px;padding:.15rem .4rem;font-size:.6rem;cursor:pointer;font-family:'Inter',system-ui,sans-serif;">Kick</button>`:''}`;
     el.appendChild(div);
   });
 }
