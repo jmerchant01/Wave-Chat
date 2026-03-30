@@ -67,6 +67,15 @@ function emailTemplate(title, body, sub, url, btnText) {
 const rooms = new Map();
 const onlineUsers = new Map(); // userId -> { socketId, username, avatar, roomId }
 
+
+function broadcastCommunityRoomUpdate(io, room, roomId, ended=false){
+  if(!room.communityId) return;
+  const members = [...room.participants.values()].map(p=>p.name);
+  io.to(`community:${room.communityId}`).emit('community_room_update',{
+    communityId: room.communityId, channelId: room.channelId,
+    roomId, members, ended
+  });
+}
 function getRoomPublicState(room) {
   const participants = [];
   room.participants.forEach((p, id) => participants.push({ id, name: p.name, muted: p.muted, isHost: p.isHost, userId: p.userId||null }));
@@ -177,6 +186,10 @@ io.on('connection', (socket) => {
   socket.on('community_typing', ({ communityId, channelId, username }) => {
     socket.to(`community:${communityId}`).emit('community_typing', { channelId, username });
   });
+  socket.on('community_room_update', ({ communityId, channelId, roomId, members, ended }) => {
+    // Broadcast to all community members including sender
+    io.to(`community:${communityId}`).emit('community_room_update', { communityId, channelId, roomId, members, ended });
+  });
   socket.on('dm_send', ({ toUserId, messageId }) => {
     const target = onlineUsers.get(toUserId);
     if(target) io.to(target.socketId).emit('dm_received', { fromUserId: socket.data.userId, messageId });
@@ -231,7 +244,7 @@ io.on('connection', (socket) => {
     if(!target) socket.emit('friend_invite_offline', { toUserId });
   });
 
-  socket.on('create_room', async ({ name, roomName, userId, inviteFriendIds, isPublic, tags }) => {
+  socket.on('create_room', async ({ name, roomName, userId, inviteFriendIds, isPublic, tags, communityId, channelId }) => {
     const roomId = Math.random().toString(36).substr(2, 8).toUpperCase();
     const displayName = name || 'Host';
     const rName = roomName || 'Voice Room';
@@ -247,6 +260,8 @@ io.on('connection', (socket) => {
     const roomTags = (tags||[]).map(t=>t.toLowerCase().replace('#','')).filter(Boolean).slice(0,5);
     rooms.get(roomId).tags = roomTags;
     rooms.get(roomId).isPublic = !!isPublic;
+    rooms.get(roomId).communityId = communityId||null;
+    rooms.get(roomId).channelId = channelId||null;
     socket.emit('room_joined', { roomId, isHost: true, joinMuted: false, state: getRoomPublicState(rooms.get(roomId)) });
     if(isPublic){ publicRooms.set(roomId, { name: rName, tags: roomTags, hostName: displayName, participants: 1, createdAt: Date.now() }); }
 
@@ -322,6 +337,7 @@ io.on('connection', (socket) => {
     if(room.pendingInvites && room.pendingInvites.has(userId)){ room.pendingInvites.delete(userId); io.to(room.hostId).emit('invite_joined', { userId, name: displayName }); }
     // Update public room participant count
     if(room.isPublic && publicRooms.has(roomId)){ publicRooms.get(roomId).participants = room.participants.size; }
+    broadcastCommunityRoomUpdate(io, room, roomId);
   });
 
   socket.on('webrtc_offer',  ({target,sdp})       => io.to(target).emit('webrtc_offer',  {from:socket.id,sdp}));
@@ -432,6 +448,7 @@ io.on('connection', (socket) => {
     io.to(r).emit('room_state_update',getRoomPublicState(room));
     // Update public room participant count
     if(room.isPublic){ if(room.participants.size===0) publicRooms.delete(r); else if(publicRooms.has(r)) publicRooms.get(r).participants=room.participants.size; }
+    if(room.communityId){ if(room.participants.size===0){ broadcastCommunityRoomUpdate(io,room,r,true); } else { broadcastCommunityRoomUpdate(io,room,r,false); } }
   });
 });
 

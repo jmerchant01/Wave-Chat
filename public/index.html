@@ -350,8 +350,8 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .home-avatar img{width:100%;height:100%;object-fit:cover;}
 .home-nav-btn{padding:.35rem .85rem;border-radius:7px;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:'DM Mono',monospace;font-size:.72rem;cursor:pointer;transition:all .2s;}
 .home-nav-btn:hover{border-color:var(--danger);color:var(--danger);}
-.home-body{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1.5rem;padding:2rem;flex:1;max-width:1600px;margin:0 auto;width:100%;box-sizing:border-box;align-items:start;}
-.home-section{display:flex;flex-direction:column;}
+.home-body{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:.75rem;padding:1rem;flex:1;width:100%;box-sizing:border-box;align-items:start;}
+.home-section{display:flex;flex-direction:column;min-width:0;}
 .home-section-title{font-family:'Syne',sans-serif;font-size:1rem;font-weight:700;margin-bottom:.85rem;display:flex;align-items:center;}
 .home-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.25rem;position:relative;overflow:hidden;}
 .home-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent),var(--accent2));}
@@ -1107,15 +1107,17 @@ function initDraggablePanels(){
   body.querySelectorAll('.draggable-panel').forEach(panel=>{
     const handle = panel.querySelector('.drag-handle');
 
-    // Only enable dragging when mousedown is on the handle
+    // Enable dragging only when handle is pressed
     if(handle){
-      handle.addEventListener('mousedown', ()=>{ panel.draggable = true; });
-      handle.addEventListener('mouseleave', ()=>{ if(!dragSrcPanel) panel.draggable = false; });
+      handle.addEventListener('mousedown', ()=>{
+        panel.draggable = true;
+      });
     }
+    // Always disable draggable on mouseup globally so text selection works elsewhere
+    document.addEventListener('mouseup', ()=>{ panel.draggable = false; }, { capture: true });
 
     panel.addEventListener('dragstart', e=>{
-      // Only allow drag if started from handle
-      if(!panel.draggable) { e.preventDefault(); return; }
+      if(!panel.draggable){ e.preventDefault(); return; }
       dragSrcPanel = panel;
       panel.classList.add('dragging');
       e.dataTransfer.effectAllowed = 'move';
@@ -1951,10 +1953,27 @@ function initHomeSocket(){
     const bar=document.getElementById('cv-typing-bar');
     if(bar){ bar.textContent=`${username} is typing…`; clearTimeout(cvTypingTimer); cvTypingTimer=setTimeout(()=>bar.textContent='',2000); }
   });
+  initCommunityRoomListeners(homeSocket);
   initDMSocketListeners(homeSocket);
 }
 
-// ── Invite Friends Modal ──
+// ── Community room member tracking ──
+const communityRoomMembers = {}; // roomId -> [username, ...]
+
+// Called from homeSocket listeners
+function initCommunityRoomListeners(sock){
+  sock.on('community_room_update', ({ channelId, roomId, members, ended })=>{
+    if(ended){
+      delete communityRoomMembers[roomId];
+    } else {
+      communityRoomMembers[roomId] = members||[];
+    }
+    // Re-render channels if community is open
+    if(currentCommunity){
+      renderCVChannels(currentCommunity.channels||[]);
+    }
+  });
+}
 let inviteMode = null; // 'room' or 'community'
 
 function openFriendInvitePanel(){
@@ -2613,12 +2632,27 @@ function renderCVChannels(channels){
 
     wrapper.appendChild(btn);
 
-    // Show active room link below room channels
+    // Show active room link + members below room channels
     if(ch.type==='room' && ch.activeRoomId){
       const link=document.createElement('div');
-      link.style.cssText='padding:.2rem .6rem .4rem 1.8rem;font-size:.65rem;';
-      link.innerHTML=`<span style="color:var(--accent3);cursor:pointer;" onclick="joinCommunityRoom('${ch.activeRoomId}')">🟢 Room active — click to join</span>`;
+      link.id=`room-active-${ch._id}`;
+      link.style.cssText='padding:.1rem .6rem .5rem 1.6rem;';
+      const members = communityRoomMembers[ch.activeRoomId] || [];
+      const memberNames = members.length ? members.slice(0,4).join(', ')+(members.length>4?` +${members.length-4} more`:'') : '';
+      link.innerHTML=`
+        <div style="display:flex;align-items:center;gap:.4rem;cursor:pointer;" onclick="joinCommunityRoom('${ch.activeRoomId}')">
+          <span style="width:7px;height:7px;border-radius:50%;background:var(--accent3);flex-shrink:0;"></span>
+          <span style="color:var(--accent3);font-size:.68rem;font-weight:600;">Room active</span>
+          ${members.length?`<span style="font-size:.6rem;color:var(--muted);">(${members.length})</span>`:''}
+        </div>
+        ${memberNames?`<div style="font-size:.62rem;color:var(--muted);padding-left:1rem;margin-top:.1rem;">${esc(memberNames)}</div>`:''}
+        <div style="font-size:.6rem;color:var(--accent);padding-left:1rem;margin-top:.1rem;cursor:pointer;" onclick="joinCommunityRoom('${ch.activeRoomId}')">Click to join →</div>`;
       wrapper.appendChild(link);
+    } else if(ch.type==='room'){
+      const noRoom=document.createElement('div');
+      noRoom.style.cssText='padding:.1rem .6rem .4rem 1.6rem;font-size:.63rem;color:var(--muted);';
+      noRoom.textContent='No active room — click to create one';
+      wrapper.appendChild(noRoom);
     }
 
     el.appendChild(wrapper);
@@ -2720,37 +2754,40 @@ async function handleRoomChannel(ch){
 }
 
 async function createCommunityRoom(ch){
-  // Create room via socket then post link to channel
   const roomName = `${currentCommunity.name} — ${ch.name}`;
-  // We need to create a room first, get its ID, then post in channel
   await initMic();
   connectSocket();
+  const communityId = currentCommunity._id;
+  const channelId = ch._id;
   socket.once('connect', ()=>{
-    socket.emit('create_room',{name:currentUser.username, roomName, userId:currentUser?.id||null, isPublic:false, tags:[]});
+    socket.emit('create_room',{name:currentUser.username, roomName, userId:currentUser?.id||null, isPublic:false, tags:[], communityId, channelId});
   });
   socket.once('room_joined', async ({roomId:rid})=>{
-    // Post room link in the community channel
     const joinUrl = `${location.origin}${location.pathname}?room=${rid}`;
-    const text = `🎙️ Voice room created! Join here: ${joinUrl}`;
+    const text = `🎙️ Room created! Join: ${joinUrl}`;
     try{
-      const res=await fetch(`/api/communities/${currentCommunity._id}/channels/${ch._id}/messages`,{
+      const res=await fetch(`/api/communities/${communityId}/channels/${channelId}/messages`,{
         method:'POST', headers:{'Content-Type':'application/json',Authorization:`Bearer ${authToken}`},
         body:JSON.stringify({text})
       });
       if(res.ok){
         const {message}=await res.json();
         const sock=homeSocket||socket;
-        if(sock) sock.emit('community_message',{communityId:currentCommunity._id,channelId:ch._id,message});
+        if(sock) sock.emit('community_message',{communityId,channelId,message});
       }
     }catch(e){}
-    // Update channel activeRoomId on server
-    fetch(`/api/communities/${currentCommunity._id}/channels/${ch._id}/active-room`,{
+    // Set activeRoomId on the channel
+    await fetch(`/api/communities/${communityId}/channels/${channelId}/active-room`,{
       method:'PATCH', headers:{'Content-Type':'application/json',Authorization:`Bearer ${authToken}`},
       body:JSON.stringify({roomId:rid})
     }).catch(()=>{});
-    // Open the room
+    // Broadcast room created to community members
+    const sock=homeSocket||socket;
+    if(sock){
+      sock.emit('community_room_update',{communityId, channelId, roomId:rid, members:[currentUser.username]});
+    }
     closeCommunityView();
-    toast(`🎙️ Room created! Link posted in #${ch.name}`);
+    toast(`🎙️ Room created! Joining now…`);
   });
 }
 
@@ -2973,7 +3010,7 @@ function renderCSChannels(){
   const el=document.getElementById('cs-channels-list');
   if(!el||!currentCommunity) return;
   el.innerHTML='';
-  const typeIcon={text:'#',announcement:'📢',room:'🎙️',voice:'🔊'};
+  const typeIcon={text:'#',announcement:'📢',room:'🎙️',voice:'🎙️'};
   (currentCommunity.channels||[]).forEach(ch=>{
     const div=document.createElement('div');
     div.style.cssText='display:flex;align-items:center;gap:.5rem;padding:.4rem .5rem;border-bottom:1px solid var(--border);font-size:.72rem;';
