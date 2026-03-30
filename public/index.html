@@ -430,6 +430,13 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
   z-index:1;
   min-width:0;
 }
+/* Panel inner content scrolls when panel is small */
+.home-section>.panel-inner{
+  flex:1;
+  overflow-y:auto;
+  overflow-x:hidden;
+  min-height:0;
+}
 .home-section.panel-selected{
   border-color:var(--accent);
   box-shadow:0 0 0 2px rgba(108,99,255,.25),0 4px 20px rgba(0,0,0,.18);
@@ -454,23 +461,15 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
   border-radius:3px;
 }
 .panel-selected .resize-handle{opacity:1;}
-.rh-r{right:-4px;top:25%;height:50%;width:8px;cursor:ew-resize;border-radius:4px;}
-.rh-b{bottom:-4px;left:25%;width:50%;height:8px;cursor:ns-resize;border-radius:4px;}
-.rh-l{left:-4px;top:25%;height:50%;width:8px;cursor:ew-resize;border-radius:4px;}
-.rh-t{top:-4px;left:25%;width:50%;height:8px;cursor:ns-resize;border-radius:4px;}
-.rh-br{right:-5px;bottom:-5px;width:12px;height:12px;cursor:nwse-resize;border-radius:50%;}
-.rh-bl{left:-5px;bottom:-5px;width:12px;height:12px;cursor:nesw-resize;border-radius:50%;}
-.rh-tr{right:-5px;top:-5px;width:12px;height:12px;cursor:nesw-resize;border-radius:50%;}
-.rh-tl{left:-5px;top:-5px;width:12px;height:12px;cursor:nwse-resize;border-radius:50%;}
-/* Drop preview */
-.drop-preview{
-  position:absolute;
-  border:2px solid var(--accent);
-  border-radius:12px;
-  background:rgba(108,99,255,.07);
-  pointer-events:none;
-  z-index:5;
-}
+.rh-r{right:-6px;top:15%;height:70%;width:12px;cursor:ew-resize;border-radius:4px;}
+.rh-b{bottom:-6px;left:15%;width:70%;height:12px;cursor:ns-resize;border-radius:4px;}
+.rh-l{left:-6px;top:15%;height:70%;width:12px;cursor:ew-resize;border-radius:4px;}
+.rh-t{top:-6px;left:15%;width:70%;height:12px;cursor:ns-resize;border-radius:4px;}
+.rh-br{right:-7px;bottom:-7px;width:16px;height:16px;cursor:nwse-resize;border-radius:50%;}
+.rh-bl{left:-7px;bottom:-7px;width:16px;height:16px;cursor:nesw-resize;border-radius:50%;}
+.rh-tr{right:-7px;top:-7px;width:16px;height:16px;cursor:nesw-resize;border-radius:50%;}
+.rh-tl{left:-7px;top:-7px;width:16px;height:16px;cursor:nwse-resize;border-radius:50%;}
+
 /* Mobile */
 @media(max-width:700px){
   .home-body{min-height:auto;overflow:visible;}
@@ -480,11 +479,11 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 }
 
 .home-section-title{font-family:'Syne',sans-serif;font-size:.95rem;font-weight:700;margin-bottom:.75rem;display:flex;align-items:center;}
-.home-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.25rem;position:relative;overflow:hidden;}
+.home-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:.85rem;position:relative;overflow:hidden;}
 .home-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent),var(--accent2));}
-.home-card-icon{font-size:1.8rem;margin-bottom:.4rem;}
-.home-card-label{font-family:'Syne',sans-serif;font-size:.9rem;font-weight:700;margin-bottom:.2rem;}
-.home-card-sub{font-size:.7rem;color:var(--muted);margin-bottom:.5rem;}
+.home-card-icon{font-size:1.5rem;margin-bottom:.3rem;}
+.home-card-label{font-family:'Syne',sans-serif;font-size:.82rem;font-weight:700;margin-bottom:.15rem;}
+.home-card-sub{font-size:.65rem;color:var(--muted);margin-bottom:.4rem;}
 
 .auth-screen{position:fixed;inset:0;background:var(--bg);z-index:500;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:1rem;}
 .auth-card{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:2rem;width:100%;max-width:380px;position:relative;overflow:hidden;}
@@ -732,6 +731,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
         <span class="drag-handle" title="Drag to reorder">⠿</span>
         🎙️ Voice Rooms
       </div>
+      <div class="panel-inner">
       <div class="home-card">
         <div class="home-card-icon">🎙️</div>
         <div class="home-card-label">Create a Room</div>
@@ -762,6 +762,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
       <!-- hidden inputs kept for compat -->
       <input id="create-name" type="hidden"/>
       <input id="join-name" type="hidden"/>
+      </div><!-- /panel-inner -->
     </div>
 
     <!-- Right: Friends -->
@@ -771,7 +772,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
         👥 Friends
         <span id="home-req-badge" class="friend-badge hidden" style="margin-left:.4rem;">0</span>
       </div>
-
+      <div class="panel-inner">
       <!-- Add friend search -->
       <div class="home-card" style="margin-bottom:.75rem;">
         <div class="home-card-label" style="margin-bottom:.5rem;">Find a Friend</div>
@@ -791,6 +792,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
       <!-- Friends list -->
       <div style="font-size:.72rem;color:var(--muted);margin-bottom:.4rem;font-weight:600;">YOUR FRIENDS</div>
       <div id="home-friends-list"></div>
+      </div><!-- /panel-inner -->
     </div>
 
     <!-- Messages section -->
@@ -800,7 +802,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
         💬 Messages
         <span id="msg-unread-badge" class="friend-badge hidden" style="margin-left:.4rem;background:var(--accent2);">0</span>
       </div>
-
+      <div class="panel-inner">
       <!-- Conversation list / chat view -->
       <div id="dm-inbox-view">
         <div id="dm-conversations-list">
@@ -829,6 +831,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
           </div>
         </div>
       </div>
+      </div><!-- /panel-inner -->
     </div>
 
     <!-- Communities section -->
@@ -838,6 +841,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
         🏘️ Communities
         <button onclick="showCreateCommunity()" style="margin-left:auto;padding:.2rem .55rem;border-radius:6px;border:1px solid var(--accent);background:transparent;color:var(--accent);font-size:.65rem;cursor:pointer;font-family:'DM Mono',monospace;">+ New</button>
       </div>
+      <div class="panel-inner">
       <!-- Search communities -->
       <div class="friend-search" style="margin-bottom:.75rem;">
         <input id="community-search-input" placeholder="Search by name or #tag…" onkeydown="if(event.key==='Enter')searchCommunities()" oninput="if(!this.value.trim()){const r=document.getElementById('community-search-results');r.innerHTML='';r.classList.add('hidden')}"/>
@@ -846,6 +850,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
       <div id="community-search-results" class="hidden" style="margin-bottom:.75rem;"></div>
       <div style="font-size:.72rem;color:var(--muted);margin-bottom:.4rem;font-weight:600;">YOUR COMMUNITIES</div>
       <div id="my-communities-list"></div>
+      </div><!-- /panel-inner communities -->
     </div>
 
     <!-- Public Rooms section -->
@@ -854,6 +859,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
         <span class="drag-handle" title="Drag to reorder">⠿</span>
         🔍 Discover Rooms
       </div>
+      <div class="panel-inner">
       <div class="friend-search" style="margin-bottom:.75rem;">
         <input id="public-room-search" placeholder="Search rooms or #tags…" onkeydown="if(event.key==='Enter')searchPublicRooms()" oninput="if(!this.value.trim())loadPublicRooms()"/>
         <button onclick="searchPublicRooms()">Search</button>
@@ -861,6 +867,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
       <div id="public-rooms-list">
         <div class="friends-empty" style="padding:.5rem 0;">No public rooms right now.<br>Create one to appear here!</div>
       </div>
+      </div><!-- /panel-inner -->
     </div>
 
   </div>
@@ -1269,14 +1276,13 @@ const PANEL_ORDER_KEY = 'wave-panel-order';
 let dragSrcPanel = null;
 
 // ══════════════════════════════════════════════════════
-//  DOT-GRID PANEL SYSTEM  (Robinhood-style)
+//  DOT-GRID PANEL SYSTEM  v2
 // ══════════════════════════════════════════════════════
 
 const PANEL_LAYOUT_KEY = 'wave-grid-layout-v1';
 const PANEL_IDS = ['panel-rooms','panel-friends','panel-messages','panel-communities','panel-public-rooms'];
-const CELL = 68, GAP = 8; // must match CSS vars
+const CELL = 68, GAP = 8;
 
-// Default layout: col, row, w (cols), h (rows) — 12-col grid
 const DEFAULT_LAYOUT = {
   'panel-rooms':        {c:0, r:0, w:4, h:8},
   'panel-friends':      {c:4, r:0, w:4, h:6},
@@ -1287,16 +1293,19 @@ const DEFAULT_LAYOUT = {
 
 let gridLayout = {};
 let selectedPanel = null;
-let interaction = null; // {type:'drag'|'resize', panel, ...}
-let dropPreviewEl = null;
+let interaction = null;
 
+// Grid math
 function gx(col){ return GAP + col*(CELL+GAP); }
 function gy(row){ return GAP + row*(CELL+GAP); }
 function snapCol(px){ return Math.max(0, Math.round((px - GAP) / (CELL+GAP))); }
 function snapRow(py){ return Math.max(0, Math.round((py - GAP) / (CELL+GAP))); }
 function gridW(cols){ return cols*(CELL+GAP) - GAP; }
 function gridH(rows){ return rows*(CELL+GAP) - GAP; }
-function totalCols(){ return Math.floor((document.getElementById('home-body')?.offsetWidth - GAP) / (CELL+GAP)) || 12; }
+function totalCols(){
+  const body = document.getElementById('home-body');
+  return body ? Math.floor((body.offsetWidth - GAP) / (CELL+GAP)) : 12;
+}
 
 function loadLayout(){
   try{ const s=localStorage.getItem(PANEL_LAYOUT_KEY); if(s) return JSON.parse(s); }catch(e){}
@@ -1304,6 +1313,17 @@ function loadLayout(){
 }
 function saveLayout(){
   try{ localStorage.setItem(PANEL_LAYOUT_KEY, JSON.stringify(gridLayout)); }catch(e){}
+}
+
+// Check if placing panel `id` at (c,r,w,h) overlaps any other panel
+function hasCollision(id, c, r, w, h){
+  for(const oid of PANEL_IDS){
+    if(oid === id) continue;
+    const o = gridLayout[oid]; if(!o) continue;
+    // AABB overlap check
+    if(c < o.c+o.w && c+w > o.c && r < o.r+o.h && r+h > o.r) return true;
+  }
+  return false;
 }
 
 function initDraggablePanels(){
@@ -1314,23 +1334,22 @@ function initDraggablePanels(){
   applyLayout();
   addResizeHandles();
   attachGridInteraction();
-  // Click outside to deselect
   document.addEventListener('mousedown', e=>{
-    if(!e.target.closest('.home-section') && !e.target.closest('.drop-preview')) deselectPanel();
+    if(!e.target.closest('.home-section')) deselectPanel();
   });
   window.addEventListener('resize', ()=>applyLayout());
 }
 
 function applyLayout(){
+  if(window.innerWidth <= 700) return;
   const body = document.getElementById('home-body');
-  if(!body || window.innerWidth <= 700) return;
-  // Set body height to fit all panels
+  if(!body) return;
   let maxBottom = 0;
   PANEL_IDS.forEach(id=>{
     const p = gridLayout[id]; if(!p) return;
     maxBottom = Math.max(maxBottom, p.r + p.h);
   });
-  body.style.height = (gy(maxBottom) + GAP) + 'px';
+  body.style.height = (gy(maxBottom) + GAP*4) + 'px';
   PANEL_IDS.forEach(id=>{
     const el = document.getElementById(id);
     const p = gridLayout[id];
@@ -1357,165 +1376,133 @@ function addResizeHandles(){
 
 function attachGridInteraction(){
   const body = document.getElementById('home-body');
+  const down = (target, cx, cy, prevent)=>{
+    if(window.innerWidth <= 700) return;
+    const panel = target.closest?.('.draggable-panel');
+    if(!panel) return;
+    const resizeH = target.closest?.('.resize-handle');
+    const dragH   = target.closest?.('.drag-handle');
+    if(!resizeH && !dragH){ selectPanel(panel); return; }
+    if(prevent) prevent();
+    selectPanel(panel);
+    const bodyRect = body.getBoundingClientRect();
+    const p = gridLayout[panel.id];
+    if(resizeH){
+      interaction = {
+        type:'resize', panel,
+        dir: resizeH.dataset.dir,
+        startX:cx, startY:cy,
+        startC:p.c, startR:p.r, startW:p.w, startH:p.h,
+        bx:bodyRect.left, by:bodyRect.top,
+        liveC:p.c, liveR:p.r, liveW:p.w, liveH:p.h
+      };
+    } else {
+      const panelRect = panel.getBoundingClientRect();
+      panel.classList.add('panel-dragging');
+      body.classList.add('grid-active');
+      interaction = {
+        type:'drag', panel,
+        ox: cx - panelRect.left,
+        oy: cy - panelRect.top,
+        bx: bodyRect.left, by: bodyRect.top,
+        liveC:p.c, liveR:p.r
+      };
+    }
+  };
 
-  body.addEventListener('mousedown', onGridMouseDown);
+  body.addEventListener('mousedown', e=> down(e.target,e.clientX,e.clientY,()=>e.preventDefault()));
   body.addEventListener('touchstart', e=>{
     const t=e.touches[0];
-    onGridMouseDown({target:e.target, clientX:t.clientX, clientY:t.clientY, preventDefault:()=>e.preventDefault()});
+    down(e.target, t.clientX, t.clientY, ()=>e.preventDefault());
   },{passive:false});
 
-  document.addEventListener('mousemove', onGridMouseMove);
-  document.addEventListener('mouseup',   onGridMouseUp);
-  document.addEventListener('touchmove', e=>{
-    if(interaction){ const t=e.touches[0]; onGridMouseMove({clientX:t.clientX,clientY:t.clientY}); e.preventDefault(); }
-  },{passive:false});
-  document.addEventListener('touchend', onGridMouseUp);
-}
+  const move = (cx,cy)=>{
+    if(!interaction) return;
+    const {type,panel,bx,by} = interaction;
+    const p = gridLayout[panel.id];
+    const cols = totalCols();
 
-function onGridMouseDown(e){
-  if(window.innerWidth <= 700) return;
-  const panel = e.target.closest('.draggable-panel');
-  if(!panel) return;
-
-  const resizeHandle = e.target.closest('.resize-handle');
-  const dragHandle   = e.target.closest('.drag-handle');
-
-  if(!resizeHandle && !dragHandle) {
-    // Just select the panel
-    selectPanel(panel);
-    return;
-  }
-  e.preventDefault();
-  selectPanel(panel);
-
-  const body = document.getElementById('home-body');
-  const bodyRect = body.getBoundingClientRect();
-  const p = gridLayout[panel.id];
-
-  if(resizeHandle){
-    const dir = resizeHandle.dataset.dir;
-    interaction = {
-      type:'resize', panel, dir,
-      startX: e.clientX, startY: e.clientY,
-      startC: p.c, startR: p.r, startW: p.w, startH: p.h,
-      bodyLeft: bodyRect.left, bodyTop: bodyRect.top
-    };
-  } else if(dragHandle){
-    const panelRect = panel.getBoundingClientRect();
-    showDropPreview(panel);
-    panel.classList.add('panel-dragging');
-    body.classList.add('grid-active');
-    interaction = {
-      type:'drag', panel,
-      offsetX: e.clientX - panelRect.left,
-      offsetY: e.clientY - panelRect.top,
-      bodyLeft: bodyRect.left, bodyTop: bodyRect.top,
-      startC: p.c, startR: p.r
-    };
-  }
-}
-
-function onGridMouseMove(e){
-  if(!interaction) return;
-  const {type, panel, bodyLeft, bodyTop} = interaction;
-  const p = gridLayout[panel.id];
-  const cols = totalCols();
-
-  if(type === 'drag'){
-    const relX = e.clientX - bodyLeft - interaction.offsetX;
-    const relY = e.clientY - bodyTop  - interaction.offsetY;
-    const newC = Math.max(0, Math.min(snapCol(relX + CELL*p.w/2), cols - p.w));
-    const newR = Math.max(0, snapRow(relY + CELL*p.h/2));
-    // Move panel freely (pixel)
-    panel.style.left = (e.clientX - bodyLeft - interaction.offsetX) + 'px';
-    panel.style.top  = (e.clientY - bodyTop  - interaction.offsetY) + 'px';
-    // Update drop preview to snapped position
-    if(dropPreviewEl){
-      dropPreviewEl.style.left   = gx(newC) + 'px';
-      dropPreviewEl.style.top    = gy(newR) + 'px';
-      dropPreviewEl.style.width  = gridW(p.w) + 'px';
-      dropPreviewEl.style.height = gridH(p.h) + 'px';
+    if(type==='drag'){
+      // Move panel pixel-exact while dragging
+      const relX = cx - bx - interaction.ox;
+      const relY = cy - by - interaction.oy;
+      panel.style.left = Math.max(0, relX) + 'px';
+      panel.style.top  = Math.max(0, relY) + 'px';
+      // Compute snapped position
+      const sc = Math.max(0, Math.min(snapCol(relX), cols - p.w));
+      const sr = Math.max(0, snapRow(relY));
+      // Only update if no collision
+      if(!hasCollision(panel.id, sc, sr, p.w, p.h)){
+        interaction.liveC = sc;
+        interaction.liveR = sr;
+      }
     }
-    interaction.snapC = newC;
-    interaction.snapR = newR;
-  }
 
-  if(type === 'resize'){
-    const dx = e.clientX - interaction.startX;
-    const dy = e.clientY - interaction.startY;
-    const dir = interaction.dir;
-    let {startC:c, startR:r, startW:w, startH:h} = interaction;
-    const dCols = Math.round(dx/(CELL+GAP));
-    const dRows = Math.round(dy/(CELL+GAP));
-    if(dir.includes('r')){ w = Math.max(2, startW + dCols); }
-    if(dir.includes('l')){ w = Math.max(2, startW - dCols); c = Math.max(0, startC + dCols); }
-    if(dir.includes('b')){ h = Math.max(2, startH + dRows); }
-    if(dir.includes('t')){ h = Math.max(2, startH - dRows); r = Math.max(0, startR + dRows); }
-    // Clamp
-    w = Math.min(w, cols - c);
-    panel.style.left   = gx(c) + 'px';
-    panel.style.top    = gy(r) + 'px';
-    panel.style.width  = gridW(w) + 'px';
-    panel.style.height = gridH(h) + 'px';
-    interaction.liveC=c; interaction.liveR=r; interaction.liveW=w; interaction.liveH=h;
-  }
-}
+    if(type==='resize'){
+      const dx = cx - interaction.startX;
+      const dy = cy - interaction.startY;
+      const dir = interaction.dir;
+      let c=interaction.startC, r=interaction.startR, w=interaction.startW, h=interaction.startH;
+      const dC = Math.round(dx/(CELL+GAP));
+      const dR = Math.round(dy/(CELL+GAP));
+      if(dir.includes('r')){ w = Math.max(2, interaction.startW + dC); }
+      if(dir.includes('l')){ const dc2=Math.min(dC, interaction.startW-2); w=interaction.startW-dc2; c=interaction.startC+dc2; }
+      if(dir.includes('b')){ h = Math.max(2, interaction.startH + dR); }
+      if(dir.includes('t')){ const dr2=Math.min(dR, interaction.startH-2); h=interaction.startH-dr2; r=interaction.startR+dr2; }
+      w = Math.min(w, cols-c);
+      // Only apply if no collision
+      if(!hasCollision(panel.id, c, r, w, h)){
+        interaction.liveC=c; interaction.liveR=r; interaction.liveW=w; interaction.liveH=h;
+      }
+      // Apply live visual
+      const lc=interaction.liveC, lr=interaction.liveR, lw=interaction.liveW, lh=interaction.liveH;
+      panel.style.left   = gx(lc) + 'px';
+      panel.style.top    = gy(lr) + 'px';
+      panel.style.width  = gridW(lw) + 'px';
+      panel.style.height = gridH(lh) + 'px';
+    }
+  };
 
-function onGridMouseUp(){
-  if(!interaction) return;
-  const {type, panel} = interaction;
-  const p = gridLayout[panel.id];
+  const up = ()=>{
+    if(!interaction) return;
+    const {type, panel} = interaction;
+    const p = gridLayout[panel.id];
+    if(type==='drag'){
+      p.c = interaction.liveC;
+      p.r = interaction.liveR;
+      panel.classList.remove('panel-dragging');
+    }
+    if(type==='resize'){
+      p.c=interaction.liveC; p.r=interaction.liveR;
+      p.w=interaction.liveW; p.h=interaction.liveH;
+    }
+    interaction = null;
+    saveLayout();
+    applyLayout();
+  };
 
-  if(type === 'drag'){
-    p.c = interaction.snapC ?? p.c;
-    p.r = interaction.snapR ?? p.r;
-    panel.classList.remove('panel-dragging');
-    hideDropPreview();
-  }
-  if(type === 'resize'){
-    if(interaction.liveC !== undefined){ p.c=interaction.liveC; p.r=interaction.liveR; p.w=interaction.liveW; p.h=interaction.liveH; }
-  }
-  interaction = null;
-  saveLayout();
-  applyLayout();
-  // keep grid dots visible while panel selected
+  document.addEventListener('mousemove', e=>move(e.clientX,e.clientY));
+  document.addEventListener('mouseup', up);
+  document.addEventListener('touchmove', e=>{
+    if(interaction){ const t=e.touches[0]; move(t.clientX,t.clientY); e.preventDefault(); }
+  },{passive:false});
+  document.addEventListener('touchend', up);
 }
 
 function selectPanel(panel){
-  if(selectedPanel === panel) return;
+  if(selectedPanel===panel) return;
   deselectPanel();
-  selectedPanel = panel;
+  selectedPanel=panel;
   panel.classList.add('panel-selected');
   document.getElementById('home-body').classList.add('grid-active');
 }
 
 function deselectPanel(){
-  if(selectedPanel){
-    selectedPanel.classList.remove('panel-selected','panel-dragging');
-    selectedPanel = null;
-  }
+  if(selectedPanel){ selectedPanel.classList.remove('panel-selected','panel-dragging'); selectedPanel=null; }
   document.getElementById('home-body')?.classList.remove('grid-active');
-  hideDropPreview();
 }
 
-function showDropPreview(panel){
-  hideDropPreview();
-  const p = gridLayout[panel.id]; if(!p) return;
-  const body = document.getElementById('home-body');
-  dropPreviewEl = document.createElement('div');
-  dropPreviewEl.className = 'drop-preview';
-  dropPreviewEl.style.left   = gx(p.c) + 'px';
-  dropPreviewEl.style.top    = gy(p.r) + 'px';
-  dropPreviewEl.style.width  = gridW(p.w) + 'px';
-  dropPreviewEl.style.height = gridH(p.h) + 'px';
-  body.appendChild(dropPreviewEl);
-}
-
-function hideDropPreview(){
-  if(dropPreviewEl){ dropPreviewEl.remove(); dropPreviewEl=null; }
-}
-
-// Stubs for compatibility
+// Stubs
 function savePanelOrder(){}
 function savePanelOrder2(){}
 function restorePanelOrder(){}
@@ -1523,7 +1510,7 @@ function clearDropIndicator(){}
 function savePositions(){}
 function loadPositions(){ return null; }
 function applyGridLayout(){ applyLayout(); }
-function initTouchDrag(){ /* handled inside attachGridInteraction */ }
+function initTouchDrag(){ /* inside attachGridInteraction */ }
 
 // ── PWA Install Prompt ──
 let deferredInstallPrompt = null;
@@ -2220,8 +2207,8 @@ function initHomeSocket(){
   });
   // Friend statuses response
   homeSocket.on('friend_statuses', (statuses)=>{
+    checkFriendOnlineBells(statuses);
     friendStatuses = { ...friendStatuses, ...statuses };
-    // Update status dots in-place — don't re-render whole list (would reset button state)
     updateFriendStatusDots();
   });
   homeSocket.on('friends_status_refresh', ()=>{ fetchFriendStatuses(); });
@@ -2651,6 +2638,7 @@ function renderHomeFriends(){
       <div class="friend-actions" style="gap:.3rem;">
         ${joinBtnHtml}
         <button class="dm-btn" onclick="openDMChat('${fid}','${esc(f.username)}','${f.avatar||''}')">💬</button>
+        <button class="friend-bell-btn${isBellOn(fid)?' bell-on':''}" id="bell-${fid}" onclick="toggleFriendBell('${fid}','${esc(f.username)}')" title="${isBellOn(fid)?'Mute online notifications':'Notify when online'}">🔔</button>
         <button class="start-room-btn ${isSelected?'selected':''}" id="srb-${fid}" onclick="toggleStartRoom('${fid}','${esc(f.username)}',this)">${isSelected?'✓ Added':'+ Start Room'}</button>
         <button class="friend-btn danger" onclick="removeFriend('${fid}','${esc(f.username)}')">Remove</button>
       </div>`;
@@ -2916,6 +2904,34 @@ function updateGlobalNav(){
   if(un) un.textContent=currentUser.username||'';
 }
 // ═══════════════════════════════════════════════════
+// ── Friend Online Bell ──
+const FRIEND_BELLS_KEY = 'wave-friend-bells';
+function getFriendBells(){ try{ return JSON.parse(localStorage.getItem(FRIEND_BELLS_KEY)||'{}'); }catch(e){ return {}; } }
+function isBellOn(fid){ return !!getFriendBells()[fid]; }
+function toggleFriendBell(friendId, username){
+  const bells=getFriendBells();
+  const wasOn=!!bells[friendId];
+  if(wasOn) delete bells[friendId]; else bells[friendId]=true;
+  localStorage.setItem(FRIEND_BELLS_KEY, JSON.stringify(bells));
+  const btn=document.getElementById(`bell-${friendId}`);
+  if(btn){ btn.classList.toggle('bell-on',!wasOn); btn.title=wasOn?'Notify when online':'Mute online notifications'; }
+  toast(wasOn?`🔕 Muted notifications for ${username}`:`🔔 You'll be notified when ${username} comes online`);
+}
+function checkFriendOnlineBells(newStatuses){
+  const bells=getFriendBells();
+  (currentUser?.friends||[]).forEach(f=>{
+    const fid=f.id||f._id;
+    if(!bells[fid]) return;
+    const prev=friendStatuses[fid];
+    const next=newStatuses[fid];
+    if(!prev?.online && next?.online){
+      toast(`🟢 ${f.username} is now online!`);
+      showBrowserNotification('🟢 Friend Online',`${f.username} just came online`,null);
+      addNotification({icon:'🟢',text:`${f.username} is now online`,type:'friend_online'});
+    }
+  });
+}
+
 function lastSeenText(lastSeen){
   if(!lastSeen) return '';
   const d = new Date(lastSeen);
