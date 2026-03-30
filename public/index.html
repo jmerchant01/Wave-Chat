@@ -1394,7 +1394,10 @@ function attachGridInteraction(){
     if(!resizeH && !dragH){ selectPanel(panel); return; }
     if(prevent) prevent();
     selectPanel(panel);
+    // Use scroll-aware body origin so snap aligns with CSS background dots
     const bodyRect = body.getBoundingClientRect();
+    const bx = bodyRect.left;
+    const by = bodyRect.top;
     const p = gridLayout[panel.id];
     if(resizeH){
       interaction = {
@@ -1402,18 +1405,22 @@ function attachGridInteraction(){
         dir: resizeH.dataset.dir,
         startX:cx, startY:cy,
         startC:p.c, startR:p.r, startW:p.w, startH:p.h,
-        bx:bodyRect.left, by:bodyRect.top,
+        bx, by,
         liveC:p.c, liveR:p.r, liveW:p.w, liveH:p.h
       };
     } else {
+      // ox/oy = offset of mouse from panel's snapped grid position (not raw rect)
+      // This ensures when we release, the panel snaps to the dot the cursor is near
       const panelRect = panel.getBoundingClientRect();
+      const snapOffX = panelRect.left - bx - gx(p.c); // should be ~0 if already aligned
+      const snapOffY = panelRect.top  - by - gy(p.r);
       panel.classList.add('panel-dragging');
       body.classList.add('grid-active');
       interaction = {
         type:'drag', panel,
-        ox: cx - panelRect.left,
-        oy: cy - panelRect.top,
-        bx: bodyRect.left, by: bodyRect.top,
+        ox: cx - panelRect.left + snapOffX,
+        oy: cy - panelRect.top  + snapOffY,
+        bx, by,
         liveC:p.c, liveR:p.r
       };
     }
@@ -1442,14 +1449,19 @@ function attachGridInteraction(){
       const panelH = gridH(p.h);
       const clampedX = Math.max(GAP, Math.min(relX, bodyW - panelW - GAP));
       const clampedY = Math.max(GAP, Math.min(relY, bodyH - panelH - GAP));
-      panel.style.left = clampedX + 'px';
-      panel.style.top  = clampedY + 'px';
-      // Compute snapped col/row
+      // Snap the VISUAL position to grid dots while dragging
       const sc = Math.max(0, Math.min(snapCol(clampedX), cols - p.w));
       const sr = Math.max(0, snapRow(clampedY));
+      // Move panel to snapped position immediately (no floating offset)
+      panel.style.left = gx(sc) + 'px';
+      panel.style.top  = gy(sr) + 'px';
       if(!hasCollision(panel.id, sc, sr, p.w, p.h)){
         interaction.liveC = sc;
         interaction.liveR = sr;
+      } else {
+        // Snap back to last valid
+        panel.style.left = gx(interaction.liveC) + 'px';
+        panel.style.top  = gy(interaction.liveR) + 'px';
       }
     }
 
