@@ -90,6 +90,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;min-
       <button class="nav-btn" onclick="showTab('communities')" id="tab-communities">🏘️ Communities</button>
       <button class="nav-btn" onclick="showTab('messages')" id="tab-messages">💬 DMs</button>
       <button class="nav-btn" onclick="showTab('subscriptions')" id="tab-subscriptions">💳 Subscriptions</button>
+      <button class="nav-btn" onclick="showTab('fees')" id="tab-fees">⚙️ Fees</button>
       <button class="nav-btn" onclick="adminLogout()" style="margin-left:.5rem;color:var(--muted);">Log Out</button>
     </div>
   </div>
@@ -183,7 +184,73 @@ body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;min-
         <thead><tr><th>User</th><th>Community</th><th>Plan</th><th>Amount</th><th>Status</th><th>Period End</th></tr></thead>
         <tbody id="subscriptions-tbody"></tbody>
       </table>
+
+    <!-- Fees tab -->
+    <div id="tab-fees-body" class="hidden">
+      <div class="section-title">⚙️ WAVE Platform Fees</div>
+      <p style="font-size:.73rem;color:var(--muted);margin-bottom:1.5rem;line-height:1.8;">Control how much WAVE earns from paid communities. Changes take effect on the next subscription payment.</p>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem;">
+
+        <!-- Subscription % fee -->
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.2rem;position:relative;overflow:hidden;">
+          <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent),var(--accent2));"></div>
+          <div style="font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.4rem;">Per-Subscriber Fee</div>
+          <div style="font-size:.75rem;color:var(--muted);margin-bottom:.75rem;line-height:1.6;">% of each subscription payment WAVE keeps. The creator receives the remainder.</div>
+          <div style="display:flex;align-items:center;gap:.5rem;">
+            <input id="fee-percent-input" type="number" min="0" max="100" step="0.5" style="width:90px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:.45rem .65rem;color:var(--text);font-size:1rem;font-weight:700;outline:none;text-align:center;" placeholder="10"/>
+            <span style="font-size:1.2rem;color:var(--muted);">%</span>
+          </div>
+          <div id="fee-percent-preview" style="font-size:.65rem;color:var(--muted);margin-top:.5rem;"></div>
+        </div>
+
+        <!-- Monthly flat fee -->
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.2rem;position:relative;overflow:hidden;">
+          <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent2),var(--accent3));"></div>
+          <div style="font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.4rem;">Monthly Community Flat Fee</div>
+          <div style="font-size:.75rem;color:var(--muted);margin-bottom:.75rem;line-height:1.6;">Fixed monthly fee charged to creators who have paid subscriptions enabled. Set to $0 to disable.</div>
+          <div style="display:flex;align-items:center;gap:.5rem;">
+            <span style="font-size:1.1rem;color:var(--muted);">$</span>
+            <input id="fee-flat-input" type="number" min="0" step="0.01" style="width:110px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:.45rem .65rem;color:var(--text);font-size:1rem;font-weight:700;outline:none;text-align:center;" placeholder="0.00"/>
+            <span style="font-size:.75rem;color:var(--muted);">/mo</span>
+          </div>
+        </div>
+
+        <!-- One-time setup fee -->
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.2rem;position:relative;overflow:hidden;">
+          <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent3),var(--accent));"></div>
+          <div style="font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.4rem;">One-Time Setup Fee</div>
+          <div style="font-size:.75rem;color:var(--muted);margin-bottom:.75rem;line-height:1.6;">Charged once when a creator first enables paid subscriptions on a community. Set to $0 to disable.</div>
+          <div style="display:flex;align-items:center;gap:.5rem;">
+            <span style="font-size:1.1rem;color:var(--muted);">$</span>
+            <input id="fee-setup-input" type="number" min="0" step="0.01" style="width:110px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:.45rem .65rem;color:var(--text);font-size:1rem;font-weight:700;outline:none;text-align:center;" placeholder="0.00"/>
+            <span style="font-size:.75rem;color:var(--muted);">one-time</span>
+          </div>
+        </div>
+
+        <!-- Revenue preview -->
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.2rem;position:relative;overflow:hidden;">
+          <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--host),var(--accent2));"></div>
+          <div style="font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.75rem;">WAVE Revenue Preview</div>
+          <div id="fee-preview-box" style="font-size:.73rem;line-height:2;color:var(--muted);"></div>
+        </div>
+
+      </div>
+
+      <div id="fee-save-msg" style="font-size:.73rem;min-height:1.2rem;margin-bottom:.75rem;"></div>
+      <div style="display:flex;gap:.75rem;">
+        <button class="nav-btn" onclick="loadFees()" style="padding:.5rem 1rem;">↺ Reset</button>
+        <button class="nav-btn active" onclick="saveFees()" id="fee-save-btn" style="padding:.5rem 1.5rem;background:var(--accent);color:#fff;border-color:var(--accent);">Save Changes</button>
+      </div>
+
+      <div style="margin-top:1.5rem;padding:1rem;background:rgba(108,99,255,.06);border:1px solid rgba(108,99,255,.15);border-radius:10px;font-size:.7rem;color:var(--muted);line-height:1.8;">
+        <strong style="color:var(--text);">💡 How fees work:</strong><br>
+        • <strong>Per-subscriber %</strong> is taken automatically by Stripe from each payment via Stripe Connect.<br>
+        • <strong>Flat monthly fee</strong> and <strong>setup fee</strong> are billed separately to creators via Stripe billing (requires additional integration).<br>
+        • Last updated: <span id="fee-last-updated">—</span> by <span id="fee-updated-by">—</span>
+      </div>
     </div>
+
 
 <!-- Report detail modal -->
 <div id="report-modal" class="modal-overlay hidden">
@@ -236,7 +303,7 @@ async function showAdminApp(){
 }
 
 function showTab(tab){
-  ['users','reports','communities','community-msgs','messages','subscriptions'].forEach(t=>{
+  ['users','reports','communities','community-msgs','messages','subscriptions','fees'].forEach(t=>{
     const panel = document.getElementById(`tab-${t}-body`);
     const btn   = document.getElementById(`tab-${t}`);
     if(panel) panel.classList.toggle('hidden', t!==tab);
@@ -246,6 +313,7 @@ function showTab(tab){
   if(tab==='communities') loadCommunities(1);
   if(tab==='messages') { document.getElementById('dm-messages-list').innerHTML=''; document.getElementById('dm-user-results').innerHTML=''; }
   if(tab==='subscriptions') loadSubscriptions();
+  if(tab==='fees') loadFees();
 }
 
 async function apiFetch(path, opts={}){
@@ -570,6 +638,67 @@ async function loadSubscriptions(){
       tbody.appendChild(tr);
     });
   }catch(e){}
+}
+
+
+function updateFeePreview(){
+  const pct = parseFloat(document.getElementById('fee-percent-input')?.value||0);
+  const flat = parseFloat(document.getElementById('fee-flat-input')?.value||0);
+  const setup = parseFloat(document.getElementById('fee-setup-input')?.value||0);
+  const box = document.getElementById('fee-preview-box');
+  if(!box) return;
+  // Example: creator with 10 subscribers paying $9.99/month
+  const exSubs = 10, exPrice = 9.99;
+  const perSubRevenue = (exPrice * pct / 100 * exSubs).toFixed(2);
+  const monthlyTotal = (parseFloat(perSubRevenue) + flat).toFixed(2);
+  const el1 = document.getElementById('fee-percent-preview');
+  if(el1) el1.textContent = `On a $9.99/mo plan: WAVE earns $${(9.99*pct/100).toFixed(2)}, creator gets $${(9.99*(1-pct/100)).toFixed(2)}`;
+  box.innerHTML = `
+    <div>Example: 10 subscribers × $9.99/mo</div>
+    <div>Per-subscriber fee (${pct}%): <strong style="color:var(--accent3);">$${perSubRevenue}/mo</strong></div>
+    <div>Flat fee: <strong style="color:var(--accent3);">$${flat.toFixed(2)}/mo</strong></div>
+    <div style="border-top:1px solid var(--border);margin-top:.3rem;padding-top:.3rem;">WAVE total: <strong style="color:var(--host);font-size:.85rem;">$${monthlyTotal}/mo</strong></div>
+    ${setup>0?`<div>Setup fee (one-time): <strong style="color:var(--accent2);">$${setup.toFixed(2)}</strong></div>`:''}
+  `;
+}
+
+async function loadFees(){
+  try{
+    const res = await apiFetch('/api/admin/fees');
+    const d = await res.json();
+    if(document.getElementById('fee-percent-input')) document.getElementById('fee-percent-input').value = d.subscriptionFeePercent;
+    if(document.getElementById('fee-flat-input'))    document.getElementById('fee-flat-input').value    = (d.communityFlatFeeMonthly/100).toFixed(2);
+    if(document.getElementById('fee-setup-input'))   document.getElementById('fee-setup-input').value   = (d.communitySetupFee/100).toFixed(2);
+    if(document.getElementById('fee-last-updated'))  document.getElementById('fee-last-updated').textContent = d.updatedAt ? new Date(d.updatedAt).toLocaleString() : '—';
+    if(document.getElementById('fee-updated-by'))    document.getElementById('fee-updated-by').textContent = d.updatedBy || '—';
+    updateFeePreview();
+    // Wire live preview
+    ['fee-percent-input','fee-flat-input','fee-setup-input'].forEach(id=>{
+      const el = document.getElementById(id);
+      if(el && !el._feeWired){ el.addEventListener('input', updateFeePreview); el._feeWired=true; }
+    });
+  }catch(e){ console.error(e); }
+}
+
+async function saveFees(){
+  const btn = document.getElementById('fee-save-btn');
+  const msg = document.getElementById('fee-save-msg');
+  btn.disabled=true; btn.textContent='Saving…';
+  msg.textContent=''; msg.style.color='var(--muted)';
+  try{
+    const body = {
+      subscriptionFeePercent:  parseFloat(document.getElementById('fee-percent-input').value||0),
+      communityFlatFeeMonthly: parseFloat(document.getElementById('fee-flat-input').value||0),
+      communitySetupFee:       parseFloat(document.getElementById('fee-setup-input').value||0)
+    };
+    const res = await apiFetch('/api/admin/fees',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    const d = await res.json();
+    if(!res.ok){ msg.textContent='Error: '+d.error; msg.style.color='var(--danger)'; return; }
+    msg.textContent = '✅ Fees saved successfully!'; msg.style.color='var(--accent3)';
+    setTimeout(()=>{ if(msg) msg.textContent=''; },3000);
+    updateFeePreview();
+  }catch(e){ msg.textContent='Server error'; msg.style.color='var(--danger)'; }
+  finally{ btn.disabled=false; btn.textContent='Save Changes'; }
 }
 
 // Auto-login if token saved

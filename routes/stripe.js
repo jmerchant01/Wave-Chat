@@ -10,7 +10,7 @@ const STRIPE_SECRET = process.env.STRIPE_SECRET_KEY || '';
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || '';
 const APP_URL = process.env.APP_URL || 'https://wave-chat-fnpr.onrender.com';
 // WAVE platform fee percentage (e.g. 10 = 10%)
-const WAVE_FEE_PERCENT = parseInt(process.env.WAVE_FEE_PERCENT || '10');
+const WaveSettings = require('../models/WaveSettings');
 
 let stripe = null;
 function getStripe(){
@@ -189,7 +189,8 @@ router.post('/communities/:id/subscribe', auth, async (req, res) => {
     if(existing) return res.status(400).json({ error: 'Already subscribed' });
 
     const user = await User.findById(req.user.id).select('email username');
-    const feePercent = WAVE_FEE_PERCENT;
+    const settings = await WaveSettings.get();
+    const feePercent = settings.subscriptionFeePercent;
 
     const isLifetime = plan === 'lifetime';
     const sessionParams = {
@@ -371,10 +372,62 @@ router.get('/admin/subscriptions', auth, async (req, res) => {
       .sort({ createdAt: -1 }).limit(100).lean();
 
     const totalRevenue = subs.reduce((s,sub)=>s+(sub.amount||0),0);
-    const waveFee = Math.round(totalRevenue * WAVE_FEE_PERCENT / 100);
+    const settings = await WaveSettings.get();
+    const waveFee = Math.round(totalRevenue * settings.subscriptionFeePercent / 100);
     const activeSubs = subs.filter(s=>s.status==='active').length;
 
-    res.json({ subscriptions: subs, totalRevenue, waveFee, activeSubs, feePercent: WAVE_FEE_PERCENT });
+    res.json({ subscriptions: subs, totalRevenue, waveFee, activeSubs, feePercent: settings.subscriptionFeePercent, flatFeeMonthly: settings.communityFlatFeeMonthly, setupFee: settings.communitySetupFee });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── ADMIN: Get current fee settings ──
+router.get('/admin/fees', auth, async (req, res) => {
+  try {
+    const ADMIN = process.env.ADMIN_USERNAME || 'JayMerch';
+    if(req.user.username.toLowerCase() !== ADMIN.toLowerCase())
+      return res.status(403).json({ error: 'Admin only' });
+    const settings = await WaveSettings.get();
+    res.json({
+      subscriptionFeePercent: settings.subscriptionFeePercent,
+      communityFlatFeeMonthly: settings.communityFlatFeeMonthly,
+      communitySetupFee: settings.communitySetupFee,
+      updatedAt: settings.updatedAt,
+      updatedBy: settings.updatedBy
+    });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── ADMIN: Update fee settings ──
+router.post('/admin/fees', auth, async (req, res) => {
+  try {
+    const ADMIN = process.env.ADMIN_USERNAME || 'JayMerch';
+    if(req.user.username.toLowerCase() !== ADMIN.toLowerCase())
+      return res.status(403).json({ error: 'Admin only' });
+    const { subscriptionFeePercent, communityFlatFeeMonthly, communitySetupFee } = req.body;
+    const settings = await WaveSettings.get();
+    if(subscriptionFeePercent !== undefined){
+      const v = parseFloat(subscriptionFeePercent);
+      if(isNaN(v)||v<0||v>100) return res.status(400).json({ error: 'Fee percent must be 0–100' });
+      settings.subscriptionFeePercent = v;
+    }
+    if(communityFlatFeeMonthly !== undefined){
+      const v = Math.round(parseFloat(communityFlatFeeMonthly)*100);
+      if(isNaN(v)||v<0) return res.status(400).json({ error: 'Invalid flat fee' });
+      settings.communityFlatFeeMonthly = v;
+    }
+    if(communitySetupFee !== undefined){
+      const v = Math.round(parseFloat(communitySetupFee)*100);
+      if(isNaN(v)||v<0) return res.status(400).json({ error: 'Invalid setup fee' });
+      settings.communitySetupFee = v;
+    }
+    settings.updatedAt = new Date();
+    settings.updatedBy = req.user.username;
+    await settings.save();
+    res.json({ success: true, settings: {
+      subscriptionFeePercent: settings.subscriptionFeePercent,
+      communityFlatFeeMonthly: settings.communityFlatFeeMonthly,
+      communitySetupFee: settings.communitySetupFee
+    }});
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
