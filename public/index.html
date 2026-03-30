@@ -274,6 +274,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .modal-close-x{position:absolute;top:.75rem;right:.85rem;border:none;background:transparent;color:var(--muted);font-size:1.1rem;cursor:pointer;line-height:1;padding:.15rem .3rem;border-radius:4px;z-index:10;}
 .modal-close-x:hover{color:var(--text);background:var(--surface2);}
 .save-modal{position:relative;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
 .save-modal h3{font-family:'Syne',sans-serif;font-size:1rem;font-weight:700;margin-bottom:.35rem;}
 .save-modal p{font-size:.72rem;color:var(--muted);margin-bottom:1.2rem;line-height:1.6;}
 .save-modal-btns{display:flex;flex-direction:column;gap:.5rem;}
@@ -956,11 +957,32 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     </div>
     <!-- Channel content -->
     <div style="flex:1;display:flex;flex-direction:column;overflow:hidden;">
-      <div style="padding:.6rem 1rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:.5rem;flex-shrink:0;">
+      <div style="padding:.6rem 1rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:.5rem;flex-shrink:0;flex-wrap:wrap;">
         <span id="cv-channel-icon" style="font-size:.9rem;">#</span>
         <span id="cv-channel-name" style="font-size:.85rem;font-weight:600;"></span>
-        <span id="cv-channel-desc" style="font-size:.7rem;color:var(--muted);margin-left:.5rem;"></span>
+        <span id="cv-channel-desc" style="font-size:.7rem;color:var(--muted);margin-left:.25rem;"></span>
+        <!-- Room channel buttons (shown only for room type) -->
+        <div id="cv-room-btns" class="hidden" style="display:flex;gap:.5rem;margin-left:auto;align-items:center;flex-wrap:wrap;">
+          <div id="cv-room-status" style="display:flex;align-items:center;gap:.4rem;font-size:.68rem;color:var(--muted);"></div>
+          <button id="cv-create-room-btn" onclick="handleRoomChannelBtn()" style="padding:.35rem .75rem;border-radius:7px;border:none;background:var(--accent);color:#fff;font-size:.72rem;cursor:pointer;font-family:'DM Mono',monospace;font-weight:600;">🎙️ Create Room</button>
+          <button id="cv-join-room-btn" onclick="joinActiveCommunityRoom()" class="hidden" style="padding:.35rem .75rem;border-radius:7px;border:1px solid var(--accent3);background:transparent;color:var(--accent3);font-size:.72rem;cursor:pointer;font-family:'DM Mono',monospace;font-weight:600;">🔊 Join Room</button>
+        </div>
         <button id="cv-delete-channel-btn" class="hidden" onclick="deleteChannel()" style="margin-left:auto;border:none;background:transparent;color:var(--danger);cursor:pointer;font-size:.75rem;">🗑</button>
+      </div>
+      <!-- Room channel view (replaces messages for room type) -->
+      <div id="cv-room-view" class="hidden" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem;padding:2rem;">
+        <div id="cv-room-idle" style="text-align:center;">
+          <div style="font-size:2.5rem;margin-bottom:.75rem;">🎙️</div>
+          <div style="font-family:'Syne',sans-serif;font-size:1rem;font-weight:700;margin-bottom:.4rem;" id="cv-room-idle-title">No active room</div>
+          <div style="font-size:.75rem;color:var(--muted);max-width:260px;line-height:1.6;" id="cv-room-idle-sub">Create a room to start a voice session with community members.</div>
+        </div>
+        <div id="cv-room-active-info" class="hidden" style="text-align:center;">
+          <div style="display:flex;align-items:center;justify-content:center;gap:.5rem;margin-bottom:.5rem;">
+            <div style="width:10px;height:10px;border-radius:50%;background:var(--accent3);animation:pulse 1.5s infinite;"></div>
+            <span style="font-family:'Syne',sans-serif;font-size:1rem;font-weight:700;color:var(--accent3);">Room Active</span>
+          </div>
+          <div id="cv-room-member-list" style="font-size:.75rem;color:var(--muted);margin-bottom:1rem;"></div>
+        </div>
       </div>
       <div id="cv-messages" style="flex:1;overflow-y:auto;padding:.75rem 1rem;display:flex;flex-direction:column;gap:.5rem;"></div>
       <div id="cv-typing-bar" style="height:1.4rem;padding:0 1rem;font-size:.65rem;color:var(--muted);font-style:italic;"></div>
@@ -1950,7 +1972,68 @@ function initHomeSocket(){
   initDMSocketListeners(homeSocket);
 }
 
-// ── Community room member tracking ──
+let currentRoomChannelId = null; // track which channel has active room
+
+function updateRoomChannelUI(channel){
+  currentRoomChannelId = channel._id;
+  const isOwnerOrAdmin = checkIsOwner(currentCommunity)||checkIsAdmin(currentCommunity);
+  const isLocked = channel.locked;
+  const createBtn = document.getElementById('cv-create-room-btn');
+  const joinBtn = document.getElementById('cv-join-room-btn');
+  const roomStatus = document.getElementById('cv-room-status');
+  const idleEl = document.getElementById('cv-room-idle');
+  const activeEl = document.getElementById('cv-room-active-info');
+  const memberList = document.getElementById('cv-room-member-list');
+
+  // Show/hide create button based on lock state
+  if(isLocked && !isOwnerOrAdmin){
+    createBtn.style.display='none';
+  } else {
+    createBtn.style.display='';
+  }
+
+  const activeRoomId = channel.activeRoomId;
+  const members = communityRoomMembers[activeRoomId]||[];
+
+  if(activeRoomId){
+    // Room is active
+    idleEl.classList.add('hidden');
+    activeEl.classList.remove('hidden');
+    joinBtn.classList.remove('hidden');
+    createBtn.textContent='🎙️ New Room';
+    roomStatus.innerHTML=`<span style="width:8px;height:8px;border-radius:50%;background:var(--accent3);animation:pulse 1.5s infinite;display:inline-block;"></span> <span style="color:var(--accent3);">Live</span>`;
+    memberList.textContent = members.length ? `${members.length} member${members.length!==1?'s':''} in room: ${members.slice(0,5).join(', ')}${members.length>5?` +${members.length-5} more`:''}` : 'Room is active';
+    // Update join button with roomId
+    document.getElementById('cv-join-room-btn').onclick = ()=>joinCommunityRoom(activeRoomId);
+  } else {
+    // No active room
+    idleEl.classList.remove('hidden');
+    activeEl.classList.add('hidden');
+    joinBtn.classList.add('hidden');
+    createBtn.textContent='🎙️ Create Room';
+    roomStatus.innerHTML='';
+    const idleTitle = document.getElementById('cv-room-idle-title');
+    const idleSub = document.getElementById('cv-room-idle-sub');
+    if(isLocked && !isOwnerOrAdmin){
+      idleTitle.textContent='Room creation is locked';
+      idleSub.textContent='Only admins can create rooms in this channel.';
+    } else {
+      idleTitle.textContent='No active room';
+      idleSub.textContent='Create a room to start a voice session with community members.';
+    }
+  }
+}
+
+function handleRoomChannelBtn(){
+  // Find current room channel
+  const ch = currentCommunity?.channels?.find(c=>(c._id===currentChannelId||c._id?.toString()===currentChannelId));
+  if(ch) handleRoomChannel(ch);
+}
+
+function joinActiveCommunityRoom(){
+  const ch = currentCommunity?.channels?.find(c=>(c._id===currentChannelId||c._id?.toString()===currentChannelId));
+  if(ch?.activeRoomId) joinCommunityRoom(ch.activeRoomId);
+}
 const communityRoomMembers = {}; // roomId -> [username, ...]
 
 // Called from homeSocket listeners
@@ -1958,12 +2041,25 @@ function initCommunityRoomListeners(sock){
   sock.on('community_room_update', ({ channelId, roomId, members, ended })=>{
     if(ended){
       delete communityRoomMembers[roomId];
+      // Clear activeRoomId from local community data
+      if(currentCommunity){
+        const ch=currentCommunity.channels?.find(c=>c._id===channelId||c._id?.toString()===channelId);
+        if(ch){ ch.activeRoomId=null; }
+      }
     } else {
       communityRoomMembers[roomId] = members||[];
+      // Set activeRoomId in local community data
+      if(currentCommunity){
+        const ch=currentCommunity.channels?.find(c=>c._id===channelId||c._id?.toString()===channelId);
+        if(ch){ ch.activeRoomId=roomId; }
+      }
     }
-    // Re-render channels if community is open
-    if(currentCommunity){
-      renderCVChannels(currentCommunity.channels||[]);
+    // Re-render channels sidebar
+    if(currentCommunity){ renderCVChannels(currentCommunity.channels||[]); }
+    // Update room panel if this channel is open
+    if(currentChannelId===channelId){
+      const ch=currentCommunity?.channels?.find(c=>c._id===channelId||c._id?.toString()===channelId);
+      if(ch) updateRoomChannelUI(ch);
     }
   });
 }
@@ -2598,12 +2694,18 @@ function renderCVChannels(channels){
 
   channels.forEach(ch=>{
     const isLocked = ch.locked;
+    const displayName = (ch.name==='voice'||ch.type==='voice')?'rooms':ch.name;
+    const hasActiveRoom = (ch.type==='room'||ch.type==='voice') && ch.activeRoomId;
     const wrapper = document.createElement('div');
     wrapper.style.cssText='position:relative;';
 
     const btn=document.createElement('button');
-    btn.style.cssText=`width:100%;text-align:left;padding:.4rem .6rem;border:none;background:transparent;color:${isLocked?'var(--muted)':'var(--muted)'};font-family:"DM Mono",monospace;font-size:.75rem;cursor:pointer;border-radius:6px;display:flex;align-items:center;gap:.4rem;opacity:${isLocked&&!isOwnerOrAdmin?'0.5':'1'};`;
-    btn.innerHTML=`<span>${typeIcon[ch.type]||'#'}</span><span style="flex:1;">${esc(ch.name)}</span>${isLocked?'<span style="font-size:.6rem;color:var(--muted);">🔒</span>':''}`;
+    btn.style.cssText=`width:100%;text-align:left;padding:.4rem .6rem;border:none;background:transparent;color:${isLocked?'var(--muted)':'var(--muted)'};font-family:"DM Mono",monospace;font-size:.75rem;cursor:pointer;border-radius:6px;display:flex;align-items:center;gap:.4rem;opacity:${isLocked&&!isOwnerOrAdmin?'0.5':'1'};${hasActiveRoom?'color:var(--accent3);font-weight:600;':''};`;
+    if(hasActiveRoom){
+      btn.style.outline='1.5px solid var(--accent3)';
+      btn.style.outlineOffset='-1px';
+    }
+    btn.innerHTML=`<span>${typeIcon[ch.type]||'#'}</span><span style="flex:1;">${esc(displayName)}</span>${isLocked?'<span style="font-size:.6rem;color:var(--muted);">🔒</span>':''}${hasActiveRoom?'<span style="width:7px;height:7px;border-radius:50%;background:var(--accent3);flex-shrink:0;animation:pulse 1.5s infinite;"></span>':''}`;
     btn.dataset.channelId=ch._id;
 
     if(ch.type==='room'){
@@ -2811,34 +2913,47 @@ function renderCVMembers(members){
 
 async function openChannel(channel){
   currentChannelId=channel._id;
-  document.getElementById('cv-channel-icon').textContent=channel.type==='announcement'?'📢':'#';
-  document.getElementById('cv-channel-name').textContent=channel.name;
-  document.getElementById('cv-channel-desc').textContent=channel.description||'';
+  const isOwnerOrAdmin = checkIsOwner(currentCommunity)||checkIsAdmin(currentCommunity);
+  const isRoomCh = channel.type==='room'||channel.type==='voice';
+  // Set icon: room=🎙️, announcement=📢, else #
+  document.getElementById('cv-channel-icon').textContent = isRoomCh?'🎙️':(channel.type==='announcement'?'📢':'#');
+  document.getElementById('cv-channel-name').textContent = channel.name==='voice'?'rooms':channel.name;
+  document.getElementById('cv-channel-desc').textContent = channel.description||'';
   document.getElementById('cv-msg-input').placeholder=`Message #${channel.name}…`;
   // Highlight active channel
   document.querySelectorAll('#cv-channels-list button').forEach(b=>{ b.style.background=b.dataset.channelId===channel._id?'var(--surface2)':'transparent'; b.style.color=b.dataset.channelId===channel._id?'var(--text)':'var(--muted)'; });
-  const isOwnerOrAdmin = checkIsOwner(currentCommunity)||checkIsAdmin(currentCommunity);
   const isAnnounceCh = channel.type==='announcement';
   const isChatLocked = channel.chatLocked;
   const inputArea = document.getElementById('cv-input-area');
-  // Hide input for announcement channels (non-admin), locked chat channels, or room channels
-  if(channel.type==='room'){
+  const messagesEl = document.getElementById('cv-messages');
+  const roomView = document.getElementById('cv-room-view');
+  const roomBtns = document.getElementById('cv-room-btns');
+  const deleteBtn = document.getElementById('cv-delete-channel-btn');
+  const typingBar = document.getElementById('cv-typing-bar');
+
+  if(isRoomCh){
+    messagesEl.style.display='none';
+    typingBar.style.display='none';
     inputArea.style.display='none';
-  } else if((isAnnounceCh||isChatLocked) && !isOwnerOrAdmin){
-    inputArea.style.display='none';
-    // Show lock notice
-    const msgs = document.getElementById('cv-messages');
-    if(msgs && isChatLocked){
-      const notice = document.createElement('div');
-      notice.style.cssText='text-align:center;color:var(--muted);font-size:.7rem;padding:.5rem;';
-      notice.textContent='🔒 Chat is locked in this channel';
-      msgs.appendChild(notice);
-    }
+    roomView.classList.remove('hidden'); roomView.style.display='flex';
+    roomBtns.classList.remove('hidden'); roomBtns.style.display='flex';
+    deleteBtn.style.marginLeft='';
+    deleteBtn.classList.toggle('hidden',!isOwnerOrAdmin);
+    updateRoomChannelUI(channel);
   } else {
-    inputArea.style.display='flex';
+    messagesEl.style.display='flex';
+    typingBar.style.display='';
+    roomView.classList.add('hidden'); roomView.style.display='none';
+    roomBtns.classList.add('hidden'); roomBtns.style.display='none';
+    if((isAnnounceCh||isChatLocked) && !isOwnerOrAdmin){
+      inputArea.style.display='none';
+    } else {
+      inputArea.style.display='flex';
+    }
+    deleteBtn.style.marginLeft='auto';
+    deleteBtn.classList.toggle('hidden',!isOwnerOrAdmin);
+    await loadChannelMessages();
   }
-  document.getElementById('cv-delete-channel-btn').classList.toggle('hidden',!isOwnerOrAdmin);
-  await loadChannelMessages();
 }
 
 async function loadChannelMessages(){

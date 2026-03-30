@@ -27,6 +27,23 @@ function hasPermission(community, userId, perm) {
   });
 }
 
+
+// ── Migrate voice channels to room type (run once) ──
+router.post('/communities/migrate-voice-to-room', auth, async (req, res) => {
+  try {
+    const communities = await Community.find({ 'channels.type': { $in: ['voice'] } });
+    let count = 0;
+    for(const community of communities){
+      let changed = false;
+      community.channels.forEach(ch => {
+        if(ch.type === 'voice'){ ch.type = 'room'; if(ch.name==='voice') ch.name='room'; changed = true; }
+      });
+      if(changed){ await community.save(); count++; }
+    }
+    res.json({ success: true, migrated: count });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // ── Create community ──
 router.post('/communities', auth, async (req, res) => {
   try {
