@@ -849,10 +849,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
       </div>
       <div class="panel-inner">
       <!-- Search communities -->
-      <div class="friend-search" style="margin-bottom:.75rem;">
-        <input id="community-search-input" placeholder="Search by name or #tag…" onkeydown="if(event.key==='Enter')searchCommunities()" oninput="if(!this.value.trim()){const r=document.getElementById('community-search-results');r.innerHTML='';r.classList.add('hidden')}"/>
-        <button onclick="searchCommunities()">Search</button>
-      </div>
+      <input id="community-search-input" placeholder="🔍 Search by name or #tag…" oninput="debouncedCommunitySearch(this.value)" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.5rem .75rem;color:var(--text);font-size:.78rem;outline:none;box-sizing:border-box;margin-bottom:.65rem;"/>
       <div id="community-search-results" class="hidden" style="margin-bottom:.75rem;"></div>
       <div style="font-size:.72rem;color:var(--muted);margin-bottom:.4rem;font-weight:600;">YOUR COMMUNITIES</div>
       <div id="my-communities-list"></div>
@@ -866,10 +863,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
         🔍 Discover Rooms
       </div>
       <div class="panel-inner">
-      <div class="friend-search" style="margin-bottom:.75rem;">
-        <input id="public-room-search" placeholder="Search rooms or #tags…" onkeydown="if(event.key==='Enter')searchPublicRooms()" oninput="if(!this.value.trim())loadPublicRooms()"/>
-        <button onclick="searchPublicRooms()">Search</button>
-      </div>
+      <input id="public-room-search" placeholder="🔍 Search rooms or #tags…" oninput="debouncedRoomSearch(this.value)" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.5rem .75rem;color:var(--text);font-size:.78rem;outline:none;box-sizing:border-box;margin-bottom:.65rem;"/>
       <div id="public-rooms-list">
         <div class="friends-empty" style="padding:.5rem 0;">No public rooms right now.<br>Create one to appear here!</div>
       </div>
@@ -2992,6 +2986,29 @@ function lastSeenText(lastSeen){
 // ═══════════════════════════════════════════════════
 //  PUBLIC ROOMS
 // ═══════════════════════════════════════════════════
+// ── Live search debounce helpers ──
+let _communitySearchTimer = null;
+let _roomSearchTimer = null;
+
+function debouncedCommunitySearch(val){
+  clearTimeout(_communitySearchTimer);
+  if(!val.trim()){
+    const r = document.getElementById('community-search-results');
+    if(r){ r.innerHTML=''; r.classList.add('hidden'); }
+    return;
+  }
+  _communitySearchTimer = setTimeout(()=>searchCommunities(), 300);
+}
+
+function debouncedRoomSearch(val){
+  clearTimeout(_roomSearchTimer);
+  if(!val.trim()){
+    loadPublicRooms();
+    return;
+  }
+  _roomSearchTimer = setTimeout(()=>searchPublicRooms(), 300);
+}
+
 async function searchPublicRooms(){
   const q = document.getElementById('public-room-search')?.value.trim()||'';
   try{
