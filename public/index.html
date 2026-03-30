@@ -1251,13 +1251,12 @@ const PANEL_POSITIONS_KEY = 'wave-panel-positions-v3';
 const PANEL_IDS = ['panel-rooms','panel-friends','panel-messages','panel-communities','panel-public-rooms'];
 
 function getGridCols(){
-  const w = window.innerWidth;
-  if(w <= 700) return 1;
-  if(w <= 1000) return 2;
+  const w=window.innerWidth;
+  if(w<=700) return 1;
+  if(w<=1000) return 2;
   return 3;
 }
 
-// positions: { panelId: {col, row} }
 function loadPositions(){
   try{ const s=localStorage.getItem(PANEL_POSITIONS_KEY); if(s) return JSON.parse(s); }catch(e){}
   return null;
@@ -1281,23 +1280,34 @@ function applyGridLayout(){
   }
   let pos=loadPositions();
   if(!pos) pos=defaultPositions(cols);
-  // Clamp cols to current grid width
+  // Repair: ensure no two panels share a cell, clamp to grid width
+  const used={};
   PANEL_IDS.forEach(id=>{
     const el=document.getElementById(id); if(!el) return;
-    const p=pos[id]||{col:1,row:1};
-    const col=Math.min(p.col,cols);
-    el.style.gridColumn=col;
+    let p=pos[id]||{col:1,row:1};
+    p={col:Math.min(Math.max(parseInt(p.col)||1,1),cols), row:Math.max(parseInt(p.row)||1,1)};
+    const key=`${p.col},${p.row}`;
+    if(used[key]){
+      // Find next free cell
+      outer: for(let r=1;r<=10;r++) for(let c2=1;c2<=cols;c2++){
+        const k=`${c2},${r}`;
+        if(!used[k]){ p={col:c2,row:r}; break outer; }
+      }
+    }
+    used[`${p.col},${p.row}`]=true;
+    pos[id]=p;
+    el.style.gridColumn=p.col;
     el.style.gridRow=p.row;
   });
 }
 
 function initDraggablePanels(){
   applyGridLayout();
-  window.addEventListener('resize',applyGridLayout);
+  window.addEventListener('resize',()=>{ setTimeout(applyGridLayout,100); });
   attachFreeDrag();
 }
 
-// ── Free drag: clone follows mouse, ghost shows target cell ──
+// ── Free drag ──
 let dragState=null;
 
 function attachFreeDrag(){
@@ -1307,116 +1317,105 @@ function attachFreeDrag(){
     panel._dragInit=true;
     const handle=panel.querySelector('.drag-handle');
     if(!handle) return;
-
-    // Mouse drag
-    handle.addEventListener('mousedown', e=>{
-      if(e.button!==0) return;
-      e.preventDefault();
-      startDrag(panel, e.clientX, e.clientY, 'mouse');
-    });
-
-    // Touch drag
-    handle.addEventListener('touchstart', e=>{
-      const t=e.touches[0];
-      e.preventDefault();
-      startDrag(panel, t.clientX, t.clientY, 'touch');
-    },{passive:false});
+    handle.addEventListener('mousedown',e=>{ if(e.button!==0)return; e.preventDefault(); startDrag(panel,e.clientX,e.clientY); });
+    handle.addEventListener('touchstart',e=>{ const t=e.touches[0]; e.preventDefault(); startDrag(panel,t.clientX,t.clientY); },{passive:false});
   });
-
-  document.addEventListener('mousemove', e=>{ if(dragState) moveDrag(e.clientX,e.clientY); });
-  document.addEventListener('mouseup',   e=>{ if(dragState) endDrag(e.clientX,e.clientY); });
-  document.addEventListener('touchmove', e=>{ if(dragState){ const t=e.touches[0]; moveDrag(t.clientX,t.clientY); e.preventDefault(); } },{passive:false});
-  document.addEventListener('touchend',  e=>{ if(dragState){ const t=e.changedTouches[0]; endDrag(t.clientX,t.clientY); } });
+  document.addEventListener('mousemove',e=>{ if(dragState) moveDrag(e.clientX,e.clientY); });
+  document.addEventListener('mouseup',  e=>{ if(dragState) endDrag(e.clientX,e.clientY); });
+  document.addEventListener('touchmove',e=>{ if(dragState){const t=e.touches[0];moveDrag(t.clientX,t.clientY);e.preventDefault();}},{passive:false});
+  document.addEventListener('touchend', e=>{ if(dragState){const t=e.changedTouches[0];endDrag(t.clientX,t.clientY);} });
 }
 
-function startDrag(panel, cx, cy, type){
+function startDrag(panel,cx,cy){
   const body=document.getElementById('home-body');
   const rect=panel.getBoundingClientRect();
-
-  // Clone for visual drag
   const clone=panel.cloneNode(true);
   clone.className='home-section drag-clone';
   clone.style.width=rect.width+'px';
+  clone.style.height=rect.height+'px';
   clone.style.top=rect.top+'px';
   clone.style.left=rect.left+'px';
   document.body.appendChild(clone);
-
-  // Hide original
-  panel.classList.add('dragging');
-
-  // Show grid
+  panel.style.visibility='hidden';
   body.classList.add('dragging-active');
-
-  dragState={panel, clone, body,
-    offsetX: cx-rect.left,
-    offsetY: cy-rect.top,
-    ghost: null,
-    targetCol: null, targetRow: null
-  };
+  buildCellMap();
+  dragState={panel,clone,body,offsetX:cx-rect.left,offsetY:cy-rect.top,ghost:null,targetCol:null,targetRow:null,cellMap:null};
+  dragState.cellMap=buildCellMap();
 }
 
-function moveDrag(cx, cy){
-  const {clone, panel, body}=dragState;
-  // Move clone
-  clone.style.left=(cx-dragState.offsetX)+'px';
-  clone.style.top=(cy-dragState.offsetY)+'px';
-
-  // Compute which grid cell the center of clone is over
-  const centerX=cx-dragState.offsetX+clone.offsetWidth/2;
-  const centerY=cy-dragState.offsetY+clone.offsetHeight/2;
-  const cell=getCellAt(centerX, centerY);
-  if(!cell) return;
-
-  if(cell.col!==dragState.targetCol || cell.row!==dragState.targetRow){
-    dragState.targetCol=cell.col;
-    dragState.targetRow=cell.row;
-    updateGhost(cell.col, cell.row);
-  }
-}
-
-function getCellAt(cx, cy){
+function buildCellMap(){
+  // Returns array of {col,row,x,y,w,h} for every possible cell in the grid
   const body=document.getElementById('home-body');
-  const bodyRect=body.getBoundingClientRect();
   const cols=getGridCols();
+  if(cols===1) return [];
+  const bodyRect=body.getBoundingClientRect();
   const style=getComputedStyle(body);
-  const gap=parseFloat(style.gap)||10;
-  const pad=parseFloat(style.paddingLeft)||16;
-  const availW=bodyRect.width-pad*2;
-  const cellW=(availW-(cols-1)*gap)/cols;
+  const gap=parseFloat(style.columnGap||style.gap||'10');
+  const padL=parseFloat(style.paddingLeft||'16');
+  const padT=parseFloat(style.paddingTop||'16');
+  const totalW=bodyRect.width-padL*2;
+  const cellW=(totalW-(cols-1)*gap)/cols;
 
-  const relX=cx-bodyRect.left-pad;
-  const relY=cy-bodyRect.top-parseFloat(style.paddingTop||16);
-  if(relX<0||relY<0||relX>availW) return null;
+  // Determine row heights from existing panels
+  const panels=[...body.querySelectorAll('.draggable-panel')];
+  const rowHeights={};
+  panels.forEach(p=>{
+    const r=parseInt(p.style.gridRow)||1;
+    rowHeights[r]=Math.max(rowHeights[r]||0, p.getBoundingClientRect().height);
+  });
 
-  // Row height: find by scanning panels
-  const panels=[...body.querySelectorAll('.draggable-panel:not(.dragging)')];
-  let rowH=200;
-  if(panels.length>0){
-    const r=panels[0].getBoundingClientRect();
-    rowH=Math.max(r.height+gap, 80);
+  // Build all cells up to maxRow+1 (allow dropping below last row)
+  const maxRow=Math.max(...Object.keys(rowHeights).map(Number),1);
+  const cells=[];
+  let y=bodyRect.top+padT;
+  for(let row=1;row<=maxRow+1;row++){
+    const h=rowHeights[row]||120;
+    for(let col=1;col<=cols;col++){
+      const x=bodyRect.left+padL+(col-1)*(cellW+gap);
+      cells.push({col,row,x,y,w:cellW,h});
+    }
+    y+=h+gap;
   }
-  const col=Math.min(Math.floor(relX/(cellW+gap))+1, cols);
-  const row=Math.max(Math.floor(relY/rowH)+1, 1);
-  return {col,row};
+  return cells;
 }
 
-function updateGhost(col, row){
+function getNearestCell(cx,cy){
+  if(!dragState?.cellMap?.length) return null;
+  let best=null, bestDist=Infinity;
+  dragState.cellMap.forEach(cell=>{
+    const centerX=cell.x+cell.w/2;
+    const centerY=cell.y+cell.h/2;
+    const dist=Math.hypot(cx-centerX,cy-centerY);
+    if(dist<bestDist){ bestDist=dist; best=cell; }
+  });
+  return best;
+}
+
+function moveDrag(cx,cy){
+  const {clone,panel,body}=dragState;
+  clone.style.left=(cx-dragState.offsetX)+'px';
+  clone.style.top =(cy-dragState.offsetY)+'px';
+  if(getGridCols()===1) return;
+
+  const cell=getNearestCell(cx-dragState.offsetX+clone.offsetWidth/2, cy-dragState.offsetY+clone.offsetHeight/2);
+  if(!cell) return;
+  if(cell.col===dragState.targetCol && cell.row===dragState.targetRow) return;
+  dragState.targetCol=cell.col;
+  dragState.targetRow=cell.row;
+
   // Remove old ghost
-  if(dragState.ghost) dragState.ghost.remove();
-  const body=document.getElementById('home-body');
-  // Check if a panel already occupies this cell
-  const occupant=getPanelAtCell(col,row);
-  if(occupant && occupant!==dragState.panel){
-    // Cell is taken — show a swap indicator on occupant
-    document.querySelectorAll('.drop-target').forEach(p=>p.classList.remove('drop-target'));
+  if(dragState.ghost){ dragState.ghost.remove(); dragState.ghost=null; }
+  document.querySelectorAll('.drop-target').forEach(p=>p.classList.remove('drop-target'));
+
+  // Check occupant
+  const occupant=getPanelAtCell(cell.col,cell.row);
+  if(occupant){
     occupant.classList.add('drop-target');
-    dragState.ghost=null;
   } else {
-    document.querySelectorAll('.drop-target').forEach(p=>p.classList.remove('drop-target'));
     const ghost=document.createElement('div');
     ghost.className='grid-drop-ghost';
-    ghost.style.gridColumn=col;
-    ghost.style.gridRow=row;
+    ghost.style.gridColumn=cell.col;
+    ghost.style.gridRow=cell.row;
     body.appendChild(ghost);
     dragState.ghost=ghost;
   }
@@ -1424,39 +1423,38 @@ function updateGhost(col, row){
 
 function getPanelAtCell(col,row){
   const body=document.getElementById('home-body');
-  for(const panel of body.querySelectorAll('.draggable-panel')){
-    if(panel===dragState?.panel) continue;
-    const c=parseInt(panel.style.gridColumn||'0');
-    const r=parseInt(panel.style.gridRow||'0');
-    if(c===col && r===row) return panel;
+  for(const p of body.querySelectorAll('.draggable-panel')){
+    if(p===dragState?.panel) continue;
+    if(parseInt(p.style.gridColumn)===col && parseInt(p.style.gridRow)===row) return p;
   }
   return null;
 }
 
-function endDrag(cx, cy){
-  const {panel, clone, body, ghost}=dragState;
+function endDrag(cx,cy){
+  if(!dragState) return;
+  const {panel,clone,body,ghost}=dragState;
   clone.remove();
   if(ghost) ghost.remove();
   document.querySelectorAll('.drop-target').forEach(p=>p.classList.remove('drop-target'));
   body.classList.remove('dragging-active');
-  panel.classList.remove('dragging');
+  panel.style.visibility='';
 
-  if(dragState.targetCol && dragState.targetRow){
+  const cols=getGridCols();
+  if(cols>1 && dragState.targetCol && dragState.targetRow){
     const col=dragState.targetCol, row=dragState.targetRow;
-    const cols=getGridCols();
-    if(cols===1){ dragState=null; return; }
     const pos=loadPositions()||defaultPositions(cols);
     const occupant=getPanelAtCell(col,row);
     if(occupant){
-      // Swap with occupant
-      const myPos={col:parseInt(panel.style.gridColumn),row:parseInt(panel.style.gridRow)};
-      pos[occupant.id]={...myPos};
+      // Swap: move occupant to where panel was
+      const myOldCol=parseInt(panel.style.gridColumn)||1;
+      const myOldRow=parseInt(panel.style.gridRow)||1;
+      pos[occupant.id]={col:myOldCol,row:myOldRow};
     }
     pos[panel.id]={col,row};
     savePositions(pos);
-    applyGridLayout();
   }
   dragState=null;
+  applyGridLayout();
 }
 
 function clearDropIndicator(){
@@ -1465,8 +1463,7 @@ function clearDropIndicator(){
 function savePanelOrder(){
   const body=document.getElementById('home-body');
   if(!body) return;
-  const order=[...body.querySelectorAll('.draggable-panel')].map(p=>p.id);
-  try{ localStorage.setItem(PANEL_ORDER_KEY,JSON.stringify(order)); }catch(e){}
+  try{ localStorage.setItem(PANEL_ORDER_KEY,JSON.stringify([...body.querySelectorAll('.draggable-panel')].map(p=>p.id))); }catch(e){}
 }
 function initTouchDrag(){ /* handled inside attachFreeDrag */ }
 
