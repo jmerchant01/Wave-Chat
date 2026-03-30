@@ -87,6 +87,8 @@ body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;min-
     <div class="admin-nav">
       <button class="nav-btn active" onclick="showTab('users')" id="tab-users">👥 Users</button>
       <button class="nav-btn" onclick="showTab('reports')" id="tab-reports">🚩 Reports <span id="pending-badge" style="background:var(--danger);color:#fff;border-radius:10px;padding:0 5px;font-size:.6rem;"></span></button>
+      <button class="nav-btn" onclick="showTab('communities')" id="tab-communities">🏘️ Communities</button>
+      <button class="nav-btn" onclick="showTab('messages')" id="tab-messages">💬 DMs</button>
       <button class="nav-btn" onclick="adminLogout()" style="margin-left:.5rem;color:var(--muted);">Log Out</button>
     </div>
   </div>
@@ -128,6 +130,43 @@ body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;min-
       </table>
       <div class="pagination" id="reports-pages"></div>
     </div>
+
+    <!-- Communities tab -->
+    <div id="tab-communities-body" class="hidden">
+      <div class="section-title">🏘️ All Communities</div>
+      <div class="search-row">
+        <input class="search-input" id="community-search" placeholder="Search by name…" oninput="loadCommunities(1)"/>
+      </div>
+      <table class="data-table">
+        <thead><tr><th>Community</th><th>Owner</th><th>Members</th><th>Channels</th><th>Public</th><th>Created</th><th>Actions</th></tr></thead>
+        <tbody id="communities-tbody"></tbody>
+      </table>
+      <div class="pagination" id="communities-pages"></div>
+    </div>
+
+    <!-- Community messages viewer -->
+    <div id="tab-community-msgs-body" class="hidden">
+      <div class="section-title" style="display:flex;align-items:center;gap:.75rem;">
+        <button class="action-btn" onclick="showTab('communities')">← Back</button>
+        <span id="cm-community-name" style="font-size:.9rem;font-weight:700;"></span>
+      </div>
+      <div class="search-row" id="cm-channel-filters" style="flex-wrap:wrap;gap:.35rem;"></div>
+      <div id="cm-messages-list" style="display:flex;flex-direction:column;gap:.4rem;margin-top:.5rem;"></div>
+      <div class="pagination" id="cm-pages"></div>
+    </div>
+
+    <!-- DMs tab -->
+    <div id="tab-messages-body" class="hidden">
+      <div class="section-title">💬 Direct Messages</div>
+      <div class="search-row">
+        <input class="search-input" id="dm-user-search" placeholder="Enter username to view their DMs…" onkeydown="if(event.key==='Enter')searchDMUser()"/>
+        <button class="filter-btn" onclick="searchDMUser()">Search</button>
+      </div>
+      <div id="dm-user-results" style="margin-bottom:.75rem;"></div>
+      <div id="dm-messages-list" style="display:flex;flex-direction:column;gap:.4rem;"></div>
+      <div class="pagination" id="dm-pages"></div>
+    </div>
+
   </div>
 </div>
 
@@ -182,11 +221,15 @@ async function showAdminApp(){
 }
 
 function showTab(tab){
-  ['users','reports'].forEach(t=>{
-    document.getElementById(`tab-${t}-body`).classList.toggle('hidden', t!==tab);
-    document.getElementById(`tab-${t}`).classList.toggle('active', t===tab);
+  ['users','reports','communities','community-msgs','messages'].forEach(t=>{
+    const panel = document.getElementById(`tab-${t}-body`);
+    const btn   = document.getElementById(`tab-${t}`);
+    if(panel) panel.classList.toggle('hidden', t!==tab);
+    if(btn)   btn.classList.toggle('active', t===tab);
   });
   if(tab==='reports') loadReports(1);
+  if(tab==='communities') loadCommunities(1);
+  if(tab==='messages') { document.getElementById('dm-messages-list').innerHTML=''; document.getElementById('dm-user-results').innerHTML=''; }
 }
 
 async function apiFetch(path, opts={}){
@@ -326,6 +369,174 @@ function renderPagination(containerId, current, total, loadFn){
 }
 
 function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ── Communities ──
+async function loadCommunities(page=1){
+  const search = document.getElementById('community-search')?.value||'';
+  try{
+    const res = await apiFetch(`/api/admin/communities?page=${page}&search=${encodeURIComponent(search)}`);
+    const d = await res.json();
+    const tbody = document.getElementById('communities-tbody');
+    tbody.innerHTML='';
+    d.communities.forEach(c=>{
+      const tr=document.createElement('tr');
+      const created=new Date(c.createdAt).toLocaleDateString();
+      tr.innerHTML=`
+        <td><div class="user-cell">
+          <div class="user-av" style="background:var(--accent);color:#fff;">${(c.name||'?').slice(0,2).toUpperCase()}</div>
+          <span>${esc(c.name)}</span>
+        </div></td>
+        <td style="color:var(--muted);">${esc(c.ownerId?.username||'?')}</td>
+        <td>${c.memberCount}</td>
+        <td>${c.channelCount}</td>
+        <td><span class="badge ${c.isPublic?'badge-reviewed':'badge-dismissed'}">${c.isPublic?'Public':'Private'}</span></td>
+        <td style="color:var(--muted);">${created}</td>
+        <td>
+          <button class="action-btn" onclick="viewCommunityMsgs('${c._id}','${esc(c.name)}',${JSON.stringify(c.channels||[]).replace(/"/g,'&quot;')})">💬 Messages</button>
+          <button class="action-btn danger" onclick="deleteCommunityAdmin('${c._id}','${esc(c.name)}')">🗑 Delete</button>
+        </td>`;
+      tbody.appendChild(tr);
+    });
+    renderPagination('communities-pages', d.page, d.pages, loadCommunities);
+  }catch(e){ console.error(e); }
+}
+
+async function deleteCommunityAdmin(id, name){
+  if(!confirm(`Permanently delete community "${name}"?`)) return;
+  try{
+    const res = await apiFetch(`/api/admin/communities/${id}`, {method:'DELETE'});
+    const d = await res.json();
+    if(d.success){ loadCommunities(1); toast('Community deleted'); }
+    else alert(d.error);
+  }catch(e){}
+}
+
+let currentCommunityId = null;
+let currentCommunityChannels = [];
+let currentChannelFilter = null;
+
+function viewCommunityMsgs(id, name, channels){
+  currentCommunityId=id; currentCommunityChannels=channels||[]; currentChannelFilter=null;
+  document.getElementById('cm-community-name').textContent=`🏘️ ${name}`;
+  // Build channel filter buttons
+  const cf=document.getElementById('cm-channel-filters');
+  cf.innerHTML=`<button class="filter-btn active" onclick="filterCommunityChannel(null,this)">All Channels</button>`;
+  (channels||[]).forEach(ch=>{
+    const btn=document.createElement('button');
+    btn.className='filter-btn';
+    btn.textContent=(ch.type==='room'?'🎙️':ch.type==='announcement'?'📢':'#')+' '+(ch.name||'?');
+    btn.onclick=()=>filterCommunityChannel(ch._id,btn);
+    cf.appendChild(btn);
+  });
+  showTab('community-msgs');
+  loadCommunityMsgs(1);
+}
+
+function filterCommunityChannel(channelId, btn){
+  currentChannelFilter=channelId;
+  document.querySelectorAll('#cm-channel-filters .filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  loadCommunityMsgs(1);
+}
+
+async function loadCommunityMsgs(page=1){
+  if(!currentCommunityId) return;
+  let url=`/api/admin/communities/${currentCommunityId}/messages?page=${page}`;
+  if(currentChannelFilter) url+=`&channelId=${currentChannelFilter}`;
+  try{
+    const res=await apiFetch(url);
+    const d=await res.json();
+    const el=document.getElementById('cm-messages-list');
+    el.innerHTML='';
+    if(!d.messages?.length){ el.innerHTML='<div style="color:var(--muted);font-size:.75rem;padding:.5rem;">No messages found.</div>'; return; }
+    d.messages.forEach(m=>{
+      const chName = currentCommunityChannels.find(c=>c._id===m.channelId)?.name||m.channelId;
+      const div=document.createElement('div');
+      div.style.cssText='background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:.6rem .85rem;display:flex;align-items:flex-start;gap:.65rem;';
+      const time=new Date(m.createdAt).toLocaleString();
+      div.innerHTML=`
+        <div class="user-av" style="background:var(--accent);color:#fff;flex-shrink:0;">${(m.userId?.username||'?').slice(0,2).toUpperCase()}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.2rem;flex-wrap:wrap;">
+            <span style="font-size:.75rem;font-weight:600;">${esc(m.userId?.username||'?')}</span>
+            <span style="font-size:.62rem;color:var(--muted);">#${esc(chName)}</span>
+            <span style="font-size:.6rem;color:var(--muted);margin-left:auto;">${time}</span>
+          </div>
+          <div style="font-size:.73rem;line-height:1.5;word-break:break-word;">${m.text?esc(m.text):''}${m.fileUrl?`<span style="color:var(--accent);">📎 ${esc(m.fileName||'file')}</span>`:''}${!m.text&&!m.fileUrl?'<em style="color:var(--muted);">[no text]</em>':''}</div>
+        </div>
+        <button class="action-btn danger" onclick="deleteCommMsg('${currentCommunityId}','${m._id}',this)" style="flex-shrink:0;">🗑</button>`;
+      el.appendChild(div);
+    });
+    renderPagination('cm-pages', page, Math.ceil(d.total/50), loadCommunityMsgs);
+  }catch(e){ console.error(e); }
+}
+
+async function deleteCommMsg(communityId, msgId, btn){
+  if(!confirm('Delete this message?')) return;
+  try{
+    const res=await apiFetch(`/api/admin/communities/${communityId}/messages/${msgId}`,{method:'DELETE'});
+    if((await res.json()).success) btn.closest('div[style]').remove();
+  }catch(e){}
+}
+
+// ── DMs ──
+let dmSearchUserId=null;
+async function searchDMUser(){
+  const q=document.getElementById('dm-user-search').value.trim();
+  if(!q) return;
+  try{
+    const res=await apiFetch(`/api/admin/users?search=${encodeURIComponent(q)}&page=1`);
+    const d=await res.json();
+    const el=document.getElementById('dm-user-results');
+    el.innerHTML='';
+    d.users.forEach(u=>{
+      const div=document.createElement('div');
+      div.style.cssText='display:flex;align-items:center;gap:.5rem;padding:.4rem .6rem;background:var(--surface);border:1px solid var(--border);border-radius:8px;margin-bottom:.35rem;font-size:.75rem;cursor:pointer;';
+      div.innerHTML=`<div class="user-av" style="background:var(--accent);color:#fff;">${(u.username||'?').slice(0,2).toUpperCase()}</div><span style="flex:1;">${esc(u.username)}</span><button class="filter-btn active" onclick="loadDMs('${u.id}','${esc(u.username)}')">View DMs →</button>`;
+      el.appendChild(div);
+    });
+    if(!d.users.length) el.innerHTML='<div style="color:var(--muted);font-size:.75rem;">No users found.</div>';
+  }catch(e){}
+}
+
+async function loadDMs(userId, username, page=1){
+  dmSearchUserId=userId;
+  try{
+    const res=await apiFetch(`/api/admin/messages?userId=${userId}&page=${page}`);
+    const d=await res.json();
+    const el=document.getElementById('dm-messages-list');
+    el.innerHTML=`<div style="font-size:.72rem;color:var(--muted);margin-bottom:.5rem;">DMs involving <strong style="color:var(--text);">${esc(username)}</strong> (${d.total} total)</div>`;
+    if(!d.messages?.length){ el.innerHTML+='<div style="color:var(--muted);font-size:.75rem;">No messages found.</div>'; return; }
+    d.messages.forEach(m=>{
+      const div=document.createElement('div');
+      div.style.cssText='background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:.55rem .85rem;display:flex;align-items:flex-start;gap:.65rem;';
+      const time=new Date(m.createdAt).toLocaleString();
+      div.innerHTML=`
+        <div style="display:flex;align-items:center;gap:.4rem;font-size:.7rem;color:var(--muted);flex-shrink:0;min-width:180px;">
+          <span style="color:var(--text);font-weight:600;">${esc(m.from?.username||'?')}</span>
+          <span>→</span>
+          <span style="color:var(--text);">${esc(m.to?.username||'?')}</span>
+        </div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:.73rem;line-height:1.5;word-break:break-word;">${m.text?esc(m.text):''}${m.fileUrl?`<span style="color:var(--accent);">📎 ${esc(m.fileName||'file')}</span>`:''}${!m.text&&!m.fileUrl?'<em style="color:var(--muted);">[media only]</em>':''}</div>
+        </div>
+        <span style="font-size:.6rem;color:var(--muted);flex-shrink:0;">${time}</span>
+        <button class="action-btn danger" onclick="deleteDMAdmin('${m._id}',this)">🗑</button>`;
+      el.appendChild(div);
+    });
+    renderPagination('dm-pages', page, d.pages, (p)=>loadDMs(userId,username,p));
+  }catch(e){ console.error(e); }
+}
+
+async function deleteDMAdmin(id, btn){
+  if(!confirm('Delete this message?')) return;
+  try{
+    const res=await apiFetch(`/api/admin/messages/${id}`,{method:'DELETE'});
+    if((await res.json()).success) btn.closest('div[style]').remove();
+  }catch(e){}
+}
+
+function toast(msg){ alert(msg); }
 
 // Auto-login if token saved
 window.onload = async ()=>{

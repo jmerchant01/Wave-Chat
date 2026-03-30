@@ -141,3 +141,104 @@ router.get('/admin/stats', auth, adminOnly, async (req, res) => {
 });
 
 module.exports = router;
+
+// ── ADMIN: Get all communities ──
+router.get('/admin/communities', auth, adminOnly, async (req, res) => {
+  try {
+    const Community = require('../models/Community');
+    const { search, page = 1 } = req.query;
+    const limit = 20;
+    const query = search ? { name: new RegExp(search, 'i') } : {};
+    const total = await Community.countDocuments(query);
+    const communities = await Community.find(query)
+      .select('name description isPublic members channels createdAt ownerId tags')
+      .populate('ownerId', 'username')
+      .sort({ createdAt: -1 })
+      .skip((page-1)*limit).limit(limit).lean();
+    const result = communities.map(c => ({
+      ...c,
+      memberCount: c.members?.length || 0,
+      channelCount: c.channels?.length || 0,
+    }));
+    res.json({ communities: result, total, page: parseInt(page), pages: Math.ceil(total/limit) });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── ADMIN: Get community messages (all channels) ──
+router.get('/admin/communities/:id/messages', auth, adminOnly, async (req, res) => {
+  try {
+    const Community = require('../models/Community');
+    const CommunityMessage = require('../models/CommunityMessage');
+    const { channelId, page = 1 } = req.query;
+    const limit = 50;
+    const query = { communityId: req.params.id, deleted: false };
+    if(channelId) query.channelId = channelId;
+    const messages = await CommunityMessage.find(query)
+      .populate('userId', 'username avatar')
+      .sort({ createdAt: -1 })
+      .skip((page-1)*limit).limit(limit).lean();
+    const community = await Community.findById(req.params.id).select('name channels').lean();
+    res.json({ messages: messages.reverse(), community, total: await CommunityMessage.countDocuments(query) });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── ADMIN: Delete a community message ──
+router.delete('/admin/communities/:id/messages/:msgId', auth, adminOnly, async (req, res) => {
+  try {
+    const CommunityMessage = require('../models/CommunityMessage');
+    await CommunityMessage.findByIdAndUpdate(req.params.msgId, { deleted: true });
+    res.json({ success: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── ADMIN: Delete a community ──
+router.delete('/admin/communities/:id', auth, adminOnly, async (req, res) => {
+  try {
+    const Community = require('../models/Community');
+    const CommunityMessage = require('../models/CommunityMessage');
+    await Community.deleteOne({ _id: req.params.id });
+    await CommunityMessage.deleteMany({ communityId: req.params.id });
+    res.json({ success: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── ADMIN: Get all DMs between users ──
+router.get('/admin/messages', auth, adminOnly, async (req, res) => {
+  try {
+    const Message = require('../models/Message');
+    const { userId, page = 1 } = req.query;
+    const limit = 50;
+    const query = { deleted: false };
+    if(userId) query.$or = [{ from: userId }, { to: userId }];
+    const total = await Message.countDocuments(query);
+    const messages = await Message.find(query)
+      .populate('from', 'username avatar')
+      .populate('to', 'username avatar')
+      .sort({ createdAt: -1 })
+      .skip((page-1)*limit).limit(limit).lean();
+    res.json({ messages: messages.reverse(), total, pages: Math.ceil(total/limit) });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── ADMIN: Delete a DM ──
+router.delete('/admin/messages/:id', auth, adminOnly, async (req, res) => {
+  try {
+    const Message = require('../models/Message');
+    await Message.findByIdAndUpdate(req.params.id, { deleted: true });
+    res.json({ success: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── ADMIN: Ban/unban user from community ──
+router.post('/admin/communities/:id/members/:userId/ban', auth, adminOnly, async (req, res) => {
+  try {
+    const Community = require('../models/Community');
+    const community = await Community.findById(req.params.id);
+    if(!community) return res.status(404).json({ error: 'Not found' });
+    const member = community.members.find(m => m.userId.toString() === req.params.userId);
+    if(!member) return res.status(404).json({ error: 'Member not found' });
+    member.banned = req.body.ban !== false;
+    await community.save();
+    res.json({ success: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
