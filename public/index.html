@@ -343,6 +343,10 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 #panel-messages{display:flex;flex-direction:column;}
 .drag-handle{font-size:1rem;color:var(--muted);cursor:grab;margin-right:.4rem;user-select:none;opacity:.5;transition:opacity .15s;}
 .drag-handle:hover{opacity:1;}
+@media(max-width:700px){
+  .drag-handle{opacity:.7;font-size:1.1rem;padding:.2rem;}
+  .home-section-title::after{content:'hold ⠿ to reorder';font-size:.55rem;color:var(--muted);opacity:.5;margin-left:auto;font-weight:400;display:none;}
+}
 .draggable-panel{transition:opacity .15s;}
 .draggable-panel.dragging{opacity:.35;cursor:grabbing;}
 
@@ -477,10 +481,12 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 
 /* Mobile */
 @media(max-width:700px){
-  .home-body{min-height:auto;overflow:visible;}
+  .home-body{min-height:auto;overflow:visible;display:flex;flex-direction:column;gap:.4rem;padding:.5rem;}
   .home-body::before{display:none;}
-  .home-section{position:relative!important;left:0!important;top:0!important;width:calc(100% - 1rem)!important;height:auto!important;margin:.4rem .5rem;overflow:visible;}
+  .home-section{position:relative!important;left:0!important;top:0!important;width:100%!important;height:auto!important;margin:0;overflow:visible;transition:opacity .15s,transform .15s;}
   .resize-handle{display:none;}
+  .home-section.mobile-dragging{opacity:.6;transform:scale(.97);}
+  .mobile-drop-indicator{height:4px;background:var(--accent);border-radius:2px;margin:.2rem 0;transition:all .15s;width:100%;}
 }
 
 .home-section-title{font-family:'Syne',sans-serif;font-size:.95rem;font-weight:700;margin-bottom:.75rem;display:flex;align-items:center;}
@@ -1708,6 +1714,7 @@ function onAuthSuccess(){
   loadPublicRooms();
   initDraggablePanels();
   initTouchDrag();
+  if(window.innerWidth <= 700){ restoreMobilePanelOrder(); initMobilePanelDrag(); }
   // Handle community invite URL
   if(window._pendingCommunityCode){
     const code = window._pendingCommunityCode;
@@ -2986,7 +2993,104 @@ function lastSeenText(lastSeen){
 // ═══════════════════════════════════════════════════
 //  PUBLIC ROOMS
 // ═══════════════════════════════════════════════════
-// ── Live search debounce helpers ──
+// ── Mobile Panel Reorder (long-press drag) ──
+function initMobilePanelDrag(){
+  if(window.innerWidth > 700) return;
+  const body = document.getElementById('home-body');
+  if(!body) return;
+
+  let longPressTimer = null;
+  let mobileDragPanel = null;
+  let indicator = null;
+  let startY = 0;
+
+  body.querySelectorAll('.drag-handle').forEach(handle=>{
+    if(handle._mobileDragInit) return;
+    handle._mobileDragInit = true;
+    const panel = handle.closest('.draggable-panel');
+
+    handle.addEventListener('touchstart', e=>{
+      startY = e.touches[0].clientY;
+      longPressTimer = setTimeout(()=>{
+        mobileDragPanel = panel;
+        panel.classList.add('mobile-dragging');
+        navigator.vibrate && navigator.vibrate(30);
+      }, 400);
+    },{passive:true});
+
+    handle.addEventListener('touchmove', e=>{
+      if(!mobileDragPanel){ clearTimeout(longPressTimer); return; }
+      e.preventDefault();
+      const ty = e.touches[0].clientY;
+      // Find which panel we're hovering over
+      const panels = [...body.querySelectorAll('.draggable-panel:not(.mobile-dragging)')];
+      // Remove old indicator
+      if(indicator){ indicator.remove(); indicator=null; }
+      let target = null, insertBefore = true;
+      for(const p of panels){
+        const r = p.getBoundingClientRect();
+        if(ty < r.top + r.height/2){ target=p; insertBefore=true; break; }
+        if(ty >= r.top + r.height/2){ target=p; insertBefore=false; }
+      }
+      // Show drop indicator
+      indicator = document.createElement('div');
+      indicator.className = 'mobile-drop-indicator';
+      if(target){
+        if(insertBefore) body.insertBefore(indicator, target);
+        else { target.after(indicator); }
+        indicator._target = target;
+        indicator._before = insertBefore;
+      } else {
+        body.appendChild(indicator);
+      }
+    },{passive:false});
+
+    handle.addEventListener('touchend', ()=>{
+      clearTimeout(longPressTimer);
+      if(!mobileDragPanel){ return; }
+      // Drop panel at indicator position
+      if(indicator){
+        const t = indicator._target;
+        const b = indicator._before;
+        indicator.remove(); indicator=null;
+        if(t){
+          if(b) body.insertBefore(mobileDragPanel, t);
+          else t.after(mobileDragPanel);
+        } else {
+          body.appendChild(mobileDragPanel);
+        }
+      }
+      mobileDragPanel.classList.remove('mobile-dragging');
+      mobileDragPanel = null;
+      savePanelOrder();
+    });
+
+    handle.addEventListener('touchcancel', ()=>{
+      clearTimeout(longPressTimer);
+      if(mobileDragPanel) mobileDragPanel.classList.remove('mobile-dragging');
+      if(indicator){ indicator.remove(); indicator=null; }
+      mobileDragPanel = null;
+    });
+  });
+}
+
+function savePanelOrder(){
+  const body = document.getElementById('home-body');
+  if(!body) return;
+  const order = [...body.querySelectorAll('.draggable-panel')].map(p=>p.id);
+  try{ localStorage.setItem('wave-mobile-panel-order', JSON.stringify(order)); }catch(e){}
+}
+
+function restoreMobilePanelOrder(){
+  if(window.innerWidth > 700) return;
+  try{
+    const saved = localStorage.getItem('wave-mobile-panel-order');
+    if(!saved) return;
+    const order = JSON.parse(saved);
+    const body = document.getElementById('home-body');
+    order.forEach(id=>{ const el=document.getElementById(id); if(el) body.appendChild(el); });
+  }catch(e){}
+}
 let _communitySearchTimer = null;
 let _roomSearchTimer = null;
 
