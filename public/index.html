@@ -292,6 +292,10 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .dot-inroom{background:#4fc3f7;cursor:pointer;}
 .dot-offline{background:#444;}
 .start-room-btn{padding:.22rem .5rem;border-radius:5px;border:1px solid var(--accent3);background:transparent;color:var(--accent3);font-size:.62rem;cursor:pointer;font-family:'DM Mono',monospace;white-space:nowrap;}
+.dm-btn{padding:.22rem .5rem;border-radius:5px;border:1px solid var(--accent);background:transparent;color:var(--accent);font-size:.62rem;cursor:pointer;font-family:'DM Mono',monospace;white-space:nowrap;}
+.friend-bell-btn{width:22px;height:22px;border-radius:5px;border:1px solid var(--border);background:transparent;cursor:pointer;font-size:.72rem;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0;padding:0;opacity:.3;filter:grayscale(1);}
+.friend-bell-btn:hover{opacity:.65;filter:grayscale(.3);}
+.friend-bell-btn.bell-on{border-color:#f5a623;background:rgba(245,166,35,.12);opacity:1;filter:grayscale(0);}
 .start-room-btn.selected{background:var(--accent3);color:#000;}
 
 /* Join request banner */
@@ -398,7 +402,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
   padding:var(--ggap);
   min-height:calc(100vh - 52px);
   background:var(--bg);
-  overflow:hidden;
+  overflow:auto;
 }
 /* Dot grid — hidden until panel selected */
 .home-body::before{
@@ -1344,9 +1348,14 @@ function applyLayout(){
   if(window.innerWidth <= 700) return;
   const body = document.getElementById('home-body');
   if(!body) return;
+  const cols = totalCols();
   let maxBottom = 0;
   PANEL_IDS.forEach(id=>{
     const p = gridLayout[id]; if(!p) return;
+    // Clamp col to grid width
+    p.c = Math.max(0, Math.min(p.c, cols - p.w));
+    p.w = Math.min(p.w, cols - p.c);
+    p.r = Math.max(0, p.r);
     maxBottom = Math.max(maxBottom, p.r + p.h);
   });
   body.style.height = (gy(maxBottom) + GAP*4) + 'px';
@@ -1421,17 +1430,23 @@ function attachGridInteraction(){
     const {type,panel,bx,by} = interaction;
     const p = gridLayout[panel.id];
     const cols = totalCols();
+    const body = document.getElementById('home-body');
+    const bodyW = body ? body.offsetWidth : 1200;
+    const bodyH = body ? body.offsetHeight : 1200;
 
     if(type==='drag'){
-      // Move panel pixel-exact while dragging
       const relX = cx - bx - interaction.ox;
       const relY = cy - by - interaction.oy;
-      panel.style.left = Math.max(0, relX) + 'px';
-      panel.style.top  = Math.max(0, relY) + 'px';
-      // Compute snapped position
-      const sc = Math.max(0, Math.min(snapCol(relX), cols - p.w));
-      const sr = Math.max(0, snapRow(relY));
-      // Only update if no collision
+      // Clamp pixel position so panel stays fully inside home-body
+      const panelW = gridW(p.w);
+      const panelH = gridH(p.h);
+      const clampedX = Math.max(GAP, Math.min(relX, bodyW - panelW - GAP));
+      const clampedY = Math.max(GAP, Math.min(relY, bodyH - panelH - GAP));
+      panel.style.left = clampedX + 'px';
+      panel.style.top  = clampedY + 'px';
+      // Compute snapped col/row
+      const sc = Math.max(0, Math.min(snapCol(clampedX), cols - p.w));
+      const sr = Math.max(0, snapRow(clampedY));
       if(!hasCollision(panel.id, sc, sr, p.w, p.h)){
         interaction.liveC = sc;
         interaction.liveR = sr;
@@ -1442,19 +1457,24 @@ function attachGridInteraction(){
       const dx = cx - interaction.startX;
       const dy = cy - interaction.startY;
       const dir = interaction.dir;
+      // Use floor so we only shrink/grow by whole cells, and only after moving >half a cell
+      const dC = dx >= 0 ? Math.floor(dx/(CELL+GAP)) : Math.ceil(dx/(CELL+GAP));
+      const dR = dy >= 0 ? Math.floor(dy/(CELL+GAP)) : Math.ceil(dy/(CELL+GAP));
       let c=interaction.startC, r=interaction.startR, w=interaction.startW, h=interaction.startH;
-      const dC = Math.round(dx/(CELL+GAP));
-      const dR = Math.round(dy/(CELL+GAP));
       if(dir.includes('r')){ w = Math.max(2, interaction.startW + dC); }
-      if(dir.includes('l')){ const dc2=Math.min(dC, interaction.startW-2); w=interaction.startW-dc2; c=interaction.startC+dc2; }
+      if(dir.includes('l')){ const dc2=Math.max(-(interaction.startW-2), Math.min(dC, 0)); w=interaction.startW-dc2; c=interaction.startC+dc2; }
       if(dir.includes('b')){ h = Math.max(2, interaction.startH + dR); }
-      if(dir.includes('t')){ const dr2=Math.min(dR, interaction.startH-2); h=interaction.startH-dr2; r=interaction.startR+dr2; }
-      w = Math.min(w, cols-c);
+      if(dir.includes('t')){ const dr2=Math.max(-(interaction.startH-2), Math.min(dR, 0)); h=interaction.startH-dr2; r=interaction.startR+dr2; }
+      // Clamp within grid bounds
+      c = Math.max(0, c);
+      r = Math.max(0, r);
+      w = Math.max(2, Math.min(w, cols - c));
+      h = Math.max(2, h);
+      if(c + w > cols) w = cols - c;
       // Only apply if no collision
       if(!hasCollision(panel.id, c, r, w, h)){
         interaction.liveC=c; interaction.liveR=r; interaction.liveW=w; interaction.liveH=h;
       }
-      // Apply live visual
       const lc=interaction.liveC, lr=interaction.liveR, lw=interaction.liveW, lh=interaction.liveH;
       panel.style.left   = gx(lc) + 'px';
       panel.style.top    = gy(lr) + 'px';
