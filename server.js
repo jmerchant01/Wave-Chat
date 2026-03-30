@@ -7,6 +7,7 @@ const { router: authRouter, JWT_SECRET } = require('./routes/auth');
 const adminRouter = require('./routes/admin');
 const messagesRouter = require('./routes/messages');
 const communityRouter = require('./routes/communities');
+const stripeRouter = require('./routes/stripe');
 const jwt = require('jsonwebtoken');
 // web-push removed — using browser Notification API instead
 
@@ -27,12 +28,15 @@ async function sendPushNotification(userId, payload) {
   // Browser Notification API handles display when app is open
 }
 
+// Stripe webhook needs raw body — mount BEFORE express.json()
+app.use('/api/stripe/webhook', require('express').raw({ type: 'application/json' }), stripeRouter);
 app.use(express.json({ limit: '15mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/api', authRouter);
 app.use('/api', adminRouter);
 app.use('/api', messagesRouter);
 app.use('/api', communityRouter);
+app.use('/api', stripeRouter);
 
 // ── Public rooms registry ──
 const publicRooms = new Map(); // roomId -> { name, tags, hostName, participants, createdAt }

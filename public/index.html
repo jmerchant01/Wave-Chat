@@ -1113,6 +1113,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
       <button id="cv-invite-btn" class="home-nav-btn" onclick="openCommunityInvitePanel()">👥 Invite Friends</button>
       <button class="home-nav-btn" onclick="copyCommunityURL()" style="border-color:var(--accent);color:var(--accent);">🔗 Copy URL</button>
       <button id="cv-leave-btn" class="home-nav-btn" onclick="leaveCommunity()" style="color:var(--danger);">Leave</button>
+      <button id="cv-subscribe-btn" class="home-nav-btn hidden" onclick="openSubscribeModal()" style="border-color:var(--accent3);color:var(--accent3);">💳 Subscribe</button>
     </div>
   </div>
   <div style="display:flex;flex:1;overflow:hidden;">
@@ -1196,6 +1197,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
       <button class="auth-btn" style="flex:1;margin-top:0;" onclick="saveCommunitySettings()">Save Changes</button>
     </div>
     <button onclick="deleteCommunity()" style="width:100%;margin-top:.5rem;padding:.5rem;border:1px solid var(--danger);background:transparent;color:var(--danger);border-radius:8px;cursor:pointer;font-family:'Inter',system-ui,sans-serif;font-size:.72rem;">🗑 Delete Community</button>
+    <button id="cs-pricing-btn" onclick="closeCommunitySettings();openPricingSetup();" style="width:100%;margin-top:.5rem;padding:.5rem;border:1px solid var(--accent3);background:transparent;color:var(--accent3);border-radius:8px;cursor:pointer;font-size:.72rem;">💰 Set Up Paid Subscriptions</button>
   </div>
 </div>
 
@@ -1206,6 +1208,44 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     <p id="invite-friends-sub" style="font-size:.7rem;color:var(--muted);margin-bottom:.85rem;line-height:1.6;"></p>
     <div id="invite-friends-list" style="max-height:320px;overflow-y:auto;display:flex;flex-direction:column;gap:.35rem;"></div>
     <button class="save-modal-cancel" style="width:100%;margin-top:.75rem;padding:.6rem;" onclick="closeInviteFriendsModal()">Close</button>
+  </div>
+</div>
+
+<!-- SUBSCRIBE TO COMMUNITY MODAL -->
+<div id="subscribe-modal-overlay" class="save-modal-overlay hidden">
+  <div class="save-modal" style="max-width:460px;">
+    <h3>💳 Subscribe to <span id="sub-community-name"></span></h3><button class="modal-close-x" onclick="closeSubscribeModal()">✕</button>
+    <p style="font-size:.72rem;color:var(--muted);margin-bottom:1rem;line-height:1.7;">Choose a plan to get full access. Cancel anytime for recurring plans.</p>
+    <div id="sub-plans-list" style="display:flex;flex-direction:column;gap:.5rem;margin-bottom:1rem;"></div>
+    <div id="sub-current" style="font-size:.7rem;color:var(--accent3);text-align:center;margin-bottom:.5rem;"></div>
+    <button class="save-modal-cancel" style="width:100%;margin-top:0;padding:.6rem;" onclick="closeSubscribeModal()">Maybe Later</button>
+  </div>
+</div>
+
+<!-- SUBSCRIPTION PRICING SETUP (creator) -->
+<div id="pricing-setup-overlay" class="save-modal-overlay hidden">
+  <div class="save-modal" style="max-width:480px;max-height:85vh;overflow-y:auto;">
+    <h3>💰 Set Up Paid Subscriptions</h3><button class="modal-close-x" onclick="closePricingSetup()">✕</button>
+    <p style="font-size:.72rem;color:var(--muted);margin-bottom:1rem;line-height:1.7;">Set prices for each plan. Leave blank to disable that plan. WAVE takes a <strong id="wave-fee-label">10%</strong> platform fee. You receive the rest directly via Stripe.</p>
+    <div style="background:rgba(108,99,255,.08);border:1px solid rgba(108,99,255,.2);border-radius:8px;padding:.65rem .85rem;font-size:.7rem;margin-bottom:1rem;line-height:1.7;">
+      ⚠️ You need a <strong>Stripe account</strong> to receive payments. <a id="stripe-connect-link" href="#" onclick="startStripeConnect(event)" style="color:var(--accent);">Connect Stripe →</a>
+      <span id="stripe-connected-badge" class="hidden" style="color:var(--accent3);">✅ Stripe Connected</span>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.65rem;margin-bottom:1rem;">
+      <div><label style="font-size:.65rem;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:.3rem;">Weekly ($)</label>
+        <input id="price-weekly" type="number" min="0" step="0.01" placeholder="e.g. 1.99" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:.5rem .65rem;color:var(--text);font-size:.78rem;outline:none;box-sizing:border-box;"/></div>
+      <div><label style="font-size:.65rem;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:.3rem;">Monthly ($)</label>
+        <input id="price-monthly" type="number" min="0" step="0.01" placeholder="e.g. 4.99" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:.5rem .65rem;color:var(--text);font-size:.78rem;outline:none;box-sizing:border-box;"/></div>
+      <div><label style="font-size:.65rem;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:.3rem;">Yearly ($)</label>
+        <input id="price-yearly" type="number" min="0" step="0.01" placeholder="e.g. 39.99" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:.5rem .65rem;color:var(--text);font-size:.78rem;outline:none;box-sizing:border-box;"/></div>
+      <div><label style="font-size:.65rem;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:.3rem;">Lifetime ($)</label>
+        <input id="price-lifetime" type="number" min="0" step="0.01" placeholder="e.g. 99.99" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:.5rem .65rem;color:var(--text);font-size:.78rem;outline:none;box-sizing:border-box;"/></div>
+    </div>
+    <div id="pricing-error" style="color:var(--danger);font-size:.7rem;min-height:1rem;margin-bottom:.5rem;"></div>
+    <div style="display:flex;gap:.5rem;">
+      <button class="save-modal-cancel" style="flex:1;margin-top:0;padding:.6rem;" onclick="closePricingSetup()">Cancel</button>
+      <button class="auth-btn" style="flex:1;margin-top:0;" id="pricing-save-btn" onclick="savePricingSetup()">Save & Enable</button>
+    </div>
   </div>
 </div>
 
@@ -1714,6 +1754,7 @@ function onAuthSuccess(){
   loadDMInbox();
   loadMyCommunities();
   loadPublicRooms();
+  checkStripeReturn();
   initDraggablePanels();
   initTouchDrag();
   if(window.innerWidth <= 700){ restoreMobilePanelOrder(); initMobilePanelDrag(); }
@@ -3007,7 +3048,183 @@ function lastSeenText(lastSeen){
 // ═══════════════════════════════════════════════════
 //  PUBLIC ROOMS
 // ═══════════════════════════════════════════════════
-// ── Mobile Panel Reorder (long-press drag) ──
+// ═══════════════════════════════════════════════════
+//  STRIPE SUBSCRIPTIONS
+// ═══════════════════════════════════════════════════
+let subInfo = null; // current community subscription info
+
+async function loadCommunitySubInfo(communityId){
+  if(!authToken||!communityId) return;
+  try{
+    const res = await fetch(`/api/communities/${communityId}/subscription`,{headers:{Authorization:`Bearer ${authToken}`}});
+    if(!res.ok) return;
+    subInfo = await res.json();
+    updateSubUI();
+  }catch(e){}
+}
+
+function updateSubUI(){
+  if(!subInfo||!currentCommunity) return;
+  const subscribeBtn = document.getElementById('cv-subscribe-btn');
+  const isOwnerOrAdmin = checkIsOwner(currentCommunity)||checkIsAdmin(currentCommunity);
+  // Show subscribe button if paid, not owner, no access
+  if(subInfo.isPaid && !subInfo.isOwner && !subInfo.hasAccess){
+    subscribeBtn?.classList.remove('hidden');
+  } else {
+    subscribeBtn?.classList.add('hidden');
+  }
+  // Show pricing setup in settings for owner
+  const pricingBtn = document.getElementById('cs-pricing-btn');
+  if(pricingBtn) pricingBtn.classList.toggle('hidden', !subInfo.isOwner);
+}
+
+// ── Subscribe modal ──
+async function openSubscribeModal(){
+  if(!currentCommunity) return;
+  await loadCommunitySubInfo(currentCommunity._id);
+  document.getElementById('sub-community-name').textContent = currentCommunity.name;
+  const plansList = document.getElementById('sub-plans-list');
+  plansList.innerHTML = '';
+  const sub = subInfo?.subscription || {};
+  const planLabels = { weekly:'Weekly', monthly:'Monthly', yearly:'Yearly', lifetime:'Lifetime (one-time)' };
+  const planIcons  = { weekly:'🗓', monthly:'📅', yearly:'🎯', lifetime:'♾️' };
+  let hasPlans = false;
+  ['weekly','monthly','yearly','lifetime'].forEach(plan=>{
+    const planData = sub[plan];
+    if(!planData?.price||planData.price<=0) return;
+    hasPlans = true;
+    const dollars = (planData.price/100).toFixed(2);
+    const btn = document.createElement('button');
+    btn.style.cssText='width:100%;padding:.75rem 1rem;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text);display:flex;align-items:center;justify-content:space-between;cursor:pointer;transition:all .15s;font-size:.82rem;';
+    btn.innerHTML=`<span>${planIcons[plan]} <strong>${planLabels[plan]}</strong></span><span style="color:var(--accent3);font-weight:700;">$${dollars}${plan!=='lifetime'?`/${plan.replace('ly','')}`:''}</span>`;
+    btn.onmouseover=()=>btn.style.borderColor='var(--accent)';
+    btn.onmouseout=()=>btn.style.borderColor='var(--border)';
+    btn.onclick=()=>startCheckout(plan);
+    plansList.appendChild(btn);
+  });
+  if(!hasPlans) plansList.innerHTML='<div style="color:var(--muted);font-size:.75rem;text-align:center;padding:.5rem;">No plans available yet.</div>';
+  // Show current sub if any
+  const cur = document.getElementById('sub-current');
+  if(subInfo?.currentPlan){
+    const end = subInfo.currentPeriodEnd ? new Date(subInfo.currentPeriodEnd).toLocaleDateString() : '—';
+    cur.textContent = `Current plan: ${subInfo.currentPlan} · renews ${end}`;
+  } else { cur.textContent=''; }
+  document.getElementById('subscribe-modal-overlay').classList.remove('hidden');
+}
+
+function closeSubscribeModal(){
+  document.getElementById('subscribe-modal-overlay').classList.add('hidden');
+}
+
+async function startCheckout(plan){
+  if(!currentCommunity||!authToken) return;
+  try{
+    const res = await fetch(`/api/communities/${currentCommunity._id}/subscribe`,{
+      method:'POST', headers:{'Content-Type':'application/json',Authorization:`Bearer ${authToken}`},
+      body: JSON.stringify({ plan })
+    });
+    const data = await res.json();
+    if(!res.ok){ toast('⚠️ '+data.error); return; }
+    // Redirect to Stripe checkout
+    window.location.href = data.url;
+  }catch(e){ toast('⚠️ Payment error — try again'); }
+}
+
+// ── Pricing setup (creator) ──
+function openPricingSetup(){
+  if(!currentCommunity) return;
+  const sub = currentCommunity.subscription||{};
+  ['weekly','monthly','yearly','lifetime'].forEach(plan=>{
+    const el = document.getElementById(`price-${plan}`);
+    if(el) el.value = sub[plan]?.price ? (sub[plan].price/100).toFixed(2) : '';
+  });
+  document.getElementById('pricing-error').textContent='';
+  const connected = !!currentCommunity.stripeAccountId;
+  document.getElementById('stripe-connected-badge').classList.toggle('hidden',!connected);
+  document.getElementById('stripe-connect-link').classList.toggle('hidden',connected);
+  document.getElementById('wave-fee-label').textContent='10%';
+  document.getElementById('pricing-setup-overlay').classList.remove('hidden');
+}
+function closePricingSetup(){
+  document.getElementById('pricing-setup-overlay').classList.add('hidden');
+}
+
+async function savePricingSetup(){
+  const errEl = document.getElementById('pricing-error');
+  errEl.textContent='';
+  const btn = document.getElementById('pricing-save-btn');
+  btn.disabled=true; btn.innerHTML='<div class="auth-spinner"></div> Saving…';
+  const plans={};
+  ['weekly','monthly','yearly','lifetime'].forEach(p=>{
+    const v = parseFloat(document.getElementById(`price-${p}`)?.value||0);
+    if(v>0) plans[p]=v;
+  });
+  if(!Object.keys(plans).length){ errEl.textContent='Enter at least one price'; btn.disabled=false; btn.textContent='Save & Enable'; return; }
+  try{
+    const res = await fetch(`/api/communities/${currentCommunity._id}/subscription/setup`,{
+      method:'POST', headers:{'Content-Type':'application/json',Authorization:`Bearer ${authToken}`},
+      body: JSON.stringify(plans)
+    });
+    const data = await res.json();
+    if(!res.ok){ errEl.textContent=data.error; return; }
+    toast('✅ Subscription pricing saved!');
+    closePricingSetup();
+    await openCommunityById(currentCommunity._id);
+  }catch(e){ errEl.textContent='Server error'; }
+  finally{ btn.disabled=false; btn.textContent='Save & Enable'; }
+}
+
+async function startStripeConnect(e){
+  e.preventDefault();
+  if(!currentCommunity||!authToken) return;
+  try{
+    const existing = currentCommunity.stripeAccountId;
+    const res = await fetch('/api/stripe/connect/onboard',{
+      method:'POST', headers:{'Content-Type':'application/json',Authorization:`Bearer ${authToken}`},
+      body: JSON.stringify({ existingAccountId: existing||undefined })
+    });
+    const data = await res.json();
+    if(!res.ok){ toast('⚠️ '+data.error); return; }
+    // Save accountId to community before redirecting
+    if(data.accountId && !existing){
+      await fetch(`/api/communities/${currentCommunity._id}/stripe-account`,{
+        method:'POST', headers:{'Content-Type':'application/json',Authorization:`Bearer ${authToken}`},
+        body: JSON.stringify({ accountId: data.accountId })
+      });
+    }
+    window.open(data.url,'_blank');
+  }catch(e){ toast('⚠️ Stripe connect error'); }
+}
+
+// Handle Stripe return URLs
+function checkStripeReturn(){
+  const p = new URLSearchParams(location.search);
+  if(p.get('sub_success')){
+    const cid = p.get('community');
+    toast('🎉 Subscription activated! Welcome!');
+    history.replaceState(null,'',location.pathname);
+    if(cid){ loadMyCommunities(); setTimeout(()=>openCommunityById(cid),800); }
+  }
+  if(p.get('sub_cancel')){
+    toast('Payment canceled.');
+    history.replaceState(null,'',location.pathname);
+  }
+  if(p.get('stripe_return')){
+    const accountId = p.get('account');
+    toast('✅ Stripe account connected!');
+    history.replaceState(null,'',location.pathname);
+  }
+}
+
+// ── Check community access (gate paid communities) ──
+async function checkCommunityAccess(communityId){
+  if(!authToken) return false;
+  try{
+    const res = await fetch(`/api/communities/${communityId}/subscription`,{headers:{Authorization:`Bearer ${authToken}`}});
+    const data = await res.json();
+    return data.hasAccess || data.isOwner || !data.isPaid;
+  }catch(e){ return true; }
+}
 function initMobilePanelDrag(){
   if(window.innerWidth > 700) return;
   const body = document.getElementById('home-body');
@@ -3309,6 +3526,7 @@ function openCommunityView(community){
   if(firstText) openChannel(firstText);
 
   document.getElementById('community-view').classList.remove('hidden');
+  loadCommunitySubInfo(community._id);
 }
 
 function closeCommunityView(){

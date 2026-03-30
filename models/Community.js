@@ -46,6 +46,19 @@ const communitySchema = new mongoose.Schema({
   channels:    [channelSchema],
   members:     [memberSchema],
   inviteCode:  { type: String, unique: true, sparse: true },
+  // Subscription / monetization
+  isPaid:      { type: Boolean, default: false },
+  subscription: {
+    weekly:   { price: { type: Number, default: 0 }, stripePriceId: { type: String, default: null } },
+    monthly:  { price: { type: Number, default: 0 }, stripePriceId: { type: String, default: null } },
+    yearly:   { price: { type: Number, default: 0 }, stripePriceId: { type: String, default: null } },
+    lifetime: { price: { type: Number, default: 0 }, stripePriceId: { type: String, default: null } },
+  },
+  stripeProductId: { type: String, default: null },
+  // WAVE platform fee (percentage, 0-100)
+  platformFeePercent: { type: Number, default: 10 },
+  // Creator's Stripe Connect account
+  stripeAccountId: { type: String, default: null },
   createdAt:   { type: Date, default: Date.now }
 });
 

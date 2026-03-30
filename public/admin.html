@@ -89,6 +89,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;min-
       <button class="nav-btn" onclick="showTab('reports')" id="tab-reports">🚩 Reports <span id="pending-badge" style="background:var(--danger);color:#fff;border-radius:10px;padding:0 5px;font-size:.6rem;"></span></button>
       <button class="nav-btn" onclick="showTab('communities')" id="tab-communities">🏘️ Communities</button>
       <button class="nav-btn" onclick="showTab('messages')" id="tab-messages">💬 DMs</button>
+      <button class="nav-btn" onclick="showTab('subscriptions')" id="tab-subscriptions">💳 Subscriptions</button>
       <button class="nav-btn" onclick="adminLogout()" style="margin-left:.5rem;color:var(--muted);">Log Out</button>
     </div>
   </div>
@@ -170,6 +171,20 @@ body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;min-
   </div>
 </div>
 
+    <!-- Subscriptions tab -->
+    <div id="tab-subscriptions-body" class="hidden">
+      <div class="section-title">💳 Subscriptions & Revenue</div>
+      <div class="stats-grid" style="margin-bottom:1.5rem;">
+        <div class="stat-card"><div class="stat-num" id="stat-sub-active" style="color:var(--accent3);">—</div><div class="stat-label">Active Subs</div></div>
+        <div class="stat-card"><div class="stat-num" id="stat-sub-revenue">—</div><div class="stat-label">Total Revenue</div></div>
+        <div class="stat-card"><div class="stat-num" id="stat-sub-fee" style="color:var(--host);">—</div><div class="stat-label">WAVE Fees</div></div>
+      </div>
+      <table class="data-table">
+        <thead><tr><th>User</th><th>Community</th><th>Plan</th><th>Amount</th><th>Status</th><th>Period End</th></tr></thead>
+        <tbody id="subscriptions-tbody"></tbody>
+      </table>
+    </div>
+
 <!-- Report detail modal -->
 <div id="report-modal" class="modal-overlay hidden">
   <div class="modal">
@@ -221,7 +236,7 @@ async function showAdminApp(){
 }
 
 function showTab(tab){
-  ['users','reports','communities','community-msgs','messages'].forEach(t=>{
+  ['users','reports','communities','community-msgs','messages','subscriptions'].forEach(t=>{
     const panel = document.getElementById(`tab-${t}-body`);
     const btn   = document.getElementById(`tab-${t}`);
     if(panel) panel.classList.toggle('hidden', t!==tab);
@@ -230,6 +245,7 @@ function showTab(tab){
   if(tab==='reports') loadReports(1);
   if(tab==='communities') loadCommunities(1);
   if(tab==='messages') { document.getElementById('dm-messages-list').innerHTML=''; document.getElementById('dm-user-results').innerHTML=''; }
+  if(tab==='subscriptions') loadSubscriptions();
 }
 
 async function apiFetch(path, opts={}){
@@ -537,6 +553,24 @@ async function deleteDMAdmin(id, btn){
 }
 
 function toast(msg){ alert(msg); }
+
+async function loadSubscriptions(){
+  try{
+    const res=await apiFetch('/api/admin/subscriptions');
+    const d=await res.json();
+    document.getElementById('stat-sub-active').textContent=d.activeSubs||0;
+    document.getElementById('stat-sub-revenue').textContent='$'+(d.totalRevenue/100).toFixed(2);
+    document.getElementById('stat-sub-fee').textContent='$'+(d.waveFee/100).toFixed(2);
+    const tbody=document.getElementById('subscriptions-tbody');
+    tbody.innerHTML='';
+    (d.subscriptions||[]).forEach(s=>{
+      const tr=document.createElement('tr');
+      const end=s.currentPeriodEnd?new Date(s.currentPeriodEnd).toLocaleDateString():'—';
+      tr.innerHTML=`<td>${esc(s.userId?.username||'?')}</td><td>${esc(s.communityId?.name||'?')}</td><td><span class="badge badge-reviewed">${s.plan}</span></td><td>$${((s.amount||0)/100).toFixed(2)}</td><td><span class="badge ${s.status==='active'?'badge-reviewed':'badge-dismissed'}">${s.status}</span></td><td style="color:var(--muted);">${end}</td>`;
+      tbody.appendChild(tr);
+    });
+  }catch(e){}
+}
 
 // Auto-login if token saved
 window.onload = async ()=>{
