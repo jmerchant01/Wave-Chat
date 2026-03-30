@@ -2708,8 +2708,8 @@ function renderCVChannels(channels){
     btn.innerHTML=`<span>${typeIcon[ch.type]||'#'}</span><span style="flex:1;">${esc(displayName)}</span>${isLocked?'<span style="font-size:.6rem;color:var(--muted);">🔒</span>':''}${hasActiveRoom?'<span style="width:7px;height:7px;border-radius:50%;background:var(--accent3);flex-shrink:0;animation:pulse 1.5s infinite;"></span>':''}`;
     btn.dataset.channelId=ch._id;
 
-    if(ch.type==='room'){
-      btn.onclick=()=> handleRoomChannel(ch);
+    if(ch.type==='room'||ch.type==='voice'){
+      btn.onclick=()=>{ openChannel(ch); };
     } else {
       btn.onclick=()=>{
         if(isLocked && !isOwnerOrAdmin){ toast('🔒 This channel is locked'); return; }
@@ -2727,27 +2727,13 @@ function renderCVChannels(channels){
 
     wrapper.appendChild(btn);
 
-    // Show active room link + members below room channels
-    if(ch.type==='room' && ch.activeRoomId){
-      const link=document.createElement('div');
-      link.id=`room-active-${ch._id}`;
-      link.style.cssText='padding:.1rem .6rem .5rem 1.6rem;';
-      const members = communityRoomMembers[ch.activeRoomId] || [];
-      const memberNames = members.length ? members.slice(0,4).join(', ')+(members.length>4?` +${members.length-4} more`:'') : '';
-      link.innerHTML=`
-        <div style="display:flex;align-items:center;gap:.4rem;cursor:pointer;" onclick="joinCommunityRoom('${ch.activeRoomId}')">
-          <span style="width:7px;height:7px;border-radius:50%;background:var(--accent3);flex-shrink:0;"></span>
-          <span style="color:var(--accent3);font-size:.68rem;font-weight:600;">Room active</span>
-          ${members.length?`<span style="font-size:.6rem;color:var(--muted);">(${members.length})</span>`:''}
-        </div>
-        ${memberNames?`<div style="font-size:.62rem;color:var(--muted);padding-left:1rem;margin-top:.1rem;">${esc(memberNames)}</div>`:''}
-        <div style="font-size:.6rem;color:var(--accent);padding-left:1rem;margin-top:.1rem;cursor:pointer;" onclick="joinCommunityRoom('${ch.activeRoomId}')">Click to join →</div>`;
-      wrapper.appendChild(link);
-    } else if(ch.type==='room'){
-      const noRoom=document.createElement('div');
-      noRoom.style.cssText='padding:.1rem .6rem .4rem 1.6rem;font-size:.63rem;color:var(--muted);';
-      noRoom.textContent='No active room — click to create one';
-      wrapper.appendChild(noRoom);
+    // Show member names below active room channels
+    if((ch.type==='room'||ch.type==='voice') && ch.activeRoomId){
+      const members = communityRoomMembers[ch.activeRoomId]||[];
+      const sub=document.createElement('div');
+      sub.style.cssText='padding:.05rem .6rem .35rem 1.5rem;font-size:.62rem;color:var(--muted);';
+      sub.textContent = members.length ? members.slice(0,3).join(', ')+(members.length>3?` +${members.length-3} more`:'') : '';
+      wrapper.appendChild(sub);
     }
 
     el.appendChild(wrapper);
@@ -2835,60 +2821,95 @@ async function refreshCurrentCommunity(){
 
 // Room channel handling
 async function handleRoomChannel(ch){
+  // This is now only called from handleRoomChannelBtn — never from sidebar click
   const isOwnerOrAdmin = checkIsOwner(currentCommunity)||checkIsAdmin(currentCommunity);
-  if(ch.locked && !isOwnerOrAdmin){ toast('🔒 Room creation is locked for this channel'); return; }
-
+  if(ch.locked && !isOwnerOrAdmin){ toast('🔒 Room creation is locked'); return; }
   if(ch.activeRoomId){
-    // Room already exists — join it
     joinCommunityRoom(ch.activeRoomId);
   } else {
-    // Create a new private room
-    if(!confirm(`Create a new voice room for "${ch.name}"? Only community members will get the link.`)) return;
     await createCommunityRoom(ch);
   }
 }
 
 async function createCommunityRoom(ch){
+  const createBtn = document.getElementById('cv-create-room-btn');
+  if(createBtn){ createBtn.disabled=true; createBtn.textContent='Creating…'; }
+
   const roomName = `${currentCommunity.name} — ${ch.name}`;
-  await initMic();
-  connectSocket();
   const communityId = currentCommunity._id;
   const channelId = ch._id;
-  socket.once('connect', ()=>{
-    socket.emit('create_room',{name:currentUser.username, roomName, userId:currentUser?.id||null, isPublic:false, tags:[], communityId, channelId});
-  });
-  socket.once('room_joined', async ({roomId:rid})=>{
-    const joinUrl = `${location.origin}${location.pathname}?room=${rid}`;
-    const text = `🎙️ Room created! Join: ${joinUrl}`;
-    try{
-      const res=await fetch(`/api/communities/${communityId}/channels/${channelId}/messages`,{
-        method:'POST', headers:{'Content-Type':'application/json',Authorization:`Bearer ${authToken}`},
-        body:JSON.stringify({text})
-      });
-      if(res.ok){
-        const {message}=await res.json();
-        const sock=homeSocket||socket;
-        if(sock) sock.emit('community_message',{communityId,channelId,message});
+
+  try {
+    // Initialize mic and socket, create room
+    await initMic();
+    connectSocket();
+
+    await new Promise((resolve, reject)=>{
+      const timeout = setTimeout(()=>reject(new Error('timeout')), 8000);
+      function onJoined({roomId:rid}){
+        clearTimeout(timeout);
+        resolve(rid);
       }
-    }catch(e){}
-    // Set activeRoomId on the channel
-    await fetch(`/api/communities/${communityId}/channels/${channelId}/active-room`,{
-      method:'PATCH', headers:{'Content-Type':'application/json',Authorization:`Bearer ${authToken}`},
-      body:JSON.stringify({roomId:rid})
-    }).catch(()=>{});
-    // Broadcast room created to community members
-    const sock=homeSocket||socket;
-    if(sock){
-      sock.emit('community_room_update',{communityId, channelId, roomId:rid, members:[currentUser.username]});
-    }
-    closeCommunityView();
-    toast(`🎙️ Room created! Joining now…`);
-  });
+      if(socket.connected){
+        socket.once('room_joined', onJoined);
+        socket.emit('create_room',{name:currentUser.username, roomName, userId:currentUser?.id||null, isPublic:false, tags:[], communityId, channelId});
+      } else {
+        socket.once('connect', ()=>{
+          socket.once('room_joined', onJoined);
+          socket.emit('create_room',{name:currentUser.username, roomName, userId:currentUser?.id||null, isPublic:false, tags:[], communityId, channelId});
+        });
+      }
+    }).then(async rid=>{
+      const joinUrl = `${location.origin}${location.pathname}?room=${rid}`;
+      // Post link in channel
+      try{
+        const res=await fetch(`/api/communities/${communityId}/channels/${channelId}/messages`,{
+          method:'POST', headers:{'Content-Type':'application/json',Authorization:`Bearer ${authToken}`},
+          body:JSON.stringify({text:`🎙️ Room started! Join: ${joinUrl}`})
+        });
+        if(res.ok){
+          const {message}=await res.json();
+          const sock=homeSocket||socket;
+          if(sock) sock.emit('community_message',{communityId,channelId,message});
+        }
+      }catch(e){}
+      // Save activeRoomId
+      await fetch(`/api/communities/${communityId}/channels/${channelId}/active-room`,{
+        method:'PATCH', headers:{'Content-Type':'application/json',Authorization:`Bearer ${authToken}`},
+        body:JSON.stringify({roomId:rid})
+      }).catch(()=>{});
+      // Broadcast to community
+      const sock=homeSocket||socket;
+      if(sock) sock.emit('community_room_update',{communityId, channelId, roomId:rid, members:[currentUser.username]});
+      // Update local channel data
+      const localCh = currentCommunity?.channels?.find(c=>c._id===channelId||c._id?.toString()===channelId);
+      if(localCh) localCh.activeRoomId = rid;
+      // Re-render channel UI
+      renderCVChannels(currentCommunity.channels||[]);
+      updateRoomChannelUI({...ch, activeRoomId:rid});
+      // NOW open the actual room UI — stay in community, show room overlaid
+      showCommunityRoom(rid, roomName);
+    });
+  } catch(e){
+    toast('⚠️ Failed to create room');
+    if(createBtn){ createBtn.disabled=false; createBtn.textContent='🎙️ Create Room'; }
+  }
 }
 
 function joinCommunityRoom(roomId){
-  document.getElementById('join-code').value=roomId;
+  showCommunityRoom(roomId, null);
+}
+
+// Show room INSIDE community view (no navigation away)
+let communityRoomActive = false;
+function showCommunityRoom(rid, name){
+  communityRoomActive = true;
+  // Set the join code and trigger join — the room UI will open over the community
+  document.getElementById('join-code').value = rid;
+  // Close community view temporarily and open room
+  closeCommunityView();
   joinRoom();
+  // After room ends, user goes back to home — they can re-open community
 }
 
 function renderCVMembers(members){
