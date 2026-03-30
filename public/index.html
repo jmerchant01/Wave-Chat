@@ -409,9 +409,9 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
   content:'';
   position:absolute;
   inset:0;
-  background-image:radial-gradient(circle,rgba(108,99,255,.4) 1.5px,transparent 1.5px);
+  background-image:radial-gradient(circle,rgba(108,99,255,.6) 2.5px,transparent 2.5px);
   background-size:calc(var(--gcell) + var(--ggap)) calc(var(--gcell) + var(--ggap));
-  background-position:calc(var(--ggap)) calc(var(--ggap));
+  background-position:var(--ggap) var(--ggap);
   pointer-events:none;
   opacity:0;
   transition:opacity .25s;
@@ -584,7 +584,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     <!-- Install -->
     <button class="home-nav-btn" id="install-btn-nav" onclick="installPWA()" style="display:none;border-color:var(--accent);color:var(--accent);font-size:.65rem;padding:.25rem .6rem;">📲 Install</button>
     <!-- Log Out -->
-    <button class="home-nav-btn" onclick="logout()" style="font-size:.65rem;padding:.25rem .6rem;">Log Out</button>
+    <button class="home-nav-btn" onclick="resetPanelLayout()" style="font-size:.65rem;padding:.25rem .6rem;border-color:var(--muted);" title="Reset panel layout">⊞ Reset</button><button class="home-nav-btn" onclick="logout()" style="font-size:.65rem;padding:.25rem .6rem;">Log Out</button>
   </div>
 </nav>
 
@@ -1283,7 +1283,7 @@ let dragSrcPanel = null;
 //  DOT-GRID PANEL SYSTEM  v2
 // ══════════════════════════════════════════════════════
 
-const PANEL_LAYOUT_KEY = 'wave-grid-layout-v1';
+const PANEL_LAYOUT_KEY = 'wave-grid-layout-v2';
 const PANEL_IDS = ['panel-rooms','panel-friends','panel-messages','panel-communities','panel-public-rooms'];
 const CELL = 68, GAP = 8;
 
@@ -1522,6 +1522,13 @@ function deselectPanel(){
   document.getElementById('home-body')?.classList.remove('grid-active');
 }
 
+function resetPanelLayout(){
+  localStorage.removeItem(PANEL_LAYOUT_KEY);
+  gridLayout = JSON.parse(JSON.stringify(DEFAULT_LAYOUT));
+  saveLayout();
+  applyLayout();
+  toast('✅ Layout reset to default');
+}
 // Stubs
 function savePanelOrder(){}
 function savePanelOrder2(){}
