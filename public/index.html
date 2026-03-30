@@ -343,6 +343,39 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .draggable-panel.dragging{opacity:.35;cursor:grabbing;}
 .draggable-panel.drop-before{box-shadow:0 -3px 0 0 var(--accent);border-radius:12px 12px 0 0;}
 .draggable-panel.drop-after{box-shadow:0 3px 0 0 var(--accent);border-radius:0 0 12px 12px;}
+
+/* ── Global Nav ── */
+#global-nav{position:fixed;top:0;left:0;right:0;z-index:400;display:none;align-items:center;justify-content:space-between;padding:.65rem 1.5rem;background:var(--surface);border-bottom:1px solid var(--border);backdrop-filter:blur(8px);}
+#global-nav.visible{display:flex;}
+.gnav-logo{font-family:'Syne',sans-serif;font-size:1.3rem;font-weight:800;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;text-decoration:none;}
+.gnav-right{display:flex;align-items:center;gap:.6rem;}
+.gnav-icon-btn{width:34px;height:34px;border-radius:50%;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.95rem;position:relative;transition:all .15s;}
+.gnav-icon-btn:hover{border-color:var(--accent);color:var(--accent);}
+.notif-badge{position:absolute;top:-3px;right:-3px;width:16px;height:16px;border-radius:50%;background:var(--accent2);color:#fff;font-size:.55rem;display:flex;align-items:center;justify-content:center;font-weight:700;border:2px solid var(--surface);}
+/* Notification panel */
+.notif-panel{position:fixed;top:52px;right:1rem;width:320px;max-height:480px;background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:0 8px 32px rgba(0,0,0,.4);z-index:500;display:none;flex-direction:column;overflow:hidden;}
+.notif-panel.open{display:flex;}
+.notif-panel-header{display:flex;align-items:center;justify-content:space-between;padding:.75rem 1rem;border-bottom:1px solid var(--border);flex-shrink:0;}
+.notif-panel-title{font-family:'Syne',sans-serif;font-size:.85rem;font-weight:700;}
+.notif-clear-btn{font-size:.65rem;color:var(--muted);border:none;background:transparent;cursor:pointer;font-family:'DM Mono',monospace;}
+.notif-clear-btn:hover{color:var(--text);}
+.notif-list{overflow-y:auto;flex:1;}
+.notif-item{display:flex;align-items:flex-start;gap:.65rem;padding:.7rem 1rem;border-bottom:1px solid rgba(30,30,46,.5);cursor:pointer;transition:background .15s;}
+.notif-item:hover{background:var(--surface2);}
+.notif-item.unread{background:rgba(108,99,255,.06);}
+.notif-item.unread::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--accent);flex-shrink:0;margin-top:.3rem;}
+.notif-icon{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.9rem;flex-shrink:0;background:var(--surface2);}
+.notif-content{flex:1;min-width:0;}
+.notif-text{font-size:.72rem;line-height:1.4;color:var(--text);}
+.notif-time{font-size:.6rem;color:var(--muted);margin-top:.15rem;}
+.notif-action{display:flex;gap:.35rem;margin-top:.4rem;}
+.notif-action-btn{padding:.2rem .55rem;border-radius:5px;border:1px solid var(--border);background:transparent;font-size:.62rem;cursor:pointer;font-family:'DM Mono',monospace;color:var(--text);}
+.notif-action-btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;}
+.notif-empty{text-align:center;padding:2rem 1rem;color:var(--muted);font-size:.75rem;}
+/* Adjust pages for fixed nav */
+#landing{padding-top:52px;}
+#room{padding-top:72px;}
+#community-view{padding-top:52px;}
 .home-nav{display:flex;align-items:center;justify-content:space-between;padding:.85rem 2rem;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;}
 .home-nav-logo{font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:800;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
 .home-nav-right{display:flex;align-items:center;gap:.75rem;}
@@ -435,6 +468,41 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 </style>
 </head>
 <body>
+
+<!-- GLOBAL NAV (shown on all pages after login) -->
+<nav id="global-nav">
+  <a class="gnav-logo" href="#">👋 WAVE</a>
+  <div class="gnav-right">
+    <!-- Notification Bell -->
+    <button class="gnav-icon-btn" id="notif-btn" onclick="toggleNotifPanel()" title="Notifications">
+      🔔
+      <span class="notif-badge hidden" id="notif-badge">0</span>
+    </button>
+    <!-- Theme toggle -->
+    <button class="gnav-icon-btn" onclick="toggleTheme()" title="Toggle theme">🌙</button>
+    <!-- Avatar / username -->
+    <div class="home-user-info" style="cursor:pointer;" onclick="document.getElementById('avatar-upload-input-nav')?.click()" title="Change photo">
+      <div class="home-avatar" id="gnav-avatar">👤</div>
+      <span id="gnav-username" style="font-size:.78rem;color:var(--text);font-family:'DM Mono',monospace;"></span>
+    </div>
+    <input type="file" id="avatar-upload-input-nav" accept="image/*" class="hidden" onchange="handleAvatarUpdate(this)"/>
+    <!-- Install -->
+    <button class="home-nav-btn" id="install-btn-nav" onclick="installPWA()" style="display:none;border-color:var(--accent);color:var(--accent);font-size:.65rem;padding:.25rem .6rem;">📲 Install</button>
+    <!-- Log Out -->
+    <button class="home-nav-btn" onclick="logout()" style="font-size:.65rem;padding:.25rem .6rem;">Log Out</button>
+  </div>
+</nav>
+
+<!-- NOTIFICATION PANEL -->
+<div class="notif-panel" id="notif-panel">
+  <div class="notif-panel-header">
+    <span class="notif-panel-title">🔔 Notifications</span>
+    <button class="notif-clear-btn" onclick="clearAllNotifications()">Mark all read</button>
+  </div>
+  <div class="notif-list" id="notif-list">
+    <div class="notif-empty">No notifications yet</div>
+  </div>
+</div>
 <div id="app">
 
 <!-- AUTH SCREEN -->
@@ -549,7 +617,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 
 <!-- LANDING -->
 <div id="landing">
-  <div class="home-nav">
+  <div class="home-nav" style="display:none;">
     <div class="home-nav-logo">👋 WAVE</div>
     <div class="home-nav-right">
       <div class="home-user-info">
@@ -567,8 +635,6 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 
   <!-- Main home content -->
   <div class="home-body" id="home-body">
-
-    <!-- Left: Room actions -->
     <div class="home-section draggable-panel" id="panel-rooms">
       <div class="home-section-title">
         <span class="drag-handle" title="Drag to reorder">⠿</span>
@@ -1354,6 +1420,9 @@ function onAuthSuccess(){
   // Cache user for offline access
   try{ localStorage.setItem('wave-user-cache', JSON.stringify({ id: currentUser.id||currentUser._id, username: currentUser.username, avatar: currentUser.avatar, email: currentUser.email })); }catch(e){}
 
+  showGlobalNav();
+  updateGlobalNav();
+  loadNotifications();
   document.getElementById('auth-screen').style.display = 'none';
   document.getElementById('landing').style.display = 'flex';
   // Populate home nav
@@ -1575,8 +1644,8 @@ async function doLogin(){
 function logout(){
   localStorage.removeItem('wave-token');
   localStorage.removeItem('wave-user-cache');
-  // Keep remember-me so fields are pre-filled next time
   authToken = null; currentUser = null;
+  hideGlobalNav();
   showAuthScreen();
   initRememberMe();
 }
@@ -1591,6 +1660,7 @@ function updateHeaderProfile(){
     if(currentUser.avatar) a.innerHTML = `<img src="${currentUser.avatar}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
     else { a.textContent = currentUser.username.slice(0,2).toUpperCase(); a.style.background = colorFor(currentUser.id||'x'); a.style.color='#fff'; }
   }
+  updateGlobalNav();
 }
 
 // ── Friends panel ──
@@ -1899,14 +1969,16 @@ function initHomeSocket(){
     if(authToken) homeSocket.emit('user_online', { token: authToken });
   });
   // Real-time friend request received
-  homeSocket.on('friend_request_received', ({ from })=>{
+  homeSocket.on('friend_request_received', ({ from, fromId })=>{
     toast(`👥 ${from} sent you a friend request!`);
     showBrowserNotification('👥 Friend Request', `${from} wants to be your friend on WAVE`);
-    refreshHomeScreen(); // refresh list immediately
+    addNotification({ icon:'👥', text:`${from} sent you a friend request`, type:'friend_request', action:'accept_friend', actionLabel:'Accept', actionData:fromId });
+    refreshHomeScreen();
   });
   // Real-time friend accepted
   homeSocket.on('friend_accepted', ({ username })=>{
     toast(`✅ ${username} accepted your friend request!`);
+    addNotification({ icon:'✅', text:`${username} accepted your friend request`, type:'info' });
     refreshHomeScreen();
   });
   // Friend statuses response
@@ -1934,19 +2006,19 @@ function initHomeSocket(){
   });
   homeSocket.on('friend_invite', ({ fromName, roomId: rid, roomName })=>{
     showInvitePopup(fromName, rid, roomName);
+    addNotification({ icon:'🎙️', text:`${fromName} invited you to join "${roomName||'a room'}"`, type:'room_invite', action:'join_room', actionLabel:'Join', actionData:rid });
   });
   homeSocket.on('community_invite_received', ({ fromName, communityId, communityName, inviteCode, autoJoined })=>{
     if(autoJoined){
       toast(`🏘️ ${fromName} added you to "${communityName}"!`);
       showBrowserNotification('🏘️ Added to Community', `${fromName} added you to "${communityName}"`, null);
+      addNotification({ icon:'🏘️', text:`${fromName} added you to "${communityName}"`, type:'community', action:'join_community', actionData:communityId });
       loadMyCommunities();
     } else {
       toast(`🏘️ ${fromName} invited you to "${communityName}"!`);
       showBrowserNotification('🏘️ Community Invite', `${fromName} invited you to join "${communityName}"`, null);
-      if(confirm(`${fromName} invited you to join "${communityName}". Join now?`)){
-        fetch(`/api/communities/invite/${inviteCode}`,{method:'POST',headers:{Authorization:`Bearer ${authToken}`}})
-          .then(r=>r.json()).then(d=>{ if(d.success){ loadMyCommunities(); openCommunityById(communityId); toast('🏘️ Joined!'); }});
-      }
+      addNotification({ icon:'🏘️', text:`${fromName} invited you to join "${communityName}"`, type:'community', action:'join_community', actionData:communityId });
+      // Show join option in notification instead of a confirm popup
     }
   });
   homeSocket.on('browser_notification', ({ title, body, roomId: rid })=>{
@@ -2466,7 +2538,146 @@ async function homeAcceptReq(fromId){
 }
 
 // ═══════════════════════════════════════════════════
-//  LAST SEEN
+//  GLOBAL NAV + NOTIFICATION CENTER
+// ═══════════════════════════════════════════════════
+const NOTIF_KEY = 'wave-notifications';
+let notifications = [];
+let notifPanelOpen = false;
+
+function loadNotifications(){
+  try{ notifications = JSON.parse(localStorage.getItem(NOTIF_KEY)||'[]'); }
+  catch(e){ notifications = []; }
+  renderNotifications();
+}
+
+function saveNotifications(){
+  // Keep last 50
+  notifications = notifications.slice(0,50);
+  try{ localStorage.setItem(NOTIF_KEY, JSON.stringify(notifications)); }catch(e){}
+}
+
+function addNotification({ icon='🔔', text, type='info', action=null, actionLabel=null, actionData=null }){
+  const notif = {
+    id: Date.now()+Math.random(),
+    icon, text, type,
+    action, actionLabel, actionData,
+    time: Date.now(),
+    read: false
+  };
+  notifications.unshift(notif);
+  saveNotifications();
+  renderNotifications();
+  // Flash badge
+  updateNotifBadge();
+}
+
+function updateNotifBadge(){
+  const unread = notifications.filter(n=>!n.read).length;
+  const badge = document.getElementById('notif-badge');
+  if(!badge) return;
+  if(unread > 0){
+    badge.textContent = unread > 9 ? '9+' : unread;
+    badge.classList.remove('hidden');
+  } else {
+    badge.classList.add('hidden');
+  }
+}
+
+function renderNotifications(){
+  const list = document.getElementById('notif-list');
+  if(!list) return;
+  updateNotifBadge();
+  if(!notifications.length){
+    list.innerHTML='<div class="notif-empty">No notifications yet</div>';
+    return;
+  }
+  list.innerHTML='';
+  notifications.forEach(n=>{
+    const div=document.createElement('div');
+    div.className=`notif-item${n.read?'':' unread'}`;
+    div.onclick=()=>{ markNotifRead(n.id); };
+    const ago = timeAgo(new Date(n.time));
+    let actionHtml='';
+    if(n.action==='join_room' && n.actionData){
+      actionHtml=`<div class="notif-action">
+        <button class="notif-action-btn primary" onclick="event.stopPropagation();notifJoinRoom('${n.actionData}')">Join Room</button>
+        <button class="notif-action-btn" onclick="event.stopPropagation();markNotifRead('${n.id}')">Dismiss</button>
+      </div>`;
+    } else if(n.action==='join_community' && n.actionData){
+      actionHtml=`<div class="notif-action">
+        <button class="notif-action-btn primary" onclick="event.stopPropagation();notifJoinCommunity('${n.actionData}')">View</button>
+        <button class="notif-action-btn" onclick="event.stopPropagation();markNotifRead('${n.id}')">Dismiss</button>
+      </div>`;
+    } else if(n.action==='accept_friend' && n.actionData){
+      actionHtml=`<div class="notif-action">
+        <button class="notif-action-btn primary" onclick="event.stopPropagation();notifAcceptFriend('${n.actionData}')">Accept</button>
+        <button class="notif-action-btn" onclick="event.stopPropagation();notifDeclineFriend('${n.actionData}')">Decline</button>
+      </div>`;
+    }
+    div.innerHTML=`
+      <div class="notif-icon">${n.icon}</div>
+      <div class="notif-content">
+        <div class="notif-text">${esc(n.text)}</div>
+        <div class="notif-time">${ago}</div>
+        ${actionHtml}
+      </div>`;
+    list.appendChild(div);
+  });
+}
+
+function markNotifRead(id){
+  const n = notifications.find(n=>n.id==id);
+  if(n) n.read=true;
+  saveNotifications();
+  renderNotifications();
+}
+
+function clearAllNotifications(){
+  notifications.forEach(n=>n.read=true);
+  saveNotifications();
+  renderNotifications();
+}
+
+function toggleNotifPanel(){
+  notifPanelOpen = !notifPanelOpen;
+  const panel = document.getElementById('notif-panel');
+  panel.classList.toggle('open', notifPanelOpen);
+  if(notifPanelOpen){
+    renderNotifications();
+    // Close on outside click
+    setTimeout(()=>document.addEventListener('click', closeNotifOnOutside, {once:true}), 50);
+  }
+}
+
+function closeNotifOnOutside(e){
+  const panel=document.getElementById('notif-panel');
+  const btn=document.getElementById('notif-btn');
+  if(!panel?.contains(e.target) && !btn?.contains(e.target)){
+    notifPanelOpen=false;
+    panel?.classList.remove('open');
+  }
+}
+
+// Notification action handlers
+function notifJoinRoom(roomId){ document.getElementById('join-code').value=roomId; joinRoom(); toggleNotifPanel(); }
+function notifJoinCommunity(communityId){ openCommunityById(communityId); toggleNotifPanel(); }
+function notifAcceptFriend(fromId){ acceptFriendReq(fromId); }
+function notifDeclineFriend(fromId){ declineFriendReq(fromId); }
+
+// Show / hide global nav
+function showGlobalNav(){ document.getElementById('global-nav').classList.add('visible'); }
+function hideGlobalNav(){ document.getElementById('global-nav').classList.remove('visible'); }
+
+function updateGlobalNav(){
+  if(!currentUser) return;
+  const av=document.getElementById('gnav-avatar');
+  const un=document.getElementById('gnav-username');
+  if(av){
+    if(currentUser.avatar) av.innerHTML=`<img src="${currentUser.avatar}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+    else{ av.textContent=(currentUser.username||'?').slice(0,2).toUpperCase(); av.style.background=colorFor(currentUser.id||'x'); av.style.color='#fff'; }
+  }
+  if(un) un.textContent=currentUser.username||'';
+}
 // ═══════════════════════════════════════════════════
 function lastSeenText(lastSeen){
   if(!lastSeen) return '';
@@ -3469,6 +3680,7 @@ function initDMSocketListeners(sock){
     const name = friend?.username || 'Someone';
     toast(`💬 New message from ${name}`);
     showBrowserNotification('💬 New Message', `${name} sent you a message`, null);
+    addNotification({ icon:'💬', text:`${name} sent you a message`, type:'dm' });
     // If chat is open with this person, load new message
     if(activeDMUserId===fromUserId){
       await loadDMMessages();
