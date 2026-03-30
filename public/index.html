@@ -451,9 +451,25 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 
 /* Dragging — hide original */
 .draggable-panel.is-dragging{
-  visibility:hidden;
+  display:none;
   pointer-events:none;
 }
+.drop-slot{
+  flex-shrink:0;
+  width:calc(33.333% - .65rem * 2 / 3);
+  box-sizing:border-box;
+  border:2px dashed rgba(108,99,255,.3);
+  border-radius:12px;
+  background:rgba(108,99,255,.03);
+  transition:border-color .1s, background .1s;
+}
+.drop-slot-active{
+  border-color:var(--accent);
+  background:rgba(108,99,255,.1);
+  box-shadow:0 0 0 3px rgba(108,99,255,.15);
+}
+@media(max-width:1000px) and (min-width:701px){.drop-slot{width:calc(50% - .65rem / 2);}}
+@media(max-width:700px){.drop-slot{width:100%;}}
 .home-section-title{font-family:'Syne',sans-serif;font-size:.95rem;font-weight:700;margin-bottom:.75rem;display:flex;align-items:center;}
 .home-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.25rem;position:relative;overflow:hidden;}
 .home-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent),var(--accent2));}
@@ -1244,7 +1260,7 @@ const PANEL_ORDER_KEY = 'wave-panel-order';
 let dragSrcPanel = null;
 
 // ══════════════════════════════════════════════════
-//  FLOW-DRAG PANEL SYSTEM
+//  FLOW-DRAG PANEL SYSTEM v4
 // ══════════════════════════════════════════════════
 const PANEL_ORDER_KEY_V4 = 'wave-panel-order-v4';
 const PANEL_IDS = ['panel-rooms','panel-friends','panel-messages','panel-communities','panel-public-rooms'];
@@ -1254,7 +1270,6 @@ let dragState = null;
 function initDraggablePanels(){
   restorePanelOrder();
   attachFreeDrag();
-  window.addEventListener('resize', debounce(()=>{}, 200));
 }
 
 function restorePanelOrder(){
@@ -1267,14 +1282,13 @@ function restorePanelOrder(){
   }catch(e){}
 }
 
+function savePanelOrder(){ savePanelOrder2(); }
 function savePanelOrder2(){
   const body = document.getElementById('home-body');
   if(!body) return;
   const order = [...body.querySelectorAll('.draggable-panel')].map(p=>p.id);
   try{ localStorage.setItem(PANEL_ORDER_KEY_V4, JSON.stringify(order)); }catch(e){}
 }
-// keep old name working
-function savePanelOrder(){ savePanelOrder2(); }
 
 function attachFreeDrag(){
   const body = document.getElementById('home-body');
@@ -1284,18 +1298,16 @@ function attachFreeDrag(){
     const handle = panel.querySelector('.drag-handle');
     if(!handle) return;
     handle.addEventListener('mousedown', e=>{
-      if(e.button !== 0) return;
-      e.preventDefault();
+      if(e.button!==0) return; e.preventDefault();
       startDrag(panel, e.clientX, e.clientY);
     });
     handle.addEventListener('touchstart', e=>{
-      const t = e.touches[0];
-      e.preventDefault();
+      const t=e.touches[0]; e.preventDefault();
       startDrag(panel, t.clientX, t.clientY);
-    }, {passive:false});
+    },{passive:false});
   });
-  document.addEventListener('mousemove', e=>{ if(dragState) moveDrag(e.clientX, e.clientY); });
-  document.addEventListener('mouseup',   e=>{ if(dragState) endDrag(); });
+  document.addEventListener('mousemove', e=>{ if(dragState) moveDrag(e.clientX,e.clientY); });
+  document.addEventListener('mouseup',   ()=>{ if(dragState) endDrag(); });
   document.addEventListener('touchmove', e=>{
     if(dragState){ const t=e.touches[0]; moveDrag(t.clientX,t.clientY); e.preventDefault(); }
   },{passive:false});
@@ -1306,98 +1318,112 @@ function startDrag(panel, cx, cy){
   const body = document.getElementById('home-body');
   const rect = panel.getBoundingClientRect();
 
-  // Create floating clone
+  // Floating clone
   const clone = document.createElement('div');
   clone.className = 'home-section drag-clone';
-  clone.style.width  = rect.width  + 'px';
-  clone.style.height = rect.height + 'px';
-  clone.style.left   = rect.left   + 'px';
-  clone.style.top    = rect.top    + 'px';
-  clone.style.padding = getComputedStyle(panel).padding;
+  clone.style.cssText = `width:${rect.width}px;height:${rect.height}px;left:${rect.left}px;top:${rect.top}px;`;
   clone.innerHTML = panel.innerHTML;
   document.body.appendChild(clone);
 
-  // Create ghost placeholder (same size as panel)
-  const ghost = document.createElement('div');
-  ghost.className = 'drop-ghost';
-  ghost.style.height = rect.height + 'px';
-  ghost.style.minHeight = rect.height + 'px';
-  // Insert ghost right where the panel is, then hide panel
-  panel.after(ghost);
+  // Hide dragged panel but keep its space temporarily
   panel.classList.add('is-dragging');
 
+  // Build all drop slots — one for each gap BETWEEN panels and at start/end
+  buildDropSlots(panel, rect.height);
+
   dragState = {
-    panel, clone, ghost, body,
+    panel, clone, body,
     offsetX: cx - rect.left,
     offsetY: cy - rect.top,
-    lastInsertBefore: null
+    activeSlot: null
   };
+}
+
+function buildDropSlots(draggingPanel, panelH){
+  removeDropSlots();
+  const body = document.getElementById('home-body');
+  const panels = [...body.querySelectorAll('.draggable-panel:not(.is-dragging)')];
+
+  // Create a slot BEFORE each panel and one at the very end
+  panels.forEach(p=>{
+    const slot = createSlot(panelH);
+    slot.dataset.insertBefore = p.id;
+    body.insertBefore(slot, p);
+  });
+  // Slot at end
+  const endSlot = createSlot(panelH);
+  endSlot.dataset.insertBefore = '__end__';
+  body.appendChild(endSlot);
+}
+
+function createSlot(h){
+  const slot = document.createElement('div');
+  slot.className = 'drop-slot';
+  slot.style.height = h+'px';
+  slot.style.minHeight = h+'px';
+  return slot;
+}
+
+function removeDropSlots(){
+  document.querySelectorAll('.drop-slot').forEach(s=>s.remove());
 }
 
 function moveDrag(cx, cy){
   if(!dragState) return;
-  const {clone, ghost, body, offsetX, offsetY} = dragState;
+  const {clone, offsetX, offsetY} = dragState;
+  clone.style.left = (cx-offsetX)+'px';
+  clone.style.top  = (cy-offsetY)+'px';
 
-  // Move clone
-  clone.style.left = (cx - offsetX) + 'px';
-  clone.style.top  = (cy - offsetY) + 'px';
+  // Find the slot nearest to clone center
+  const cloneCX = cx - offsetX + clone.offsetWidth/2;
+  const cloneCY = cy - offsetY + clone.offsetHeight/2;
 
-  // Find best insertion point in the flow
-  // Center of the dragged clone
-  const cloneRect = clone.getBoundingClientRect();
-  const midX = cloneRect.left + cloneRect.width  / 2;
-  const midY = cloneRect.top  + cloneRect.height / 2;
-
-  // Get all panels (not the dragging one, not the ghost)
-  const panels = [...body.querySelectorAll('.draggable-panel:not(.is-dragging)')];
-
-  let bestEl = null;    // insert before this element (null = append)
-  let bestDist = Infinity;
-
-  // Find nearest panel to insert before/after
-  panels.forEach(p=>{
-    const r = p.getBoundingClientRect();
-    const pMidX = r.left + r.width  / 2;
-    const pMidY = r.top  + r.height / 2;
-    const dist  = Math.hypot(midX - pMidX, midY - pMidY);
-    if(dist < bestDist){
-      bestDist = dist;
-      // Insert before or after based on position
-      const isAbove = midY < pMidY - r.height * 0.15;
-      const isLeft  = !isAbove && midX < pMidX;
-      bestEl = (isAbove || isLeft) ? p : p.nextSibling;
-    }
+  let bestSlot = null, bestDist = Infinity;
+  document.querySelectorAll('.drop-slot').forEach(slot=>{
+    const r = slot.getBoundingClientRect();
+    const sx = r.left + r.width/2;
+    const sy = r.top  + r.height/2;
+    const dist = Math.hypot(cloneCX-sx, cloneCY-sy);
+    if(dist < bestDist){ bestDist=dist; bestSlot=slot; }
   });
 
-  // Move ghost to new position if changed
-  if(bestEl !== dragState.lastInsertBefore){
-    dragState.lastInsertBefore = bestEl;
-    if(bestEl){
-      body.insertBefore(ghost, bestEl);
-    } else {
-      body.appendChild(ghost);
-    }
+  if(bestSlot !== dragState.activeSlot){
+    // Deactivate old
+    if(dragState.activeSlot) dragState.activeSlot.classList.remove('drop-slot-active');
+    dragState.activeSlot = bestSlot;
+    if(bestSlot) bestSlot.classList.add('drop-slot-active');
   }
 }
 
 function endDrag(){
   if(!dragState) return;
-  const {panel, clone, ghost, body} = dragState;
-
-  // Place panel where ghost is
-  ghost.replaceWith(panel);
+  const {panel, clone, activeSlot} = dragState;
   clone.remove();
   panel.classList.remove('is-dragging');
-  panel.style.visibility = '';
+
+  if(activeSlot){
+    const insertBeforeId = activeSlot.dataset.insertBefore;
+    const body = document.getElementById('home-body');
+    removeDropSlots();
+    if(insertBeforeId === '__end__'){
+      body.appendChild(panel);
+    } else {
+      const target = document.getElementById(insertBeforeId);
+      if(target) body.insertBefore(panel, target);
+      else body.appendChild(panel);
+    }
+  } else {
+    removeDropSlots();
+  }
+
   dragState = null;
   savePanelOrder2();
 }
 
-function clearDropIndicator(){}
+function clearDropIndicator(){ removeDropSlots(); }
 function applyGridLayout(){}
 function savePositions(){}
 function loadPositions(){ return null; }
-function debounce(fn, ms){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms); }; }
 function initTouchDrag(){ /* handled inside attachFreeDrag */ }
 
 // ── PWA Install Prompt ──
