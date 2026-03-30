@@ -341,7 +341,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .drag-handle:hover{opacity:1;}
 .draggable-panel{transition:opacity .15s;}
 .draggable-panel.dragging{opacity:.35;cursor:grabbing;}
-.draggable-panel.drop-target{outline:2px solid var(--accent);outline-offset:-2px;}
+
 
 /* ── Global Nav ── */
 #global-nav{position:fixed;top:0;left:0;right:0;z-index:400;display:none;align-items:center;justify-content:space-between;padding:.55rem 1rem;background:var(--surface);border-bottom:1px solid var(--border);backdrop-filter:blur(8px);}
@@ -386,73 +386,73 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .home-avatar img{width:100%;height:100%;object-fit:cover;}
 .home-nav-btn{padding:.35rem .85rem;border-radius:7px;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:'DM Mono',monospace;font-size:.72rem;cursor:pointer;transition:all .2s;}
 .home-nav-btn:hover{border-color:var(--danger);color:var(--danger);}
-/* ── Home Grid Layout ── */
+/* ── Home Masonry/Flow Layout ── */
 .home-body{
-  position:relative;
-  display:grid;
-  grid-template-columns:repeat(var(--grid-cols,3),1fr);
-  grid-auto-rows:min-content;
-  gap:.6rem;
+  display:flex;
+  flex-wrap:wrap;
+  align-items:flex-start;
+  align-content:flex-start;
+  gap:.65rem;
   padding:1rem;
   flex:1;
   width:100%;
   box-sizing:border-box;
-  align-items:start;
+  min-height:calc(100vh - 60px);
 }
-/* Grid lines — hidden by default, shown during drag */
-.home-body.dragging-active::before{
-  content:'';
-  position:absolute;
-  inset:1rem;
-  background-image:
-    linear-gradient(rgba(108,99,255,.15) 1px,transparent 1px),
-    linear-gradient(90deg,rgba(108,99,255,.15) 1px,transparent 1px);
-  background-size:calc(100%/var(--grid-cols,3)) 80px;
-  pointer-events:none;
-  border-radius:8px;
-  z-index:0;
-}
-.home-body[data-cols="1"]{--grid-cols:1;}
-.home-body[data-cols="2"]{--grid-cols:2;}
-.home-body[data-cols="3"]{--grid-cols:3;}
-.home-body[data-cols="4"]{--grid-cols:4;}
-
 .home-section{
-  display:flex;flex-direction:column;min-width:0;
+  display:flex;flex-direction:column;
+  min-width:0;
   border:1px solid var(--border);
   border-radius:12px;
   padding:.75rem;
   background:var(--surface);
+  box-shadow:0 1px 4px rgba(0,0,0,.07);
   transition:box-shadow .15s;
-  position:relative;
-  z-index:1;
+  flex-shrink:0;
+  width:calc(33.333% - .65rem * 2 / 3);
+  box-sizing:border-box;
 }
-.home-section:hover{box-shadow:0 2px 12px rgba(0,0,0,.15);}
-.draggable-panel.dragging{
-  opacity:.0;
-  pointer-events:none;
+@media(max-width:1000px) and (min-width:701px){
+  .home-section{width:calc(50% - .65rem / 2);}
 }
-/* Drop target ghost cell */
-.grid-drop-ghost{
+@media(max-width:700px){
+  .home-section{width:100%;}
+}
+.home-section:hover{box-shadow:0 2px 12px rgba(0,0,0,.13);}
+
+/* Drop ghost — inline placeholder in the flex flow */
+.drop-ghost{
+  width:calc(33.333% - .65rem * 2 / 3);
+  box-sizing:border-box;
   border:2px dashed var(--accent);
   border-radius:12px;
-  background:rgba(108,99,255,.07);
-  animation:ghost-pulse .8s ease-in-out infinite alternate;
-  min-height:80px;
-  grid-column:var(--ghost-col,auto);
-  grid-row:var(--ghost-row,auto);
+  background:rgba(108,99,255,.06);
+  flex-shrink:0;
+  transition:all .12s;
+  animation:ghost-pulse .9s ease-in-out infinite alternate;
 }
-@keyframes ghost-pulse{from{background:rgba(108,99,255,.04);}to{background:rgba(108,99,255,.12);}}
+@media(max-width:1000px) and (min-width:701px){.drop-ghost{width:calc(50% - .65rem / 2);}}
+@media(max-width:700px){.drop-ghost{width:100%;}}
+@keyframes ghost-pulse{from{background:rgba(108,99,255,.03);}to{background:rgba(108,99,255,.11);}}
+
 /* Floating drag clone */
 .drag-clone{
   position:fixed;
   pointer-events:none;
   z-index:9999;
-  opacity:.88;
+  opacity:.85;
   box-shadow:0 16px 48px rgba(0,0,0,.35);
   border-radius:12px;
-  transition:none;
   border:2px solid var(--accent);
+  background:var(--surface);
+  transition:none;
+  box-sizing:border-box;
+}
+
+/* Dragging — hide original */
+.draggable-panel.is-dragging{
+  visibility:hidden;
+  pointer-events:none;
 }
 .home-section-title{font-family:'Syne',sans-serif;font-size:.95rem;font-weight:700;margin-bottom:.75rem;display:flex;align-items:center;}
 .home-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.25rem;position:relative;overflow:hidden;}
@@ -460,8 +460,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .home-card-icon{font-size:1.8rem;margin-bottom:.4rem;}
 .home-card-label{font-family:'Syne',sans-serif;font-size:.9rem;font-weight:700;margin-bottom:.2rem;}
 .home-card-sub{font-size:.7rem;color:var(--muted);margin-bottom:.5rem;}
-@media(max-width:700px){.home-body{--grid-cols:1!important;padding:.5rem;gap:.4rem;}.home-section{border-radius:10px;padding:.6rem;}}
-@media(min-width:701px) and (max-width:1000px){.home-body{--grid-cols:2!important;}}
+
 .auth-screen{position:fixed;inset:0;background:var(--bg);z-index:500;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:1rem;}
 .auth-card{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:2rem;width:100%;max-width:380px;position:relative;overflow:hidden;}
 .auth-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--accent),var(--accent2),var(--accent3));}
@@ -1245,226 +1244,160 @@ const PANEL_ORDER_KEY = 'wave-panel-order';
 let dragSrcPanel = null;
 
 // ══════════════════════════════════════════════════
-//  FREE-DRAG GRID PANEL SYSTEM
+//  FLOW-DRAG PANEL SYSTEM
 // ══════════════════════════════════════════════════
-const PANEL_POSITIONS_KEY = 'wave-panel-positions-v3';
+const PANEL_ORDER_KEY_V4 = 'wave-panel-order-v4';
 const PANEL_IDS = ['panel-rooms','panel-friends','panel-messages','panel-communities','panel-public-rooms'];
 
-function getGridCols(){
-  const w=window.innerWidth;
-  if(w<=700) return 1;
-  if(w<=1000) return 2;
-  return 3;
-}
-
-function loadPositions(){
-  try{ const s=localStorage.getItem(PANEL_POSITIONS_KEY); if(s) return JSON.parse(s); }catch(e){}
-  return null;
-}
-function savePositions(pos){ try{ localStorage.setItem(PANEL_POSITIONS_KEY,JSON.stringify(pos)); }catch(e){} }
-
-function defaultPositions(cols){
-  const pos={};
-  PANEL_IDS.forEach((id,i)=>{ pos[id]={col:(i%cols)+1, row:Math.floor(i/cols)+1}; });
-  return pos;
-}
-
-function applyGridLayout(){
-  const body=document.getElementById('home-body');
-  if(!body) return;
-  const cols=getGridCols();
-  body.setAttribute('data-cols',cols);
-  if(cols===1){
-    PANEL_IDS.forEach(id=>{ const el=document.getElementById(id); if(el){el.style.gridColumn='';el.style.gridRow='';} });
-    return;
-  }
-  let pos=loadPositions();
-  if(!pos) pos=defaultPositions(cols);
-  // Repair: ensure no two panels share a cell, clamp to grid width
-  const used={};
-  PANEL_IDS.forEach(id=>{
-    const el=document.getElementById(id); if(!el) return;
-    let p=pos[id]||{col:1,row:1};
-    p={col:Math.min(Math.max(parseInt(p.col)||1,1),cols), row:Math.max(parseInt(p.row)||1,1)};
-    const key=`${p.col},${p.row}`;
-    if(used[key]){
-      // Find next free cell
-      outer: for(let r=1;r<=10;r++) for(let c2=1;c2<=cols;c2++){
-        const k=`${c2},${r}`;
-        if(!used[k]){ p={col:c2,row:r}; break outer; }
-      }
-    }
-    used[`${p.col},${p.row}`]=true;
-    pos[id]=p;
-    el.style.gridColumn=p.col;
-    el.style.gridRow=p.row;
-  });
-}
+let dragState = null;
 
 function initDraggablePanels(){
-  applyGridLayout();
-  window.addEventListener('resize',()=>{ setTimeout(applyGridLayout,100); });
+  restorePanelOrder();
   attachFreeDrag();
+  window.addEventListener('resize', debounce(()=>{}, 200));
 }
 
-// ── Free drag ──
-let dragState=null;
+function restorePanelOrder(){
+  try{
+    const saved = localStorage.getItem(PANEL_ORDER_KEY_V4);
+    if(!saved) return;
+    const order = JSON.parse(saved);
+    const body = document.getElementById('home-body');
+    order.forEach(id=>{ const el=document.getElementById(id); if(el) body.appendChild(el); });
+  }catch(e){}
+}
+
+function savePanelOrder2(){
+  const body = document.getElementById('home-body');
+  if(!body) return;
+  const order = [...body.querySelectorAll('.draggable-panel')].map(p=>p.id);
+  try{ localStorage.setItem(PANEL_ORDER_KEY_V4, JSON.stringify(order)); }catch(e){}
+}
+// keep old name working
+function savePanelOrder(){ savePanelOrder2(); }
 
 function attachFreeDrag(){
-  const body=document.getElementById('home-body');
+  const body = document.getElementById('home-body');
   body.querySelectorAll('.draggable-panel').forEach(panel=>{
     if(panel._dragInit) return;
-    panel._dragInit=true;
-    const handle=panel.querySelector('.drag-handle');
+    panel._dragInit = true;
+    const handle = panel.querySelector('.drag-handle');
     if(!handle) return;
-    handle.addEventListener('mousedown',e=>{ if(e.button!==0)return; e.preventDefault(); startDrag(panel,e.clientX,e.clientY); });
-    handle.addEventListener('touchstart',e=>{ const t=e.touches[0]; e.preventDefault(); startDrag(panel,t.clientX,t.clientY); },{passive:false});
+    handle.addEventListener('mousedown', e=>{
+      if(e.button !== 0) return;
+      e.preventDefault();
+      startDrag(panel, e.clientX, e.clientY);
+    });
+    handle.addEventListener('touchstart', e=>{
+      const t = e.touches[0];
+      e.preventDefault();
+      startDrag(panel, t.clientX, t.clientY);
+    }, {passive:false});
   });
-  document.addEventListener('mousemove',e=>{ if(dragState) moveDrag(e.clientX,e.clientY); });
-  document.addEventListener('mouseup',  e=>{ if(dragState) endDrag(e.clientX,e.clientY); });
-  document.addEventListener('touchmove',e=>{ if(dragState){const t=e.touches[0];moveDrag(t.clientX,t.clientY);e.preventDefault();}},{passive:false});
-  document.addEventListener('touchend', e=>{ if(dragState){const t=e.changedTouches[0];endDrag(t.clientX,t.clientY);} });
+  document.addEventListener('mousemove', e=>{ if(dragState) moveDrag(e.clientX, e.clientY); });
+  document.addEventListener('mouseup',   e=>{ if(dragState) endDrag(); });
+  document.addEventListener('touchmove', e=>{
+    if(dragState){ const t=e.touches[0]; moveDrag(t.clientX,t.clientY); e.preventDefault(); }
+  },{passive:false});
+  document.addEventListener('touchend',  ()=>{ if(dragState) endDrag(); });
 }
 
-function startDrag(panel,cx,cy){
-  const body=document.getElementById('home-body');
-  const rect=panel.getBoundingClientRect();
-  const clone=panel.cloneNode(true);
-  clone.className='home-section drag-clone';
-  clone.style.width=rect.width+'px';
-  clone.style.height=rect.height+'px';
-  clone.style.top=rect.top+'px';
-  clone.style.left=rect.left+'px';
+function startDrag(panel, cx, cy){
+  const body = document.getElementById('home-body');
+  const rect = panel.getBoundingClientRect();
+
+  // Create floating clone
+  const clone = document.createElement('div');
+  clone.className = 'home-section drag-clone';
+  clone.style.width  = rect.width  + 'px';
+  clone.style.height = rect.height + 'px';
+  clone.style.left   = rect.left   + 'px';
+  clone.style.top    = rect.top    + 'px';
+  clone.style.padding = getComputedStyle(panel).padding;
+  clone.innerHTML = panel.innerHTML;
   document.body.appendChild(clone);
-  panel.style.visibility='hidden';
-  body.classList.add('dragging-active');
-  buildCellMap();
-  dragState={panel,clone,body,offsetX:cx-rect.left,offsetY:cy-rect.top,ghost:null,targetCol:null,targetRow:null,cellMap:null};
-  dragState.cellMap=buildCellMap();
+
+  // Create ghost placeholder (same size as panel)
+  const ghost = document.createElement('div');
+  ghost.className = 'drop-ghost';
+  ghost.style.height = rect.height + 'px';
+  ghost.style.minHeight = rect.height + 'px';
+  // Insert ghost right where the panel is, then hide panel
+  panel.after(ghost);
+  panel.classList.add('is-dragging');
+
+  dragState = {
+    panel, clone, ghost, body,
+    offsetX: cx - rect.left,
+    offsetY: cy - rect.top,
+    lastInsertBefore: null
+  };
 }
 
-function buildCellMap(){
-  // Returns array of {col,row,x,y,w,h} for every possible cell in the grid
-  const body=document.getElementById('home-body');
-  const cols=getGridCols();
-  if(cols===1) return [];
-  const bodyRect=body.getBoundingClientRect();
-  const style=getComputedStyle(body);
-  const gap=parseFloat(style.columnGap||style.gap||'10');
-  const padL=parseFloat(style.paddingLeft||'16');
-  const padT=parseFloat(style.paddingTop||'16');
-  const totalW=bodyRect.width-padL*2;
-  const cellW=(totalW-(cols-1)*gap)/cols;
-
-  // Determine row heights from existing panels
-  const panels=[...body.querySelectorAll('.draggable-panel')];
-  const rowHeights={};
-  panels.forEach(p=>{
-    const r=parseInt(p.style.gridRow)||1;
-    rowHeights[r]=Math.max(rowHeights[r]||0, p.getBoundingClientRect().height);
-  });
-
-  // Build all cells up to maxRow+1 (allow dropping below last row)
-  const maxRow=Math.max(...Object.keys(rowHeights).map(Number),1);
-  const cells=[];
-  let y=bodyRect.top+padT;
-  for(let row=1;row<=maxRow+1;row++){
-    const h=rowHeights[row]||120;
-    for(let col=1;col<=cols;col++){
-      const x=bodyRect.left+padL+(col-1)*(cellW+gap);
-      cells.push({col,row,x,y,w:cellW,h});
-    }
-    y+=h+gap;
-  }
-  return cells;
-}
-
-function getNearestCell(cx,cy){
-  if(!dragState?.cellMap?.length) return null;
-  let best=null, bestDist=Infinity;
-  dragState.cellMap.forEach(cell=>{
-    const centerX=cell.x+cell.w/2;
-    const centerY=cell.y+cell.h/2;
-    const dist=Math.hypot(cx-centerX,cy-centerY);
-    if(dist<bestDist){ bestDist=dist; best=cell; }
-  });
-  return best;
-}
-
-function moveDrag(cx,cy){
-  const {clone,panel,body}=dragState;
-  clone.style.left=(cx-dragState.offsetX)+'px';
-  clone.style.top =(cy-dragState.offsetY)+'px';
-  if(getGridCols()===1) return;
-
-  const cell=getNearestCell(cx-dragState.offsetX+clone.offsetWidth/2, cy-dragState.offsetY+clone.offsetHeight/2);
-  if(!cell) return;
-  if(cell.col===dragState.targetCol && cell.row===dragState.targetRow) return;
-  dragState.targetCol=cell.col;
-  dragState.targetRow=cell.row;
-
-  // Remove old ghost
-  if(dragState.ghost){ dragState.ghost.remove(); dragState.ghost=null; }
-  document.querySelectorAll('.drop-target').forEach(p=>p.classList.remove('drop-target'));
-
-  // Check occupant
-  const occupant=getPanelAtCell(cell.col,cell.row);
-  if(occupant){
-    occupant.classList.add('drop-target');
-  } else {
-    const ghost=document.createElement('div');
-    ghost.className='grid-drop-ghost';
-    ghost.style.gridColumn=cell.col;
-    ghost.style.gridRow=cell.row;
-    body.appendChild(ghost);
-    dragState.ghost=ghost;
-  }
-}
-
-function getPanelAtCell(col,row){
-  const body=document.getElementById('home-body');
-  for(const p of body.querySelectorAll('.draggable-panel')){
-    if(p===dragState?.panel) continue;
-    if(parseInt(p.style.gridColumn)===col && parseInt(p.style.gridRow)===row) return p;
-  }
-  return null;
-}
-
-function endDrag(cx,cy){
+function moveDrag(cx, cy){
   if(!dragState) return;
-  const {panel,clone,body,ghost}=dragState;
-  clone.remove();
-  if(ghost) ghost.remove();
-  document.querySelectorAll('.drop-target').forEach(p=>p.classList.remove('drop-target'));
-  body.classList.remove('dragging-active');
-  panel.style.visibility='';
+  const {clone, ghost, body, offsetX, offsetY} = dragState;
 
-  const cols=getGridCols();
-  if(cols>1 && dragState.targetCol && dragState.targetRow){
-    const col=dragState.targetCol, row=dragState.targetRow;
-    const pos=loadPositions()||defaultPositions(cols);
-    const occupant=getPanelAtCell(col,row);
-    if(occupant){
-      // Swap: move occupant to where panel was
-      const myOldCol=parseInt(panel.style.gridColumn)||1;
-      const myOldRow=parseInt(panel.style.gridRow)||1;
-      pos[occupant.id]={col:myOldCol,row:myOldRow};
+  // Move clone
+  clone.style.left = (cx - offsetX) + 'px';
+  clone.style.top  = (cy - offsetY) + 'px';
+
+  // Find best insertion point in the flow
+  // Center of the dragged clone
+  const cloneRect = clone.getBoundingClientRect();
+  const midX = cloneRect.left + cloneRect.width  / 2;
+  const midY = cloneRect.top  + cloneRect.height / 2;
+
+  // Get all panels (not the dragging one, not the ghost)
+  const panels = [...body.querySelectorAll('.draggable-panel:not(.is-dragging)')];
+
+  let bestEl = null;    // insert before this element (null = append)
+  let bestDist = Infinity;
+
+  // Find nearest panel to insert before/after
+  panels.forEach(p=>{
+    const r = p.getBoundingClientRect();
+    const pMidX = r.left + r.width  / 2;
+    const pMidY = r.top  + r.height / 2;
+    const dist  = Math.hypot(midX - pMidX, midY - pMidY);
+    if(dist < bestDist){
+      bestDist = dist;
+      // Insert before or after based on position
+      const isAbove = midY < pMidY - r.height * 0.15;
+      const isLeft  = !isAbove && midX < pMidX;
+      bestEl = (isAbove || isLeft) ? p : p.nextSibling;
     }
-    pos[panel.id]={col,row};
-    savePositions(pos);
+  });
+
+  // Move ghost to new position if changed
+  if(bestEl !== dragState.lastInsertBefore){
+    dragState.lastInsertBefore = bestEl;
+    if(bestEl){
+      body.insertBefore(ghost, bestEl);
+    } else {
+      body.appendChild(ghost);
+    }
   }
-  dragState=null;
-  applyGridLayout();
 }
 
-function clearDropIndicator(){
-  document.querySelectorAll('.drop-target,.drop-before,.drop-after').forEach(p=>p.classList.remove('drop-target','drop-before','drop-after'));
+function endDrag(){
+  if(!dragState) return;
+  const {panel, clone, ghost, body} = dragState;
+
+  // Place panel where ghost is
+  ghost.replaceWith(panel);
+  clone.remove();
+  panel.classList.remove('is-dragging');
+  panel.style.visibility = '';
+  dragState = null;
+  savePanelOrder2();
 }
-function savePanelOrder(){
-  const body=document.getElementById('home-body');
-  if(!body) return;
-  try{ localStorage.setItem(PANEL_ORDER_KEY,JSON.stringify([...body.querySelectorAll('.draggable-panel')].map(p=>p.id))); }catch(e){}
-}
+
+function clearDropIndicator(){}
+function applyGridLayout(){}
+function savePositions(){}
+function loadPositions(){ return null; }
+function debounce(fn, ms){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms); }; }
 function initTouchDrag(){ /* handled inside attachFreeDrag */ }
 
 // ── PWA Install Prompt ──
