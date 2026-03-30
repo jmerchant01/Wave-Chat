@@ -448,12 +448,13 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
   overflow:visible;
 }
 .home-section.panel-dragging{
-  opacity:.8;
+  opacity:.75;
   box-shadow:0 16px 40px rgba(0,0,0,.35);
   z-index:100;
   cursor:grabbing;
   border-color:var(--accent);
   transition:none;
+  pointer-events:none;
 }
 /* Resize handles */
 .resize-handle{
@@ -1445,25 +1446,27 @@ function attachGridInteraction(){
     if(type==='drag'){
       const relX = cx - bx - interaction.ox;
       const relY = cy - by - interaction.oy;
-      // Clamp pixel position so panel stays fully inside home-body
+      // Panel floats freely under cursor while dragging — no grid snapping mid-drag
       const panelW = gridW(p.w);
       const panelH = gridH(p.h);
-      const clampedX = Math.max(GAP, Math.min(relX, bodyW - panelW - GAP));
-      const clampedY = Math.max(GAP, Math.min(relY, bodyH - panelH - GAP));
-      // Snap the VISUAL position to grid dots while dragging
+      const clampedX = Math.max(0, Math.min(relX, bodyW - panelW));
+      const clampedY = Math.max(0, Math.min(relY, bodyH - panelH));
+      panel.style.left = clampedX + 'px';
+      panel.style.top  = clampedY + 'px';
+      // Compute where it WOULD snap on release (center of panel)
+      const midX = clampedX + panelW/2;
+      const midY = clampedY + panelH/2;
       const sc = Math.max(0, Math.min(snapCol(clampedX), cols - p.w));
       const sr = Math.max(0, snapRow(clampedY));
-      // Move panel to snapped position immediately (no floating offset)
-      panel.style.left = gx(sc) + 'px';
-      panel.style.top  = gy(sr) + 'px';
-      if(!hasCollision(panel.id, sc, sr, p.w, p.h)){
-        interaction.liveC = sc;
-        interaction.liveR = sr;
-      } else {
-        // Snap back to last valid
-        panel.style.left = gx(interaction.liveC) + 'px';
-        panel.style.top  = gy(interaction.liveR) + 'px';
-      }
+      // Show snap preview on the panel border — green=valid, red=occupied
+      const wouldCollide = hasCollision(panel.id, sc, sr, p.w, p.h);
+      panel.style.outline = wouldCollide
+        ? '2px solid rgba(255,71,87,.6)'
+        : '2px solid rgba(108,99,255,.5)';
+      // Always store intended position — collision check happens on drop
+      interaction.liveC = sc;
+      interaction.liveR = sr;
+      interaction.willCollide = wouldCollide;
     }
 
     if(type==='resize'){
@@ -1498,10 +1501,15 @@ function attachGridInteraction(){
     if(!interaction) return;
     const {type, panel} = interaction;
     const p = gridLayout[panel.id];
+    panel.style.outline = '';
     if(type==='drag'){
-      p.c = interaction.liveC;
-      p.r = interaction.liveR;
       panel.classList.remove('panel-dragging');
+      if(!interaction.willCollide){
+        // Valid drop — snap to grid position
+        p.c = interaction.liveC;
+        p.r = interaction.liveR;
+      }
+      // If occupied, applyLayout() will snap back to original position
     }
     if(type==='resize'){
       p.c=interaction.liveC; p.r=interaction.liveR;
