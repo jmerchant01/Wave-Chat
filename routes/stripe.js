@@ -132,37 +132,103 @@ router.post('/stripe/connect/onboard', auth, async (req, res) => {
     let accountId = req.body.existingAccountId;
 
     if(!accountId){
-      // Create Express account — use card_payments + transfers capabilities
       let account;
       try {
-        account = await s.accounts.create({
-          type: 'express',
-          email: user.email,
-          capabilities: {
-            card_payments: { requested: true },
-            transfers: { requested: true }
+        // Use Stripe v2 Accounts API (matches your Stripe Connect sandbox setup)
+        account = await fetch('https://api.stripe.com/v2/core/accounts', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${STRIPE_SECRET}`,
+            'Content-Type': 'application/json',
+            'Stripe-Version': '2025-03-31.basil'
           },
-          metadata: { userId: req.user.id, username: user.username }
+          body: JSON.stringify({
+            display_name: user.username,
+            contact_email: user.email,
+            configuration: {
+              merchant: { simulate_accept_tos_obo: false }
+            },
+            include: ['configuration.merchant', 'configuration.customer', 'identity', 'defaults'],
+            identity: { country: 'US' },
+            dashboard: 'full',
+            defaults: {
+              responsibilities: {
+                losses_collector: 'stripe',
+                fees_collector: 'stripe'
+              }
+            }
+          })
         });
+        const accountData = await account.json();
+        if(!account.ok){
+          console.error('v2 account creation failed:', accountData);
+          // Fallback to legacy Express account
+          const legacy = await s.accounts.create({
+            type: 'express',
+            email: user.email,
+            capabilities: { card_payments: { requested: true }, transfers: { requested: true } },
+            metadata: { userId: req.user.id, username: user.username }
+          });
+          accountId = legacy.id;
+        } else {
+          accountId = accountData.id;
+        }
       } catch(createErr) {
-        // If Connect not enabled on platform, fall back to standard account
-        console.error('Express account creation failed:', createErr.message);
+        console.error('Account creation failed:', createErr.message);
         return res.status(400).json({
-          error: 'Stripe Connect is not enabled on your platform account. Go to stripe.com → Settings → Connect → Get started to enable it first.',
+          error: 'Could not create Stripe Connect account. Make sure Connect is enabled in your Stripe Dashboard under Settings → Connect.',
           stripeError: createErr.message
         });
       }
-      accountId = account.id;
     }
 
-    const link = await s.accountLinks.create({
-      account: accountId,
-      refresh_url: `${APP_URL}?stripe_refresh=1`,
-      return_url:  `${APP_URL}?stripe_return=1&account=${accountId}`,
-      type: 'account_onboarding'
-    });
+    // Create account link for onboarding using v2 API
+    let onboardingUrl;
+    try {
+      const linkRes = await fetch('https://api.stripe.com/v2/core/account_links', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${STRIPE_SECRET}`,
+          'Content-Type': 'application/json',
+          'Stripe-Version': '2025-03-31.basil'
+        },
+        body: JSON.stringify({
+          account: accountId,
+          use_case: {
+            type: 'account_onboarding',
+            account_onboarding: {
+              configurations: ['merchant', 'customer'],
+              refresh_url: `${APP_URL}?stripe_refresh=1&account=${accountId}`,
+              return_url:  `${APP_URL}?stripe_return=1&account=${accountId}`
+            }
+          }
+        })
+      });
+      const linkData = await linkRes.json();
+      if(!linkRes.ok || !linkData.url){
+        // Fallback to v1 account links
+        const fallbackLink = await s.accountLinks.create({
+          account: accountId,
+          refresh_url: `${APP_URL}?stripe_refresh=1&account=${accountId}`,
+          return_url:  `${APP_URL}?stripe_return=1&account=${accountId}`,
+          type: 'account_onboarding'
+        });
+        onboardingUrl = fallbackLink.url;
+      } else {
+        onboardingUrl = linkData.url;
+      }
+    } catch(linkErr) {
+      // Fallback to v1
+      const fallbackLink = await s.accountLinks.create({
+        account: accountId,
+        refresh_url: `${APP_URL}?stripe_refresh=1&account=${accountId}`,
+        return_url:  `${APP_URL}?stripe_return=1&account=${accountId}`,
+        type: 'account_onboarding'
+      });
+      onboardingUrl = fallbackLink.url;
+    }
 
-    res.json({ url: link.url, accountId });
+    res.json({ url: onboardingUrl, accountId });
   } catch(e) {
     console.error('Stripe Connect error:', e.message);
     res.status(500).json({ error: e.message });
@@ -476,8 +542,6 @@ router.post('/admin/fees', auth, async (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-module.exports = router;
-
 // ── Creator dashboard stats ──
 router.get('/communities/:id/creator-dashboard', auth, async (req, res) => {
   try {
@@ -516,3 +580,4 @@ router.get('/communities/:id/creator-dashboard', auth, async (req, res) => {
     res.json({ activeSubs: active.length, totalRevenue, monthlyEst, byPlan, expiring, recent });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
+module.exports = router;

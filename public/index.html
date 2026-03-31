@@ -3303,8 +3303,24 @@ function checkStripeReturn(){
   }
   if(p.get('stripe_return')){
     const accountId = p.get('account');
-    toast('✅ Stripe account connected!');
     history.replaceState(null,'',location.pathname);
+    // Save accountId to the current community if we have one
+    if(accountId && currentCommunity && authToken){
+      try{
+        await fetch(`/api/communities/${currentCommunity._id}/stripe-account`,{
+          method:'POST',
+          headers:{'Content-Type':'application/json',Authorization:`Bearer ${authToken}`},
+          body: JSON.stringify({ accountId })
+        });
+        currentCommunity.stripeAccountId = accountId;
+        // Refresh the connected badge
+        const badge = document.getElementById('stripe-connected-badge');
+        const link = document.getElementById('stripe-connect-link');
+        if(badge) badge.classList.remove('hidden');
+        if(link) link.classList.add('hidden');
+      }catch(err){ console.error('Failed to save Stripe account:', err); }
+    }
+    toast('✅ Stripe account connected!');
   }
 }
 
