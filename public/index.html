@@ -389,33 +389,28 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 
 /* Mobile community view fixes */
 @media(max-width:700px){
-  /* Wider readable sidebar on mobile - 52*2.5 = 130px */
+  /* Wider readable sidebar on mobile */
   #community-view .cv-sidebar{ width:130px!important; }
   #community-view .cv-sidebar .cv-channel-label{ display:block!important; }
   #community-view .cv-sidebar .cv-members-section{ display:none; }
-  /* Allow channel buttons to wrap text */
+  /* Font small enough that "announcements" fits on one line, no wrap */
   #cv-channels-list button{
-    white-space:normal!important;
-    word-break:break-word!important;
-    height:auto!important;
-    min-height:32px;
-    line-height:1.35!important;
-    font-size:.72rem!important;
-    padding:.4rem .5rem!important;
+    white-space:nowrap!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+    font-size:.6rem!important;
+    padding:.35rem .4rem!important;
+    gap:.25rem!important;
   }
   #cv-channels-list button span:nth-child(2){
-    white-space:normal!important;
-    word-break:break-word!important;
-    flex:1;
-    min-width:0;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
   }
-  /* Bigger channel text in main area */
   #cv-channel-name{ font-size:1rem!important; }
-  /* Nav buttons: wrap and show all */
   #community-view .home-nav{ flex-wrap:wrap; gap:.35rem; padding:.5rem .75rem; }
   #community-view .home-nav > div:last-child{ flex-wrap:wrap; gap:.35rem; }
   #community-view .home-nav .home-nav-btn{ font-size:.62rem; padding:.25rem .45rem; }
-  /* Full-width input area */
   #cv-input-area{ padding:.4rem .5rem; }
 }
 .home-nav{display:flex;align-items:center;justify-content:space-between;padding:.85rem 2rem;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;}
