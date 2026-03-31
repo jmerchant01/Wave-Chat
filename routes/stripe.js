@@ -132,103 +132,34 @@ router.post('/stripe/connect/onboard', auth, async (req, res) => {
     let accountId = req.body.existingAccountId;
 
     if(!accountId){
-      let account;
       try {
-        // Use Stripe v2 Accounts API (matches your Stripe Connect sandbox setup)
-        account = await fetch('https://api.stripe.com/v2/core/accounts', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${STRIPE_SECRET}`,
-            'Content-Type': 'application/json',
-            'Stripe-Version': '2025-03-31.basil'
+        const account = await s.accounts.create({
+          type: 'express',
+          email: user.email,
+          capabilities: {
+            card_payments: { requested: true },
+            transfers: { requested: true }
           },
-          body: JSON.stringify({
-            display_name: user.username,
-            contact_email: user.email,
-            configuration: {
-              merchant: { simulate_accept_tos_obo: false }
-            },
-            include: ['configuration.merchant', 'configuration.customer', 'identity', 'defaults'],
-            identity: { country: 'US' },
-            dashboard: 'full',
-            defaults: {
-              responsibilities: {
-                losses_collector: 'stripe',
-                fees_collector: 'stripe'
-              }
-            }
-          })
+          metadata: { userId: req.user.id, username: user.username }
         });
-        const accountData = await account.json();
-        if(!account.ok){
-          console.error('v2 account creation failed:', accountData);
-          // Fallback to legacy Express account
-          const legacy = await s.accounts.create({
-            type: 'express',
-            email: user.email,
-            capabilities: { card_payments: { requested: true }, transfers: { requested: true } },
-            metadata: { userId: req.user.id, username: user.username }
-          });
-          accountId = legacy.id;
-        } else {
-          accountId = accountData.id;
-        }
+        accountId = account.id;
       } catch(createErr) {
         console.error('Account creation failed:', createErr.message);
         return res.status(400).json({
-          error: 'Could not create Stripe Connect account. Make sure Connect is enabled in your Stripe Dashboard under Settings → Connect.',
+          error: 'Could not create Stripe Connect account: ' + createErr.message,
           stripeError: createErr.message
         });
       }
     }
 
-    // Create account link for onboarding using v2 API
-    let onboardingUrl;
-    try {
-      const linkRes = await fetch('https://api.stripe.com/v2/core/account_links', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${STRIPE_SECRET}`,
-          'Content-Type': 'application/json',
-          'Stripe-Version': '2025-03-31.basil'
-        },
-        body: JSON.stringify({
-          account: accountId,
-          use_case: {
-            type: 'account_onboarding',
-            account_onboarding: {
-              configurations: ['merchant', 'customer'],
-              refresh_url: `${APP_URL}?stripe_refresh=1&account=${accountId}`,
-              return_url:  `${APP_URL}?stripe_return=1&account=${accountId}`
-            }
-          }
-        })
-      });
-      const linkData = await linkRes.json();
-      if(!linkRes.ok || !linkData.url){
-        // Fallback to v1 account links
-        const fallbackLink = await s.accountLinks.create({
-          account: accountId,
-          refresh_url: `${APP_URL}?stripe_refresh=1&account=${accountId}`,
-          return_url:  `${APP_URL}?stripe_return=1&account=${accountId}`,
-          type: 'account_onboarding'
-        });
-        onboardingUrl = fallbackLink.url;
-      } else {
-        onboardingUrl = linkData.url;
-      }
-    } catch(linkErr) {
-      // Fallback to v1
-      const fallbackLink = await s.accountLinks.create({
-        account: accountId,
-        refresh_url: `${APP_URL}?stripe_refresh=1&account=${accountId}`,
-        return_url:  `${APP_URL}?stripe_return=1&account=${accountId}`,
-        type: 'account_onboarding'
-      });
-      onboardingUrl = fallbackLink.url;
-    }
+    const link = await s.accountLinks.create({
+      account: accountId,
+      refresh_url: `${APP_URL}?stripe_refresh=1&account=${accountId}`,
+      return_url:  `${APP_URL}?stripe_return=1&account=${accountId}`,
+      type: 'account_onboarding'
+    });
 
-    res.json({ url: onboardingUrl, accountId });
+    res.json({ url: link.url, accountId });
   } catch(e) {
     console.error('Stripe Connect error:', e.message);
     res.status(500).json({ error: e.message });
