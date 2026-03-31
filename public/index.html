@@ -3272,7 +3272,11 @@ async function startStripeConnect(e){
       body: JSON.stringify({ existingAccountId: existing||undefined })
     });
     const data = await res.json();
-    if(!res.ok){ toast('⚠️ '+data.error); return; }
+    if(!res.ok){
+      // Show full error so user knows what to fix
+      alert('Stripe Connect error:\n\n' + data.error + (data.stripeError ? '\n\nDetails: ' + data.stripeError : ''));
+      return;
+    }
     // Save accountId to community before redirecting
     if(data.accountId && !existing){
       await fetch(`/api/communities/${currentCommunity._id}/stripe-account`,{
@@ -3281,7 +3285,7 @@ async function startStripeConnect(e){
       });
     }
     window.open(data.url,'_blank');
-  }catch(e){ toast('⚠️ Stripe connect error'); }
+  }catch(e){ toast('⚠️ Stripe connect error: ' + e.message); }
 }
 
 // Handle Stripe return URLs

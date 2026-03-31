@@ -126,18 +126,32 @@ router.post('/communities/:id/subscription/setup', auth, async (req, res) => {
 router.post('/stripe/connect/onboard', auth, async (req, res) => {
   try {
     const s = getStripe();
-    if(!s) return res.status(503).json({ error: 'Stripe not configured' });
+    if(!s) return res.status(503).json({ error: 'Stripe not configured. Add STRIPE_SECRET_KEY to environment variables.' });
 
     const user = await User.findById(req.user.id).select('email username');
     let accountId = req.body.existingAccountId;
 
     if(!accountId){
-      const account = await s.accounts.create({
-        type: 'express',
-        email: user.email,
-        capabilities: { transfers: { requested: true } },
-        metadata: { userId: req.user.id, username: user.username }
-      });
+      // Create Express account — use card_payments + transfers capabilities
+      let account;
+      try {
+        account = await s.accounts.create({
+          type: 'express',
+          email: user.email,
+          capabilities: {
+            card_payments: { requested: true },
+            transfers: { requested: true }
+          },
+          metadata: { userId: req.user.id, username: user.username }
+        });
+      } catch(createErr) {
+        // If Connect not enabled on platform, fall back to standard account
+        console.error('Express account creation failed:', createErr.message);
+        return res.status(400).json({
+          error: 'Stripe Connect is not enabled on your platform account. Go to stripe.com → Settings → Connect → Get started to enable it first.',
+          stripeError: createErr.message
+        });
+      }
       accountId = account.id;
     }
 
@@ -149,7 +163,10 @@ router.post('/stripe/connect/onboard', auth, async (req, res) => {
     });
 
     res.json({ url: link.url, accountId });
-  } catch(e) { res.status(500).json({ error: e.message }); }
+  } catch(e) {
+    console.error('Stripe Connect error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // ── Save creator's Stripe account to a community ──
