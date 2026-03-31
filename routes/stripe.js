@@ -380,6 +380,34 @@ router.get('/admin/subscriptions', auth, async (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── ADMIN: Test Stripe connection ──
+router.get('/admin/stripe-status', auth, async (req, res) => {
+  try {
+    const ADMIN = process.env.ADMIN_USERNAME || 'JayMerch';
+    if(req.user.username.toLowerCase() !== ADMIN.toLowerCase())
+      return res.status(403).json({ error: 'Admin only' });
+    const s = getStripe();
+    if(!s) return res.json({ connected: false, reason: 'No STRIPE_SECRET_KEY set in environment variables' });
+    // Try fetching the account to verify the key works
+    const account = await s.account.retrieve();
+    const settings = await WaveSettings.get();
+    res.json({
+      connected: true,
+      accountId: account.id,
+      email: account.email,
+      country: account.country,
+      chargesEnabled: account.charges_enabled,
+      payoutsEnabled: account.payouts_enabled,
+      displayName: account.settings?.dashboard?.display_name || account.business_profile?.name || '—',
+      feePercent: settings.subscriptionFeePercent,
+      flatFee: settings.communityFlatFeeMonthly,
+      setupFee: settings.communitySetupFee
+    });
+  } catch(e) {
+    res.json({ connected: false, reason: e.message });
+  }
+});
+
 // ── ADMIN: Get current fee settings ──
 router.get('/admin/fees', auth, async (req, res) => {
   try {

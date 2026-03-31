@@ -189,6 +189,21 @@ body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;min-
     <!-- Fees tab -->
     <div id="tab-fees-body" class="hidden">
       <div class="section-title">⚙️ WAVE Platform Fees</div>
+
+      <!-- Stripe connection status -->
+      <div id="stripe-status-card" style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.1rem 1.25rem;margin-bottom:1.5rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
+        <div id="stripe-status-dot" style="width:12px;height:12px;border-radius:50%;background:var(--muted);flex-shrink:0;"></div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:.8rem;font-weight:700;" id="stripe-status-title">Checking Stripe connection…</div>
+          <div style="font-size:.68rem;color:var(--muted);margin-top:.15rem;" id="stripe-status-detail"></div>
+        </div>
+        <div style="text-align:right;flex-shrink:0;">
+          <div style="font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;">Platform Cut</div>
+          <div style="font-size:1.3rem;font-weight:800;color:var(--accent3);" id="stripe-status-fee">—</div>
+        </div>
+        <button class="filter-btn" onclick="loadStripeStatus()" style="flex-shrink:0;">↺ Refresh</button>
+      </div>
+
       <p style="font-size:.73rem;color:var(--muted);margin-bottom:1.5rem;line-height:1.8;">Control how much WAVE earns from paid communities. Changes take effect on the next subscription payment.</p>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem;">
@@ -316,7 +331,7 @@ function showTab(tab){
   if(tab==='communities') loadCommunities(1);
   if(tab==='messages') { document.getElementById('dm-messages-list').innerHTML=''; document.getElementById('dm-user-results').innerHTML=''; }
   if(tab==='subscriptions') loadSubscriptions();
-  if(tab==='fees') loadFees();
+  if(tab==='fees'){ loadFees(); loadStripeStatus(); }
 }
 
 async function apiFetch(path, opts={}){
@@ -663,6 +678,49 @@ function updateFeePreview(){
     <div style="border-top:1px solid var(--border);margin-top:.3rem;padding-top:.3rem;">WAVE total: <strong style="color:var(--host);font-size:.85rem;">$${monthlyTotal}/mo</strong></div>
     ${setup>0?`<div>Setup fee (one-time): <strong style="color:var(--accent2);">$${setup.toFixed(2)}</strong></div>`:''}
   `;
+}
+
+async function loadStripeStatus(){
+  const dot   = document.getElementById('stripe-status-dot');
+  const title = document.getElementById('stripe-status-title');
+  const detail= document.getElementById('stripe-status-detail');
+  const fee   = document.getElementById('stripe-status-fee');
+  if(!dot) return;
+  dot.style.background = '#888';
+  title.textContent = 'Checking Stripe connection…';
+  detail.textContent = '';
+  try{
+    const res = await apiFetch('/api/admin/stripe-status');
+    const d = await res.json();
+    if(d.connected){
+      dot.style.background = 'var(--accent3)';
+      dot.style.boxShadow = '0 0 8px var(--accent3)';
+      title.textContent = '✅ Stripe Connected — ' + (d.displayName||d.email||d.accountId);
+      const parts = [];
+      if(d.email) parts.push(d.email);
+      parts.push('Account: ' + d.accountId);
+      parts.push(d.chargesEnabled ? '💳 Charges enabled' : '⚠️ Charges not yet enabled');
+      parts.push(d.payoutsEnabled ? '💰 Payouts enabled' : '⚠️ Payouts not yet enabled');
+      detail.textContent = parts.join(' · ');
+      fee.textContent = d.feePercent + '%';
+      // Warn if charges/payouts not enabled
+      if(!d.chargesEnabled || !d.payoutsEnabled){
+        dot.style.background = '#f5a623';
+        dot.style.boxShadow = '0 0 8px #f5a623';
+        title.textContent = '⚠️ Stripe Connected but incomplete — finish account setup at stripe.com';
+      }
+    } else {
+      dot.style.background = 'var(--danger)';
+      dot.style.boxShadow = '0 0 8px var(--danger)';
+      title.textContent = '❌ Stripe not connected';
+      detail.textContent = d.reason || 'Add STRIPE_SECRET_KEY to Render environment variables';
+      fee.textContent = '—';
+    }
+  }catch(e){
+    dot.style.background = 'var(--danger)';
+    title.textContent = '❌ Could not check Stripe status';
+    detail.textContent = e.message;
+  }
 }
 
 async function loadFees(){
