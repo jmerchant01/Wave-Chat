@@ -3289,7 +3289,7 @@ async function startStripeConnect(e){
 }
 
 // Handle Stripe return URLs
-function checkStripeReturn(){
+async function checkStripeReturn(){
   const p = new URLSearchParams(location.search);
   if(p.get('sub_success')){
     const cid = p.get('community');
