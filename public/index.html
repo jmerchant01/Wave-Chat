@@ -389,10 +389,26 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 
 /* Mobile community view fixes */
 @media(max-width:700px){
-  /* Thinner sidebar on mobile */
-  #community-view .cv-sidebar{ width:52px!important; }
-  #community-view .cv-sidebar .cv-channel-label{ display:none; }
+  /* Wider readable sidebar on mobile - 52*2.5 = 130px */
+  #community-view .cv-sidebar{ width:130px!important; }
+  #community-view .cv-sidebar .cv-channel-label{ display:block!important; }
   #community-view .cv-sidebar .cv-members-section{ display:none; }
+  /* Allow channel buttons to wrap text */
+  #cv-channels-list button{
+    white-space:normal!important;
+    word-break:break-word!important;
+    height:auto!important;
+    min-height:32px;
+    line-height:1.35!important;
+    font-size:.72rem!important;
+    padding:.4rem .5rem!important;
+  }
+  #cv-channels-list button span:nth-child(2){
+    white-space:normal!important;
+    word-break:break-word!important;
+    flex:1;
+    min-width:0;
+  }
   /* Bigger channel text in main area */
   #cv-channel-name{ font-size:1rem!important; }
   /* Nav buttons: wrap and show all */
@@ -3718,7 +3734,7 @@ function renderCVChannels(channels){
     wrapper.style.cssText='position:relative;';
 
     const btn=document.createElement('button');
-    btn.style.cssText=`width:100%;text-align:left;padding:.4rem .6rem;border:none;background:transparent;color:${isLocked?'var(--muted)':'var(--muted)'};font-family:"Inter",system-ui,sans-serif;font-size:.75rem;cursor:pointer;border-radius:6px;display:flex;align-items:center;gap:.4rem;opacity:${isLocked&&!isOwnerOrAdmin?'0.5':'1'};${hasActiveRoom?'color:var(--accent3);font-weight:600;':''};`;
+    btn.style.cssText=`width:100%;text-align:left;padding:.4rem .6rem;border:none;background:transparent;color:${isLocked?'var(--muted)':'var(--muted)'};font-family:"Inter",system-ui,sans-serif;font-size:.75rem;cursor:pointer;border-radius:6px;display:flex;align-items:flex-start;gap:.4rem;opacity:${isLocked&&!isOwnerOrAdmin?'0.5':'1'};white-space:normal;word-break:break-word;${hasActiveRoom?'color:var(--accent3);font-weight:600;':''}`;
     if(hasActiveRoom){
       btn.style.outline='1.5px solid var(--accent3)';
       btn.style.outlineOffset='-1px';
