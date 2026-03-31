@@ -9,7 +9,14 @@ const messagesRouter = require('./routes/messages');
 const communityRouter = require('./routes/communities');
 const stripeRouter = require('./routes/stripe');
 const jwt = require('jsonwebtoken');
-// web-push removed — using browser Notification API instead
+// Pre-load all models so Mongoose registers them before routes use them
+require('./models/User');
+require('./models/Community');
+require('./models/Message');
+require('./models/CommunityMessage');
+require('./models/Report');
+require('./models/Subscription');
+require('./models/WaveSettings');
 
 const app = express();
 const server = http.createServer(app);

@@ -432,3 +432,42 @@ router.post('/admin/fees', auth, async (req, res) => {
 });
 
 module.exports = router;
+
+// ── Creator dashboard stats ──
+router.get('/communities/:id/creator-dashboard', auth, async (req, res) => {
+  try {
+    const community = await Community.findById(req.params.id).select('ownerId name subscription').lean();
+    if(!community) return res.status(404).json({ error: 'Not found' });
+    if(community.ownerId.toString() !== req.user.id)
+      return res.status(403).json({ error: 'Owner only' });
+
+    const allSubs = await Subscription.find({ communityId: req.params.id })
+      .populate('userId','username email').sort({ createdAt: -1 }).lean();
+
+    const active = allSubs.filter(s => s.status === 'active');
+    const totalRevenue = allSubs.reduce((t,s) => t + (s.amount||0), 0);
+
+    // Monthly estimate based on active plans
+    const planMonthly = { weekly: 4.33, monthly: 1, yearly: 1/12, lifetime: 0 };
+    const monthlyEst = active.reduce((t,s) => {
+      const price = s.amount || 0;
+      return t + Math.round(price * (planMonthly[s.plan] || 0));
+    }, 0);
+
+    // Breakdown by plan
+    const byPlan = { weekly:0, monthly:0, yearly:0, lifetime:0 };
+    active.forEach(s => { if(byPlan[s.plan] !== undefined) byPlan[s.plan]++; });
+
+    // Expiring in next 14 days or already canceled
+    const soon = new Date(Date.now() + 14 * 86400000);
+    const expiring = allSubs.filter(s =>
+      (s.status === 'canceled') ||
+      (s.currentPeriodEnd && new Date(s.currentPeriodEnd) <= soon && s.status === 'active')
+    ).slice(0, 10);
+
+    // Recent 10 subscribers
+    const recent = allSubs.slice(0, 10);
+
+    res.json({ activeSubs: active.length, totalRevenue, monthlyEst, byPlan, expiring, recent });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
