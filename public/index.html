@@ -7051,15 +7051,39 @@ function updateCropPreview(){ drawCrop(); } // alias for slider
 
 function applyCrop(){
   if(!_cropImg||!_cropCallback) return;
-  const canvas=document.getElementById('crop-canvas');
-  const {x,y,w,h}=_cropBox;
-  const S=_cropCS;
-  const cx=Math.max(0,x), cy=Math.max(0,y);
-  const cw=Math.min(w,S-cx), ch=Math.min(h,S-cy);
-  const out=document.createElement('canvas');
-  out.width=400; out.height=400;
-  out.getContext('2d').drawImage(canvas,cx,cy,cw,ch,0,0,400,400);
-  const result=out.toDataURL('image/jpeg',0.88);
+  // Re-render directly from source image at high resolution
+  // instead of reading from the display canvas (avoids DPI/blank issues)
+  const OUT = 400;
+  const out = document.createElement('canvas');
+  out.width = OUT; out.height = OUT;
+  const ctx = out.getContext('2d');
+
+  const S = _cropCS;
+  const {x,y,w,h} = _cropBox;
+  // Clamp crop box to canvas bounds
+  const cx = Math.max(0,x), cy = Math.max(0,y);
+  const cw = Math.min(w, S-cx), ch = Math.min(h, S-cy);
+  if(cw<=0||ch<=0){ toast('⚠️ Invalid crop area'); return; }
+
+  // Scale factor: output px per crop px
+  const scaleX = OUT / cw;
+  const scaleY = OUT / ch;
+
+  ctx.save();
+  // Translate so the crop region maps to output canvas origin
+  ctx.translate(
+    (S/2 + _cropPanX - cx) * scaleX,
+    (S/2 + _cropPanY - cy) * scaleY
+  );
+  ctx.rotate(_cropRot * Math.PI/180);
+  if(_cropFlipH) ctx.scale(-1,1);
+  if(_cropFlipV) ctx.scale(1,-1);
+  const iw=_cropImg.naturalWidth, ih=_cropImg.naturalHeight;
+  const dw=iw*_cropZoom*scaleX, dh=ih*_cropZoom*scaleY;
+  ctx.drawImage(_cropImg, -dw/2, -dh/2, dw, dh);
+  ctx.restore();
+
+  const result = out.toDataURL('image/jpeg', 0.88);
   closeCropModal();
   _cropCallback(result);
 }
