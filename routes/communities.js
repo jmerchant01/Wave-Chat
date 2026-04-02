@@ -482,4 +482,39 @@ router.patch('/communities/:id/channels/:channelId/permissions', auth, async (re
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+
+// ── Update role (name/color) ──
+router.patch('/communities/:id/roles/:roleId', auth, async (req, res) => {
+  try {
+    const community = await Community.findById(req.params.id);
+    if (!community) return res.status(404).json({ error: 'Not found' });
+    if (!hasPermission(community, req.user.id, 'canManageRoles') && community.ownerId.toString() !== req.user.id)
+      return res.status(403).json({ error: 'No permission' });
+    const role = community.roles.id(req.params.roleId);
+    if (!role) return res.status(404).json({ error: 'Role not found' });
+    if (req.body.name) role.name = req.body.name;
+    if (req.body.color) role.color = req.body.color;
+    if (req.body.permissions) Object.assign(role.permissions, req.body.permissions);
+    await community.save();
+    res.json({ success: true, role });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── Delete role ──
+router.delete('/communities/:id/roles/:roleId', auth, async (req, res) => {
+  try {
+    const community = await Community.findById(req.params.id);
+    if (!community) return res.status(404).json({ error: 'Not found' });
+    if (!hasPermission(community, req.user.id, 'canManageRoles') && community.ownerId.toString() !== req.user.id)
+      return res.status(403).json({ error: 'No permission' });
+    // Remove role from all members first
+    community.members.forEach(m => {
+      m.roles = m.roles.filter(r => r !== req.params.roleId);
+    });
+    community.roles = community.roles.filter(r => r._id.toString() !== req.params.roleId);
+    await community.save();
+    res.json({ success: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 module.exports = router;

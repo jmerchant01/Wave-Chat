@@ -653,6 +653,15 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .home-card-sub{font-size:.65rem;color:var(--muted);margin-bottom:.4rem;}
 
 /* ── Panel loading spinner ── */
+
+.mention-dropdown{position:absolute;bottom:calc(100% + 4px);left:0;right:0;background:var(--surface);border:1px solid var(--border);border-radius:8px;max-height:160px;overflow-y:auto;z-index:300;box-shadow:0 -4px 16px rgba(0,0,0,.2);}
+.mention-item{padding:.4rem .75rem;font-size:.78rem;cursor:pointer;display:flex;align-items:center;gap:.5rem;}
+.mention-item:hover,.mention-item.active{background:var(--surface2);}
+.mention-item-av{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.55rem;font-weight:700;color:#fff;flex-shrink:0;}
+.msg-mention{background:rgba(108,99,255,.18);color:var(--accent);border-radius:3px;padding:0 2px;font-weight:600;}
+.msg-mention-me{background:rgba(255,101,132,.22);color:var(--accent2);border-radius:3px;padding:0 2px;font-weight:600;animation:pulse 2s infinite;}
+.cv-unread-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--accent2);margin-left:auto;flex-shrink:0;}
+
 .panel-loading{display:flex;align-items:center;justify-content:center;padding:1.5rem 0;flex-direction:column;gap:.5rem;}
 .panel-spinner{width:26px;height:26px;border:2.5px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0;}
 @keyframes spin{to{transform:rotate(360deg);}}
@@ -1388,7 +1397,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
       <div id="cv-input-area" style="padding:.6rem 1rem;border-top:1px solid var(--border);display:flex;gap:.5rem;">
         <button onclick="document.getElementById('cv-file-input').click()" style="width:30px;height:30px;border-radius:7px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;font-size:.85rem;flex-shrink:0;">📎</button>
         <input type="file" id="cv-file-input" class="hidden" accept="image/*,video/*,.pdf,.doc,.docx,.txt,.zip" onchange="handleCVFile(this)"/>
-        <input id="cv-msg-input" placeholder="Message #general…" style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.5rem .75rem;color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:.78rem;outline:none;" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendCommunityMessage();}" oninput="cvTyping()"/>
+        <input id="cv-msg-input" placeholder="Message #general…" style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.5rem .75rem;color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:.78rem;outline:none;" onkeydown="cvMsgKeydown(event)" oninput="cvMsgInput(event)"/>
         <button onclick="sendCommunityMessage()" style="width:30px;height:30px;border-radius:7px;border:none;background:var(--accent);color:#fff;cursor:pointer;font-size:.8rem;flex-shrink:0;">➤</button>
       </div>
     </div>
@@ -2265,6 +2274,7 @@ function logout(){
   localStorage.removeItem('wave-token');
   localStorage.removeItem('wave-user-cache');
   authToken = null; currentUser = null;
+  if(homeSocket){ homeSocket.disconnect(); homeSocket=null; }
   hideGlobalNav();
   showAuthScreen();
   initRememberMe();
@@ -4374,19 +4384,21 @@ async function createCommunityRoom(ch){
 }
 
 function joinCommunityRoom(roomId){
-  showCommunityRoom(roomId, null);
-}
-
-// Show room INSIDE community view (no navigation away)
-let communityRoomActive = false;
-function showCommunityRoom(rid, name){
-  communityRoomActive = true;
-  // Set the join code and trigger join — the room UI will open over the community
-  document.getElementById('join-code').value = rid;
-  // Close community view temporarily and open room
-  closeCommunityView();
+  // Join without closing community view
+  window._lastCommunityId = currentCommunity?._id;
+  document.getElementById('join-code').value = roomId;
   joinRoom();
-  // After room ends, user goes back to home — they can re-open community
+}
+let communityRoomActive = false;
+function showCommunityRoom(rid){ joinCommunityRoom(rid); }
+
+function getMemberRoleColor(member){
+  if(!currentCommunity||!member.roles?.length) return null;
+  for(const role of (currentCommunity.roles||[])){
+    const rid=(role._id||role.id||'').toString();
+    if(member.roles.includes(rid)) return role.color||null;
+  }
+  return null;
 }
 
 function renderCVMembers(members){
@@ -4396,17 +4408,37 @@ function renderCVMembers(members){
   const active=members.filter(m=>!m.banned);
   if(badge) badge.textContent=active.length;
   el.innerHTML='';
-  active.slice(0,8).forEach(m=>{
-    const user = m.user || {};
-    const userId = (m.userId?._id || m.userId || '').toString();
-    const username = user.username || '?';
-    const div=document.createElement('div');
-    div.style.cssText='display:flex;align-items:center;gap:.4rem;font-size:.68rem;color:var(--muted);';
+  active.slice(0,20).forEach(m=>{
+    const user=m.user||{}, userId=(m.userId?._id||m.userId||'').toString();
+    const username=user.username||'?', roleColor=getMemberRoleColor(m);
     const isOnline=friendStatuses[userId]?.online;
-    div.innerHTML=`<div style="width:20px;height:20px;border-radius:50%;background:${colorFor(userId||'x')};color:#fff;display:flex;align-items:center;justify-content:center;font-size:.55rem;font-weight:700;flex-shrink:0;">${username.slice(0,2).toUpperCase()}</div><span style="flex:1;color:${isOnline?'var(--accent3)':'var(--muted)'};">${esc(username)}</span><button class="report-btn" onclick="reportUser('${userId}','${esc(username)}')" title="Report" style="width:16px;height:16px;font-size:.6rem;">🚩</button>`;
+    const div=document.createElement('div');
+    div.style.cssText='display:flex;align-items:center;gap:.4rem;font-size:.68rem;padding:.15rem 0;';
+    // Role color dot
+    const dot=document.createElement('div');
+    dot.style.cssText='width:8px;height:8px;border-radius:50%;background:'+(roleColor||colorFor(userId||'x'))+';flex-shrink:0;';
+    // Avatar
+    const av=document.createElement('div');
+    av.style.cssText='width:20px;height:20px;border-radius:50%;background:'+colorFor(userId||'x')+';color:#fff;display:flex;align-items:center;justify-content:center;font-size:.55rem;font-weight:700;flex-shrink:0;';
+    av.textContent=username.slice(0,2).toUpperCase();
+    // Name
+    const nm=document.createElement('span');
+    nm.style.cssText='flex:1;color:'+(roleColor||(isOnline?'var(--accent3)':'var(--muted)'))+';font-weight:'+(roleColor?'600':'400')+';';
+    nm.textContent=username;
+    // Report btn
+    const rb=document.createElement('button');
+    rb.className='report-btn'; rb.title='Report'; rb.textContent='🚩';
+    rb.style.cssText='width:16px;height:16px;font-size:.6rem;border:none;background:transparent;cursor:pointer;';
+    rb.onclick=()=>reportUser(userId,username);
+    div.appendChild(dot); div.appendChild(av); div.appendChild(nm); div.appendChild(rb);
     el.appendChild(div);
   });
-  if(active.length>8){ const more=document.createElement('div'); more.style.cssText='font-size:.62rem;color:var(--muted);padding:.2rem .3rem;'; more.textContent=`+${active.length-8} more`; el.appendChild(more); }
+  if(active.length>20){
+    const more=document.createElement('div');
+    more.style.cssText='font-size:.62rem;color:var(--muted);padding:.2rem .3rem;';
+    more.textContent='+'+(active.length-20)+' more';
+    el.appendChild(more);
+  }
 }
 
 async function openChannel(channel){
@@ -4621,22 +4653,80 @@ function renderCSChannels(){
   (currentCommunity.channels||[]).forEach(ch=>{
     const div=document.createElement('div');
     div.style.cssText='display:flex;align-items:center;gap:.5rem;padding:.4rem .5rem;border-bottom:1px solid var(--border);font-size:.72rem;';
-    div.innerHTML=`
-      <span style="color:var(--muted);">${typeIcon[ch.type]||'#'}</span>
-      <span style="flex:1;font-weight:500;">${esc(ch.name)}</span>
-      <label style="display:flex;align-items:center;gap:.25rem;font-size:.65rem;color:var(--muted);cursor:pointer;user-select:none;" title="Lock channel (hide from non-admins)">
-        <input type="checkbox" ${ch.locked?'checked':''} onchange="toggleChannelLock('${ch._id}',this.checked)" style="accent-color:var(--accent);cursor:pointer;"/> 🔒 Locked
-      </label>
-      ${ch.type!=='room'?`<label style="display:flex;align-items:center;gap:.25rem;font-size:.65rem;color:var(--muted);cursor:pointer;user-select:none;margin-left:.4rem;" title="Lock chat (only admins can post)">
-        <input type="checkbox" ${ch.chatLocked?'checked':''} onchange="toggleChatLockByCheckbox('${ch._id}',this.checked)" style="accent-color:var(--accent2);cursor:pointer;"/> 💬 Chat locked
-      </label>`:''}
-      <button onclick="openChannelPerms('${currentCommunity._id}','${ch._id}','${esc(ch.name)}',${JSON.stringify(ch.viewRoles||[])},${JSON.stringify(ch.writeRoles||[])})" style="border:none;background:transparent;color:var(--accent);cursor:pointer;font-size:.75rem;padding:.1rem .3rem;" title="Channel permissions">🔑</button>
-      <button onclick="deleteChannelFromMenu('${ch._id}')" style="border:none;background:transparent;color:var(--danger);cursor:pointer;font-size:.75rem;padding:.1rem .3rem;" title="Delete channel">🗑</button>`;
+    const icon=document.createElement('span');
+    icon.style.color='var(--muted)'; icon.textContent=typeIcon[ch.type]||'#';
+    const nm=document.createElement('span');
+    nm.style.cssText='flex:1;font-weight:500;'; nm.textContent=ch.name;
+    div.appendChild(icon); div.appendChild(nm);
+    if(ch.locked){const lk=document.createElement('span');lk.title='Hidden';lk.textContent='🔒';lk.style.fontSize='.65rem';div.appendChild(lk);}
+    if(ch.chatLocked){const vw=document.createElement('span');vw.title='View only';vw.textContent='👁';vw.style.fontSize='.65rem';div.appendChild(vw);}
+    const editBtn=document.createElement('button');
+    editBtn.title='Edit channel'; editBtn.textContent='✏️ Edit';
+    editBtn.style.cssText='border:1px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer;font-size:.65rem;padding:.2rem .5rem;border-radius:5px;';
+    editBtn.onclick=()=>openChannelEditor(ch._id);
+    const delBtn=document.createElement('button');
+    delBtn.title='Delete'; delBtn.textContent='🗑';
+    delBtn.style.cssText='border:none;background:transparent;color:var(--danger);cursor:pointer;font-size:.75rem;padding:.1rem .3rem;';
+    delBtn.onclick=()=>deleteChannelFromMenu(ch._id);
+    div.appendChild(editBtn); div.appendChild(delBtn);
     el.appendChild(div);
   });
-  if(!(currentCommunity.channels||[]).length){
+  if(!(currentCommunity.channels||[]).length)
     el.innerHTML='<div style="font-size:.7rem;color:var(--muted);padding:.4rem;">No channels yet.</div>';
-  }
+}
+
+let _editChannelId=null;
+function openChannelEditor(channelId){
+  const ch=currentCommunity?.channels?.find(c=>c._id===channelId||c._id?.toString()===channelId);
+  if(!ch) return;
+  _editChannelId=channelId;
+  document.getElementById('ch-edit-name').value=ch.name;
+  let level='full';
+  if(ch.locked) level='hidden';
+  else if(ch.chatLocked) level='viewonly';
+  document.getElementById('ch-edit-access').value=level;
+  const roles=currentCommunity?.roles||[];
+  ['ch-edit-view-roles','ch-edit-write-roles'].forEach((cid,ri)=>{
+    const container=document.getElementById(cid); container.innerHTML='';
+    const currentRoles=ri===0?(ch.viewRoles||[]):(ch.writeRoles||[]);
+    roles.forEach(r=>{
+      const rid=(r._id||r.id||'').toString();
+      const label=document.createElement('label');
+      label.style.cssText='display:flex;align-items:center;gap:.4rem;font-size:.78rem;cursor:pointer;';
+      const cb=document.createElement('input');
+      cb.type='checkbox'; cb.value=rid; cb.checked=currentRoles.includes(rid); cb.style.cssText='accent-color:var(--accent);';
+      const dot=document.createElement('span');
+      dot.style.color=r.color||'var(--accent)'; dot.textContent='●';
+      const nm=document.createElement('span'); nm.textContent=r.name;
+      label.appendChild(cb); label.appendChild(dot); label.appendChild(nm);
+      container.appendChild(label);
+    });
+  });
+  document.getElementById('ch-edit-overlay').classList.remove('hidden');
+}
+
+async function saveChannelEdit(){
+  if(!_editChannelId||!currentCommunity||!authToken) return;
+  const name=document.getElementById('ch-edit-name').value.trim();
+  const access=document.getElementById('ch-edit-access').value;
+  const viewRoles=[...document.querySelectorAll('#ch-edit-view-roles input:checked')].map(i=>i.value);
+  const writeRoles=[...document.querySelectorAll('#ch-edit-write-roles input:checked')].map(i=>i.value);
+  const locked=access==='hidden', chatLocked=access==='viewonly';
+  try{
+    await fetch('/api/communities/'+currentCommunity._id+'/channels/'+_editChannelId+'/lock',{
+      method:'PATCH',headers:{'Content-Type':'application/json',Authorization:'Bearer '+authToken},
+      body:JSON.stringify({locked,chatLocked})
+    });
+    await fetch('/api/communities/'+currentCommunity._id+'/channels/'+_editChannelId+'/permissions',{
+      method:'PATCH',headers:{'Content-Type':'application/json',Authorization:'Bearer '+authToken},
+      body:JSON.stringify({viewRoles,writeRoles})
+    });
+    const ch=currentCommunity.channels?.find(c=>c._id===_editChannelId||c._id?.toString()===_editChannelId);
+    if(ch){ch.locked=locked;ch.chatLocked=chatLocked;ch.viewRoles=viewRoles;ch.writeRoles=writeRoles;if(name)ch.name=name;}
+    renderCSChannels(); renderCVChannels(currentCommunity.channels||[]);
+    document.getElementById('ch-edit-overlay').classList.add('hidden');
+    toast('✅ Channel updated');
+  }catch(e){toast('⚠️ Error saving channel');}
 }
 
 async function toggleChatLockByCheckbox(channelId, locked){
@@ -4724,11 +4814,115 @@ function renderCSRoles(){
   if(!el||!currentCommunity) return;
   el.innerHTML='';
   (currentCommunity.roles||[]).forEach(r=>{
+    const rid=(r._id||r.id||'').toString();
     const div=document.createElement('div');
-    div.style.cssText='display:flex;align-items:center;gap:.5rem;padding:.35rem .4rem;font-size:.72rem;margin-bottom:.3rem;';
-    div.innerHTML=`<span style="width:10px;height:10px;border-radius:50%;background:${r.color};flex-shrink:0;"></span><span style="flex:1;">${esc(r.name)}</span>`;
+    div.style.cssText='display:flex;align-items:center;gap:.5rem;padding:.35rem .5rem;font-size:.72rem;margin-bottom:.4rem;border:1px solid var(--border);border-radius:8px;';
+    // Color picker dot
+    const colorInp=document.createElement('input');
+    colorInp.type='color'; colorInp.value=r.color||'#6c63ff';
+    colorInp.title='Role color';
+    colorInp.style.cssText='width:22px;height:22px;border:none;border-radius:50%;cursor:pointer;padding:0;background:none;flex-shrink:0;';
+    colorInp.onchange=()=>updateRoleColor(rid,colorInp.value);
+    div.appendChild(colorInp);
+    const nameEl=document.createElement('span');
+    nameEl.style.cssText='flex:1;font-weight:500;';
+    nameEl.textContent=r.name;
+    div.appendChild(nameEl);
+    // Members button
+    const membBtn=document.createElement('button');
+    membBtn.title='Manage members'; membBtn.textContent='👥';
+    membBtn.style.cssText='border:none;background:transparent;cursor:pointer;font-size:.72rem;color:var(--accent);';
+    membBtn.onclick=()=>openRoleMembers(rid,r.name);
+    div.appendChild(membBtn);
+    // Edit button
+    const editBtn=document.createElement('button');
+    editBtn.title='Rename role'; editBtn.textContent='✏️';
+    editBtn.style.cssText='border:none;background:transparent;cursor:pointer;font-size:.72rem;color:var(--muted);';
+    editBtn.onclick=()=>editRole(rid,r.name);
+    div.appendChild(editBtn);
+    // Delete button
+    const delBtn=document.createElement('button');
+    delBtn.title='Delete role'; delBtn.textContent='🗑';
+    delBtn.style.cssText='border:none;background:transparent;cursor:pointer;font-size:.72rem;color:var(--danger);';
+    delBtn.onclick=()=>deleteRole(rid,r.name);
+    div.appendChild(delBtn);
     el.appendChild(div);
   });
+}
+
+async function updateRoleColor(roleId,color){
+  if(!currentCommunity||!authToken) return;
+  try{
+    const res=await fetch('/api/communities/'+currentCommunity._id+'/roles/'+roleId,{
+      method:'PATCH',headers:{'Content-Type':'application/json',Authorization:'Bearer '+authToken},
+      body:JSON.stringify({color})
+    });
+    if(res.ok){const role=currentCommunity.roles?.find(r=>(r._id||r.id)===roleId);if(role)role.color=color;renderCSRoles();renderCVMembers(currentCommunity.members||[]);toast('✅ Color updated');}
+  }catch(e){}
+}
+
+async function editRole(roleId,currentName){
+  const name=prompt('Role name:',currentName);
+  if(!name||name===currentName||!currentCommunity) return;
+  try{
+    const res=await fetch('/api/communities/'+currentCommunity._id+'/roles/'+roleId,{
+      method:'PATCH',headers:{'Content-Type':'application/json',Authorization:'Bearer '+authToken},
+      body:JSON.stringify({name})
+    });
+    if(res.ok){const role=currentCommunity.roles?.find(r=>(r._id||r.id)===roleId);if(role)role.name=name;renderCSRoles();toast('✅ Role renamed');}
+    else{const d=await res.json();toast('⚠️ '+d.error);}
+  }catch(e){}
+}
+
+async function deleteRole(roleId,name){
+  if(!confirm('Delete role "'+name+'"?')) return;
+  if(!currentCommunity||!authToken) return;
+  try{
+    const res=await fetch('/api/communities/'+currentCommunity._id+'/roles/'+roleId,{method:'DELETE',headers:{Authorization:'Bearer '+authToken}});
+    if(res.ok){currentCommunity.roles=currentCommunity.roles?.filter(r=>(r._id||r.id)!==roleId);renderCSRoles();toast('✅ Role deleted');}
+    else{const d=await res.json();toast('⚠️ '+d.error);}
+  }catch(e){}
+}
+
+let _roleMembersRoleId=null;
+function openRoleMembers(roleId,roleName){
+  _roleMembersRoleId=roleId;
+  document.getElementById('role-members-title').textContent='👥 '+roleName+' — Members';
+  const container=document.getElementById('role-members-list');
+  container.innerHTML='';
+  (currentCommunity?.members?.filter(m=>!m.banned)||[]).forEach(m=>{
+    const user=m.user||{}; const uid=(m.userId?._id||m.userId||'').toString();
+    const hasRole=(m.roles||[]).includes(roleId);
+    const row=document.createElement('label');
+    row.style.cssText='display:flex;align-items:center;gap:.5rem;font-size:.8rem;cursor:pointer;padding:.3rem 0;border-bottom:1px solid var(--border);';
+    const cb=document.createElement('input');
+    cb.type='checkbox'; cb.checked=hasRole; cb.style.cssText='accent-color:var(--accent);';
+    cb.onchange=()=>toggleMemberRole(uid,roleId,cb.checked);
+    const av=document.createElement('div');
+    av.style.cssText='width:24px;height:24px;border-radius:50%;background:'+colorFor(uid)+';color:#fff;display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:700;';
+    av.textContent=(user.username||'?').slice(0,2).toUpperCase();
+    const nm=document.createElement('span');
+    nm.textContent=user.username||uid;
+    row.appendChild(cb); row.appendChild(av); row.appendChild(nm);
+    container.appendChild(row);
+  });
+  document.getElementById('role-members-overlay').classList.remove('hidden');
+}
+
+async function toggleMemberRole(userId,roleId,add){
+  if(!currentCommunity||!authToken) return;
+  try{
+    await fetch('/api/communities/'+currentCommunity._id+'/members/'+userId+'/roles',{
+      method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+authToken},
+      body:JSON.stringify({roleId,action:add?'add':'remove'})
+    });
+    const member=currentCommunity.members?.find(m=>(m.userId?._id||m.userId||'').toString()===userId);
+    if(member){
+      if(add&&!member.roles.includes(roleId))member.roles.push(roleId);
+      else if(!add)member.roles=member.roles.filter(r=>r!==roleId);
+    }
+    renderCVMembers(currentCommunity.members||[]);
+  }catch(e){}
 }
 
 async function addRole(){
@@ -6567,6 +6761,110 @@ function toast(msg,dur=3500){
   const t=document.createElement('div');t.className='toast';t.textContent=msg;c.appendChild(t);
   setTimeout(()=>{t.style.opacity='0';t.style.transition='opacity .4s';setTimeout(()=>t.remove(),400);},dur);
 }
+
+// ════════════════════════════════════════
+// @MENTION SYSTEM
+// ════════════════════════════════════════
+let _mentionStart=-1, _mentionActiveIdx=0, _mentionItems=[];
+
+function cvMsgKeydown(e){
+  const dd=document.getElementById('cv-mention-dropdown');
+  if(dd&&!dd.classList.contains('hidden')){
+    if(e.key==='ArrowDown'){e.preventDefault();_mentionActiveIdx=Math.min(_mentionActiveIdx+1,_mentionItems.length-1);renderMentionDropdown();return;}
+    if(e.key==='ArrowUp'){e.preventDefault();_mentionActiveIdx=Math.max(_mentionActiveIdx-1,0);renderMentionDropdown();return;}
+    if(e.key==='Enter'||e.key==='Tab'){e.preventDefault();selectMention(_mentionActiveIdx);return;}
+    if(e.key==='Escape'){closeMentionDropdown();return;}
+  }
+  if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendCommunityMessage();}
+}
+
+function cvMsgInput(){
+  cvTyping();
+  const inp=document.getElementById('cv-msg-input');
+  if(!inp) return;
+  const val=inp.value, pos=inp.selectionStart;
+  let atIdx=-1;
+  for(let i=pos-1;i>=0;i--){
+    if(val[i]==='@'){atIdx=i;break;}
+    if(val[i]===' '||val[i]==='\n') break;
+  }
+  if(atIdx>=0){
+    _mentionStart=atIdx;
+    const q=val.slice(atIdx+1,pos).toLowerCase();
+    showMentionDropdown(q);
+  } else { closeMentionDropdown(); }
+}
+
+function showMentionDropdown(q){
+  const members=currentCommunity?.members?.filter(m=>!m.banned)||[];
+  const all=[{username:'everyone',_id:'everyone'},...members.map(m=>({username:m.user?.username||'',_id:(m.userId?._id||m.userId||'').toString()}))];
+  _mentionItems=all.filter(u=>u.username&&(!q||u.username.toLowerCase().startsWith(q))).slice(0,8);
+  _mentionActiveIdx=0;
+  renderMentionDropdown();
+}
+
+function renderMentionDropdown(){
+  const inp=document.getElementById('cv-msg-input');
+  if(!inp) return;
+  let dd=document.getElementById('cv-mention-dropdown');
+  if(!dd){
+    const wrap=inp.parentElement;
+    if(!wrap) return;
+    wrap.style.position='relative';
+    dd=document.createElement('div');
+    dd.id='cv-mention-dropdown'; dd.className='mention-dropdown hidden';
+    wrap.appendChild(dd);
+  }
+  if(!_mentionItems.length){dd.classList.add('hidden');return;}
+  dd.classList.remove('hidden');
+  dd.innerHTML='';
+  _mentionItems.forEach((u,i)=>{
+    const item=document.createElement('div');
+    item.className='mention-item'+(i===_mentionActiveIdx?' active':'');
+    const av=document.createElement('div');
+    av.className='mention-item-av';
+    av.style.background=u._id==='everyone'?'var(--accent2)':colorFor(u._id);
+    av.textContent=u._id==='everyone'?'@':u.username.slice(0,2).toUpperCase();
+    const nm=document.createElement('span'); nm.textContent='@'+u.username;
+    item.appendChild(av); item.appendChild(nm);
+    item.onmousedown=e=>{e.preventDefault();selectMention(i);};
+    dd.appendChild(item);
+  });
+}
+
+function selectMention(idx){
+  const item=_mentionItems[idx]; if(!item) return;
+  const inp=document.getElementById('cv-msg-input'); if(!inp) return;
+  const val=inp.value, pos=inp.selectionStart;
+  const before=val.slice(0,_mentionStart), after=val.slice(pos);
+  inp.value=before+'@'+item.username+' '+after;
+  inp.focus();
+  const np=before.length+item.username.length+2;
+  inp.setSelectionRange(np,np);
+  closeMentionDropdown();
+}
+
+function closeMentionDropdown(){
+  const dd=document.getElementById('cv-mention-dropdown');
+  if(dd) dd.classList.add('hidden');
+}
+
+function processMentionText(text){
+  if(!text) return esc(text||'');
+  const myU=(currentUser?.username||'').toLowerCase();
+  return esc(text).replace(/&amp;/g,'&').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/@([\w]+)/g,(m,name)=>{
+    if(name.toLowerCase()==='everyone') return '<span class="msg-mention-me">@everyone</span>';
+    if(name.toLowerCase()===myU) return '<span class="msg-mention-me">@'+esc(name)+'</span>';
+    return '<span class="msg-mention">@'+esc(name)+'</span>';
+  });
+}
+
+function messageTagsMe(text){
+  if(!text||!currentUser) return false;
+  const me=currentUser.username.toLowerCase();
+  return text.toLowerCase().includes('@'+me)||text.toLowerCase().includes('@everyone');
+}
+
 </script>
 
 <!-- ── Notification Preferences Modal ── -->
@@ -6628,6 +6926,52 @@ function toast(msg,dur=3500){
       <button class="save-modal-cancel" style="flex:1;" onclick="closeChannelPerms()">Cancel</button>
       <button class="auth-btn" style="flex:1;margin-top:0;" onclick="saveChannelPerms()">Save Permissions</button>
     </div>
+  </div>
+</div>
+
+
+<!-- ── Channel Editor Modal ── -->
+<div id="ch-edit-overlay" class="save-modal-overlay hidden" style="z-index:9999;">
+  <div class="save-modal" style="max-width:440px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
+      <h3 style="margin:0;">✏️ Edit Channel</h3>
+      <button class="modal-close-x" onclick="document.getElementById('ch-edit-overlay').classList.add('hidden')">✕</button>
+    </div>
+    <div style="margin-bottom:.75rem;">
+      <label style="font-size:.65rem;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:.3rem;">Channel Name</label>
+      <input id="ch-edit-name" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.5rem .75rem;color:var(--text);font-size:.82rem;outline:none;box-sizing:border-box;"/>
+    </div>
+    <div style="margin-bottom:.75rem;">
+      <label style="font-size:.65rem;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:.3rem;">Access Level</label>
+      <select id="ch-edit-access" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.5rem .75rem;color:var(--text);font-size:.82rem;outline:none;">
+        <option value="full">🟢 Full Access — everyone can view and chat</option>
+        <option value="viewonly">👁️ View Only — can see but not chat</option>
+        <option value="hidden">🔒 Hidden — only admins can see</option>
+      </select>
+    </div>
+    <div style="margin-bottom:.75rem;">
+      <label style="font-size:.65rem;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:.3rem;">Roles that can VIEW (empty = everyone)</label>
+      <div id="ch-edit-view-roles" style="display:flex;flex-direction:column;gap:.35rem;max-height:100px;overflow-y:auto;"></div>
+    </div>
+    <div style="margin-bottom:1.25rem;">
+      <label style="font-size:.65rem;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:.3rem;">Roles that can WRITE (empty = all viewers)</label>
+      <div id="ch-edit-write-roles" style="display:flex;flex-direction:column;gap:.35rem;max-height:100px;overflow-y:auto;"></div>
+    </div>
+    <div style="display:flex;gap:.75rem;">
+      <button class="save-modal-cancel" style="flex:1;" onclick="document.getElementById('ch-edit-overlay').classList.add('hidden')">Cancel</button>
+      <button class="auth-btn" style="flex:1;margin-top:0;" onclick="saveChannelEdit()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Role Members Modal ── -->
+<div id="role-members-overlay" class="save-modal-overlay hidden" style="z-index:9999;">
+  <div class="save-modal" style="max-width:360px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
+      <h3 id="role-members-title" style="margin:0;">👥 Role Members</h3>
+      <button class="modal-close-x" onclick="document.getElementById('role-members-overlay').classList.add('hidden')">✕</button>
+    </div>
+    <div id="role-members-list" style="max-height:320px;overflow-y:auto;"></div>
   </div>
 </div>
 
