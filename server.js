@@ -58,7 +58,7 @@ app.get('/api/rooms/search', (req, res) => {
   const results = [];
   publicRooms.forEach((room, id) => {
     if(!query || room.name.toLowerCase().includes(query) || room.tags.some(t=>t.includes(query)) || room.hostName.toLowerCase().includes(query)) {
-      results.push({ roomId: id, name: room.name, tags: room.tags, hostName: room.hostName, participants: room.participants, createdAt: room.createdAt });
+      results.push({ roomId: id, name: room.name, tags: room.tags, hostName: room.hostName, participants: room.participants, createdAt: room.createdAt, avatar: room.avatar||null });
     }
   });
   results.sort((a,b) => b.participants - a.participants);
@@ -280,12 +280,13 @@ io.on('connection', (socket) => {
     if(!target) socket.emit('friend_invite_offline', { toUserId });
   });
 
-  socket.on('create_room', async ({ name, roomName, userId, inviteFriendIds, isPublic, tags, communityId, channelId }) => {
+  socket.on('create_room', async ({ name, roomName, userId, inviteFriendIds, isPublic, tags, communityId, channelId, avatar }) => {
     const roomId = Math.random().toString(36).substr(2, 8).toUpperCase();
     const displayName = name || 'Host';
     const rName = roomName || 'Voice Room';
     rooms.set(roomId, {
       name: rName, hostId: socket.id,
+      avatar: avatar||null,
       locked: false, chatLocked: false, allMuted: false,
       activeScreenShareId: null, screenRequestsEnabled: true,
       pendingInvites: new Map(), // userId -> { username, sentAt }
@@ -299,7 +300,7 @@ io.on('connection', (socket) => {
     rooms.get(roomId).communityId = communityId||null;
     rooms.get(roomId).channelId = channelId||null;
     socket.emit('room_joined', { roomId, isHost: true, joinMuted: false, state: getRoomPublicState(rooms.get(roomId)) });
-    if(isPublic){ publicRooms.set(roomId, { name: rName, tags: roomTags, hostName: displayName, participants: 1, createdAt: Date.now() }); }
+    if(isPublic){ publicRooms.set(roomId, { name: rName, tags: roomTags, hostName: displayName, participants: 1, createdAt: Date.now(), avatar: avatar||null }); }
 
     // Auto-invite selected friends — socket + email + browser notification
     if(inviteFriendIds && inviteFriendIds.length){

@@ -145,7 +145,7 @@ body.light .field input{background:var(--surface2);color:var(--text);}
 body.light .card::before{opacity:.6;}
 
 /* Theme toggle button */
-.theme-toggle{width:36px;height:36px;border-radius:50%;border:1px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1rem;transition:all .2s;flex-shrink:0;}
+.theme-toggle{width:36px;height:36px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1rem;transition:all .2s;flex-shrink:0;}
 .theme-toggle:hover{border-color:var(--accent);background:var(--accent);color:#fff;}
 *{margin:0;padding:0;box-sizing:border-box;}
 body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;min-height:100vh;overflow-x:hidden;}
@@ -343,8 +343,8 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .participants-list::-webkit-scrollbar-thumb{background:var(--border);}
 .participant-card{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.5rem .7rem;display:flex;align-items:center;gap:.5rem;transition:border-color .2s;}
 .participant-card.speaking{border-color:var(--accent3);box-shadow:0 0 0 1px rgba(67,233,123,.2);}
-.avatar{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:800;font-size:.68rem;flex-shrink:0;position:relative;}
-.avatar.speaking-ring::after{content:'';position:absolute;inset:-3px;border-radius:50%;border:2px solid var(--accent3);animation:speakPulse 1s ease-in-out infinite;}
+.avatar{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:800;font-size:.68rem;flex-shrink:0;position:relative;}
+.avatar.speaking-ring::after{content:'';position:absolute;inset:-3px;border-radius:10px;border:2px solid var(--accent3);animation:speakPulse 1s ease-in-out infinite;}
 @keyframes speakPulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.4;transform:scale(1.15);}}
 .participant-name{flex:1;font-size:.72rem;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .participant-controls{display:flex;gap:.22rem;flex-shrink:0;}
@@ -426,17 +426,17 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 /* ── Direct Messages ── */
 .dm-conversation-item{display:flex;align-items:center;gap:.6rem;padding:.6rem .5rem;border-radius:9px;cursor:pointer;position:relative;}
 .dm-conversation-item:hover{background:var(--surface2);}
-.dm-conv-avatar{width:38px;height:38px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.85rem;font-weight:700;overflow:hidden;}
+.dm-conv-avatar{width:38px;height:38px;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.85rem;font-weight:700;overflow:hidden;}
 .dm-conv-avatar img{width:100%;height:100%;object-fit:cover;}
 .dm-conv-info{flex:1;min-width:0;}
 .dm-conv-name{font-size:.78rem;font-weight:600;}
 .dm-conv-preview{font-size:.65rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:.1rem;}
 .dm-conv-meta{display:flex;flex-direction:column;align-items:flex-end;gap:.2rem;flex-shrink:0;}
 .dm-conv-time{font-size:.6rem;color:var(--muted);}
-.dm-unread-dot{width:18px;height:18px;border-radius:50%;background:var(--accent2);color:#fff;font-size:.6rem;display:flex;align-items:center;justify-content:center;font-weight:700;}
+.dm-unread-dot{width:18px;height:18px;border-radius:8px;background:var(--accent2);color:#fff;font-size:.6rem;display:flex;align-items:center;justify-content:center;font-weight:700;}
 .dm-chat-header{display:flex;align-items:center;gap:.6rem;padding:.6rem .5rem;border-bottom:1px solid var(--border);margin-bottom:.5rem;}
 .dm-back-btn{border:none;background:transparent;color:var(--accent);font-size:.75rem;cursor:pointer;font-family:'Inter',system-ui,sans-serif;padding:.2rem .4rem;}
-.dm-chat-avatar{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;overflow:hidden;flex-shrink:0;}
+.dm-chat-avatar{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;overflow:hidden;flex-shrink:0;}
 .dm-chat-avatar img{width:100%;height:100%;object-fit:cover;}
 .dm-typing{font-size:.65rem;color:var(--muted);font-style:italic;margin-left:auto;}
 .dm-messages{flex:1;overflow-y:auto;max-height:320px;min-height:120px;padding:.3rem .2rem;display:flex;flex-direction:column;gap:.4rem;}
@@ -473,7 +473,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .gnav-logo{font-family:'Syne',sans-serif;font-size:1.3rem;font-weight:800;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;text-decoration:none;}
 @media(max-width:500px){#gnav-username{display:none;}.gnav-right{gap:.35rem;}.home-nav-btn{font-size:.6rem;padding:.2rem .45rem;}.gnav-icon-btn{width:30px;height:30px;font-size:.85rem;}}
 .gnav-right{display:flex;align-items:center;gap:.6rem;}
-.gnav-icon-btn{width:34px;height:34px;border-radius:50%;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.95rem;position:relative;transition:all .15s;}
+.gnav-icon-btn{width:34px;height:34px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.95rem;position:relative;transition:all .15s;}
 .gnav-icon-btn:hover{border-color:var(--accent);color:var(--accent);}
 .notif-badge{position:absolute;top:-3px;right:-3px;width:16px;height:16px;border-radius:50%;background:var(--accent2);color:#fff;font-size:.55rem;display:flex;align-items:center;justify-content:center;font-weight:700;border:2px solid var(--surface);}
 /* Notification panel */
@@ -488,7 +488,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .notif-item:hover{background:var(--surface2);}
 .notif-item.unread{background:rgba(108,99,255,.06);}
 .notif-item.unread::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--accent);flex-shrink:0;margin-top:.3rem;}
-.notif-icon{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.9rem;flex-shrink:0;background:var(--surface2);}
+.notif-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:.9rem;flex-shrink:0;background:var(--surface2);}
 .notif-content{flex:1;min-width:0;}
 .notif-text{font-size:.72rem;line-height:1.4;color:var(--text);}
 .notif-time{font-size:.6rem;color:var(--muted);margin-top:.15rem;}
@@ -532,7 +532,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .home-nav-logo{font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:800;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
 .home-nav-right{display:flex;align-items:center;gap:.75rem;}
 .home-user-info{display:flex;align-items:center;gap:.5rem;font-size:.78rem;}
-.home-avatar{width:36px;height:36px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;overflow:hidden;flex-shrink:0;position:relative;}
+.home-avatar{width:36px;height:36px;border-radius:8px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;overflow:hidden;flex-shrink:0;position:relative;}
 .home-avatar:hover #avatar-hover-overlay{opacity:1!important;background:rgba(0,0,0,.55)!important;}
 .home-avatar img{width:100%;height:100%;object-fit:cover;}
 .home-nav-btn{padding:.35rem .85rem;border-radius:7px;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:'Inter',system-ui,sans-serif;font-size:.72rem;cursor:pointer;transition:all .2s;}
@@ -657,13 +657,13 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .mention-dropdown{position:absolute;bottom:calc(100% + 4px);left:0;right:0;background:var(--surface);border:1px solid var(--border);border-radius:8px;max-height:160px;overflow-y:auto;z-index:300;box-shadow:0 -4px 16px rgba(0,0,0,.2);}
 .mention-item{padding:.4rem .75rem;font-size:.78rem;cursor:pointer;display:flex;align-items:center;gap:.5rem;}
 .mention-item:hover,.mention-item.active{background:var(--surface2);}
-.mention-item-av{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.55rem;font-weight:700;color:#fff;flex-shrink:0;}
+.mention-item-av{width:22px;height:22px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:.55rem;font-weight:700;color:#fff;flex-shrink:0;}
 .msg-mention{background:rgba(108,99,255,.18);color:var(--accent);border-radius:3px;padding:0 2px;font-weight:600;}
 .msg-mention-me{background:rgba(255,101,132,.22);color:var(--accent2);border-radius:3px;padding:0 2px;font-weight:600;animation:pulse 2s infinite;}
 .cv-unread-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--accent2);margin-left:auto;flex-shrink:0;}
 
 .panel-loading{display:flex;align-items:center;justify-content:center;padding:1.5rem 0;flex-direction:column;gap:.5rem;}
-.panel-spinner{width:26px;height:26px;border:2.5px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0;}
+.panel-spinner{width:26px;height:26px;border:2.5px solid var(--border);border-top-color:var(--accent);border-radius:8px;animation:spin .7s linear infinite;flex-shrink:0;}
 @keyframes spin{to{transform:rotate(360deg);}}
 .panel-loading-text{font-size:.65rem;color:var(--muted);}
 /* ── Discover card ── */
@@ -693,7 +693,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .auth-field input{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.55rem .75rem;color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:.78rem;outline:none;transition:border-color .2s;box-sizing:border-box;}
 .auth-field input:focus{border-color:var(--accent);}
 .auth-avatar-wrap{display:flex;align-items:center;gap:.75rem;margin-bottom:.9rem;}
-.auth-avatar-preview{width:56px;height:56px;border-radius:50%;background:var(--surface2);border:2px solid var(--border);overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.4rem;cursor:pointer;}
+.auth-avatar-preview{width:56px;height:56px;border-radius:8px;background:var(--surface2);border:2px solid var(--border);overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.4rem;cursor:pointer;}
 .auth-avatar-preview img{width:100%;height:100%;object-fit:cover;}
 .auth-avatar-info{font-size:.68rem;color:var(--muted);line-height:1.6;}
 .auth-avatar-info span{color:var(--accent);cursor:pointer;text-decoration:underline;}
@@ -720,7 +720,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .friend-search button{padding:.45rem .7rem;border:none;border-radius:7px;background:var(--accent);color:#fff;font-size:.75rem;cursor:pointer;}
 .friend-item{display:flex;align-items:center;gap:.7rem;padding:.55rem .5rem;border-radius:10px;transition:background .15s;}
 .friend-item:hover{background:var(--surface2);}
-.friend-avatar{width:38px;height:38px;border-radius:50%;overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.85rem;font-weight:600;position:relative;}
+.friend-avatar{width:38px;height:38px;border-radius:8px;overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.85rem;font-weight:600;position:relative;}
 .friend-avatar img{width:100%;height:100%;object-fit:cover;}
 .friend-info{flex:1;min-width:0;}
 .friend-name{font-size:.82rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.01em;}
@@ -750,7 +750,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 /* ── Profile button in header ── */
 .profile-btn{display:flex;align-items:center;gap:.4rem;padding:.35rem .65rem;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:.72rem;cursor:pointer;transition:all .2s;}
 .profile-btn:hover{border-color:var(--accent);}
-.profile-avatar-sm{width:22px;height:22px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:700;flex-shrink:0;}
+.profile-avatar-sm{width:22px;height:22px;border-radius:8px;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:700;flex-shrink:0;}
 .profile-avatar-sm img{width:100%;height:100%;object-fit:cover;}
 
 /* ── Friend invite popup ── */
@@ -921,7 +921,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     <div class="home-nav-right">
       <div class="home-user-info">
         <div class="home-avatar" id="home-avatar-el" onclick="document.getElementById('avatar-upload-input').click()" title="Click to change profile photo" style="cursor:pointer;position:relative;">👤
-          <div style="position:absolute;inset:0;background:rgba(0,0,0,0);border-radius:50%;display:flex;align-items:center;justify-content:center;opacity:0;transition:all .2s;font-size:.6rem;" id="avatar-hover-overlay">📷</div>
+          <div style="position:absolute;inset:0;background:rgba(0,0,0,0);border-radius:8px;display:flex;align-items:center;justify-content:center;opacity:0;transition:all .2s;font-size:.6rem;" id="avatar-hover-overlay">📷</div>
         </div>
         <span id="home-username-el">—</span>
         <input type="file" id="avatar-upload-input" accept="image/*" class="hidden" onchange="handleAvatarUpdate(this)"/>
@@ -948,6 +948,14 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
         <div class="field" style="margin:.75rem 0 .5rem;text-align:left;">
           <label style="font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:.3rem;">Room Name</label>
           <input id="room-name-in" type="text" placeholder="My awesome room" maxlength="32" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.5rem .75rem;color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:.78rem;outline:none;box-sizing:border-box;"/>
+        </div>
+        <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.5rem;">
+          <div id="room-avatar-preview" onclick="document.getElementById('room-avatar-input').click()" title="Click to add room photo" style="width:44px;height:44px;border-radius:8px;background:var(--surface2);border:2px dashed var(--border);display:flex;align-items:center;justify-content:center;font-size:1.2rem;cursor:pointer;flex-shrink:0;overflow:hidden;">🎙️</div>
+          <input type="file" id="room-avatar-input" accept="image/*" class="hidden" onchange="handleRoomAvatarUpload(this)"/>
+          <div style="flex:1;">
+            <div style="font-size:.65rem;color:var(--muted);margin-bottom:.2rem;">Room Photo (optional)</div>
+            <div style="font-size:.6rem;color:var(--muted);">Click the icon to add a photo</div>
+          </div>
         </div>
         <button class="btn btn-primary" id="create-btn" onclick="createRoom()" style="width:100%;">🎙️ Create &amp; Host Room</button>
         <div style="display:flex;align-items:center;gap:.75rem;margin-top:.6rem;flex-wrap:wrap;">
@@ -1337,7 +1345,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
   <div class="home-nav" style="flex-shrink:0;">
     <div style="display:flex;align-items:center;gap:.75rem;">
       <button onclick="closeCommunityView()" style="border:none;background:transparent;color:var(--accent);font-size:.8rem;cursor:pointer;font-family:'Inter',system-ui,sans-serif;">← Back</button>
-      <div class="community-view-avatar" id="cv-avatar" style="width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;overflow:hidden;flex-shrink:0;"></div>
+      <div class="community-view-avatar" id="cv-avatar" style="width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;overflow:hidden;flex-shrink:0;"></div>
       <span id="cv-name" style="font-family:'Syne',sans-serif;font-weight:700;font-size:1rem;"></span>
     </div>
     <div style="display:flex;align-items:center;gap:.5rem;">
@@ -1386,7 +1394,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
         </div>
         <div id="cv-room-active-info" class="hidden" style="text-align:center;">
           <div style="display:flex;align-items:center;justify-content:center;gap:.5rem;margin-bottom:.5rem;">
-            <div style="width:10px;height:10px;border-radius:50%;background:var(--accent3);animation:pulse 1.5s infinite;"></div>
+            <div style="width:10px;height:10px;border-radius:8px;background:var(--accent3);animation:pulse 1.5s infinite;"></div>
             <span style="font-family:'Syne',sans-serif;font-size:1rem;font-weight:700;color:var(--accent3);">Room Active</span>
           </div>
           <div id="cv-room-member-list" style="font-size:.75rem;color:var(--muted);margin-bottom:1rem;"></div>
@@ -1408,6 +1416,15 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 <div id="community-settings-overlay" class="save-modal-overlay hidden">
   <div class="save-modal" style="max-width:520px;max-height:80vh;overflow-y:auto;">
     <h3>⚙️ Community Settings</h3><button class="modal-close-x" onclick="closeCommunitySettings()" title="Close">✕</button>
+    <!-- Community Avatar -->
+    <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1rem;">
+      <div id="cs-avatar-preview" onclick="document.getElementById('cs-avatar-input').click()" title="Click to change community photo" style="width:56px;height:56px;border-radius:8px;background:var(--surface2);border:2px dashed var(--border);display:flex;align-items:center;justify-content:center;font-size:1.4rem;cursor:pointer;flex-shrink:0;overflow:hidden;">🏘️</div>
+      <input type="file" id="cs-avatar-input" accept="image/*" class="hidden" onchange="handleCommunityAvatarUpload(this)"/>
+      <div>
+        <div style="font-size:.78rem;font-weight:600;margin-bottom:.2rem;">Community Photo</div>
+        <div style="font-size:.65rem;color:var(--muted);">Click to upload a community picture</div>
+      </div>
+    </div>
     <div class="auth-field"><label>Name</label><input id="cs-name" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.5rem .75rem;color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:.78rem;outline:none;box-sizing:border-box;"/></div>
     <div class="auth-field" style="margin-top:.5rem;"><label>Description</label><textarea id="cs-desc" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.5rem .75rem;color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:.75rem;outline:none;resize:vertical;min-height:60px;box-sizing:border-box;"></textarea></div>
     <div class="auth-field" style="margin-top:.5rem;"><label>Tags</label><input id="cs-tags" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.5rem .75rem;color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:.78rem;outline:none;box-sizing:border-box;"/></div>
@@ -2048,7 +2065,7 @@ function onAuthSuccess(){
   const homeUnEl = document.getElementById('home-username-el');
   if(homeUnEl) homeUnEl.textContent = currentUser.username;
   if(homeAvEl){
-    if(currentUser.avatar) homeAvEl.innerHTML = `<img src="${currentUser.avatar}"><div style="position:absolute;inset:0;background:rgba(0,0,0,0);border-radius:50%;display:flex;align-items:center;justify-content:center;opacity:0;transition:all .2s;font-size:.6rem;" id="avatar-hover-overlay">📷</div>`;
+    if(currentUser.avatar) homeAvEl.innerHTML = `<img src="${currentUser.avatar}"><div style="position:absolute;inset:0;background:rgba(0,0,0,0);border-radius:8px;display:flex;align-items:center;justify-content:center;opacity:0;transition:all .2s;font-size:.6rem;" id="avatar-hover-overlay">📷</div>`;
     else { homeAvEl.textContent = currentUser.username.slice(0,2).toUpperCase(); homeAvEl.style.background = colorFor(currentUser.id||'x'); }
   }
   // Pre-fill hidden name inputs
@@ -2136,7 +2153,7 @@ function handleRegAvatar(input){
   reader.onload = e => {
     regAvatarBase64 = e.target.result;
     const prev = document.getElementById('reg-avatar-preview');
-    prev.innerHTML = `<img src="${regAvatarBase64}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+    prev.innerHTML = `<img src="${regAvatarBase64}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;">`;
   };
   reader.readAsDataURL(file);
 }
@@ -2287,7 +2304,7 @@ function updateHeaderProfile(){
   const a = document.getElementById('header-avatar');
   if(u) u.textContent = currentUser.username;
   if(a){
-    if(currentUser.avatar) a.innerHTML = `<img src="${currentUser.avatar}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+    if(currentUser.avatar) a.innerHTML = `<img src="${currentUser.avatar}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;">`;
     else { a.textContent = currentUser.username.slice(0,2).toUpperCase(); a.style.background = colorFor(currentUser.id||'x'); a.style.color='#fff'; }
   }
   updateGlobalNav();
@@ -2590,7 +2607,7 @@ async function handleAvatarUpdate(input){
       // Update all avatar elements
       const homeAv = document.getElementById('home-avatar-el');
       if(homeAv){
-        homeAv.innerHTML = `<img src="${base64}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;"><div style="position:absolute;inset:0;background:rgba(0,0,0,0);border-radius:50%;display:flex;align-items:center;justify-content:center;opacity:0;transition:all .2s;font-size:.6rem;" id="avatar-hover-overlay">📷</div>`;
+        homeAv.innerHTML = `<img src="${base64}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;"><div style="position:absolute;inset:0;background:rgba(0,0,0,0);border-radius:8px;display:flex;align-items:center;justify-content:center;opacity:0;transition:all .2s;font-size:.6rem;" id="avatar-hover-overlay">📷</div>`;
       }
       updateHeaderProfile();
       toast('✅ Profile photo updated!');
@@ -3340,7 +3357,7 @@ function updateGlobalNav(){
   const av=document.getElementById('gnav-avatar');
   const un=document.getElementById('gnav-username');
   if(av){
-    if(currentUser.avatar) av.innerHTML=`<img src="${currentUser.avatar}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+    if(currentUser.avatar) av.innerHTML=`<img src="${currentUser.avatar}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;">`;
     else{ av.textContent=(currentUser.username||'?').slice(0,2).toUpperCase(); av.style.background=colorFor(currentUser.id||'x'); av.style.color='#fff'; }
   }
   if(un) un.textContent=currentUser.username||'';
@@ -3787,8 +3804,8 @@ function renderDiscoverRooms(rooms, startIdx){
     card.className='discover-card';
     card.onclick=()=>{ document.getElementById('join-code').value=r.roomId; joinRoom(); };
     card.innerHTML=
-      '<div class="discover-card-avatar" style="background:'+colorFor(r.roomId||'x')+';">'+
-        (r.name||'?').slice(0,2).toUpperCase()+
+      '<div class="discover-card-avatar" style="background:'+colorFor(r.roomId||'x')+';overflow:hidden;">'+
+        (r.avatar?'<img src="'+r.avatar+'" style="width:100%;height:100%;object-fit:cover;border-radius:6px;">':(r.name||'?').slice(0,2).toUpperCase())+
       '</div>'+
       '<div class="discover-card-info">'+
         '<div class="discover-card-name">'+esc(r.name)+'</div>'+
@@ -3819,8 +3836,8 @@ function renderPublicRooms(rooms, q){
     card.className='discover-card';
     card.onclick=()=>{ document.getElementById('join-code').value=r.roomId; joinRoom(); };
     card.innerHTML=
-      '<div class="discover-card-avatar" style="background:'+colorFor(r.roomId||'x')+';">'+
-        (r.name||'?').slice(0,2).toUpperCase()+
+      '<div class="discover-card-avatar" style="background:'+colorFor(r.roomId||'x')+';overflow:hidden;">'+
+        (r.avatar?'<img src="'+r.avatar+'" style="width:100%;height:100%;object-fit:cover;border-radius:6px;">':(r.name||'?').slice(0,2).toUpperCase())+
       '</div>'+
       '<div class="discover-card-info">'+
         '<div class="discover-card-name">'+esc(r.name)+'</div>'+
@@ -3911,8 +3928,8 @@ function renderDiscoverCommunities(communities, startIdx){
     card.className = 'discover-card';
     card.onclick = ()=> authToken ? joinOrOpenCommunity(c._id, c.isMember) : null;
     card.innerHTML =
-      '<div class="discover-card-avatar" style="background:'+colorFor(c._id||'x')+';">' +
-        (c.avatar ? '<img src="'+esc(c.avatar)+'">' : (c.name||'?').slice(0,2).toUpperCase()) +
+      '<div class="discover-card-avatar" style="background:'+colorFor(c._id||'x')+';overflow:hidden;">' +
+        (c.avatar ? '<img src="'+esc(c.avatar)+'" style="width:100%;height:100%;object-fit:cover;border-radius:6px;">' : (c.name||'?').slice(0,2).toUpperCase()) +
       '</div>' +
       '<div class="discover-card-info">' +
         '<div class="discover-card-name">'+esc(c.name)+(c.isPaid?' <span style="font-size:.55rem;background:rgba(255,101,132,.15);color:var(--accent2);border-radius:4px;padding:.05rem .3rem;">💎 Paid</span>':'')+'</div>' +
@@ -4062,7 +4079,7 @@ function renderMyCommunities(communities){
     div.onclick=()=>openCommunityById(c._id); // always fetch full data
     const memberCount = c.members?.filter(m=>!m.banned).length||0;
     div.innerHTML=`
-      <div class="dm-conv-avatar" style="background:${colorFor(c._id||'x')};color:#fff;">${c.avatar?`<img src="${c.avatar}">`:(c.name||'?').slice(0,2).toUpperCase()}</div>
+      <div class="dm-conv-avatar" style="background:${colorFor(c._id||'x')};color:#fff;border-radius:8px;overflow:hidden;">${c.avatar?`<img src="${c.avatar}" style="width:100%;height:100%;object-fit:cover;">`:(c.name||'?').slice(0,2).toUpperCase()}</div>
       <div class="dm-conv-info">
         <div class="dm-conv-name">${esc(c.name)}</div>
         <div class="dm-conv-preview">${memberCount} member${memberCount!==1?'s':''} ${c.tags?.length?'· '+c.tags.map(t=>'#'+t).join(' '):''}</div>
@@ -4087,7 +4104,7 @@ async function searchCommunities(){
       div.className='home-card'; div.style.cssText='margin-bottom:.4rem;padding:.5rem .65rem;';
       div.innerHTML=`
         <div style="display:flex;align-items:center;gap:.5rem;">
-          <div style="width:32px;height:32px;border-radius:50%;background:${colorFor(c._id||'x')};color:#fff;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;flex-shrink:0;">${(c.name||'?').slice(0,2).toUpperCase()}</div>
+          <div style="width:32px;height:32px;border-radius:8px;background:${colorFor(c._id||'x')};color:#fff;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;flex-shrink:0;">${(c.name||'?').slice(0,2).toUpperCase()}</div>
           <div style="flex:1;min-width:0;">
             <div style="font-size:.78rem;font-weight:600;">${esc(c.name)}</div>
             <div style="font-size:.63rem;color:var(--muted);">${c.memberCount||0} members ${c.tags?.length?'· '+c.tags.map(t=>'#'+t).join(' '):''}</div>
@@ -4127,7 +4144,7 @@ function openCommunityView(community){
 
   // Set header
   const av = document.getElementById('cv-avatar');
-  av.innerHTML = community.avatar?`<img src="${community.avatar}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`:(community.name||'?').slice(0,2).toUpperCase();
+  av.innerHTML = community.avatar?`<img src="${community.avatar}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;">`:(community.name||'?').slice(0,2).toUpperCase();
   av.style.background=colorFor(community._id||'x'); av.style.color='#fff';
   document.getElementById('cv-name').textContent = community.name;
   const memberCount = community.members?.filter(m=>!m.banned).length||0;
@@ -4339,7 +4356,7 @@ async function createCommunityRoom(ch){
       }
       if(socket.connected){
         socket.once('room_joined', onJoined);
-        socket.emit('create_room',{name:currentUser.username, roomName, userId:currentUser?.id||null, isPublic:false, tags:[], communityId, channelId});
+        socket.emit('create_room',{name:currentUser.username, roomName, userId:currentUser?.id||null, isPublic:false, tags:[], communityId, channelId, avatar:null});
       } else {
         socket.once('connect', ()=>{
           socket.once('room_joined', onJoined);
@@ -4515,7 +4532,7 @@ function renderCVMessage(m, container){
   }
   const isAdmin=checkIsAdmin(currentCommunity);
   div.innerHTML=`
-    <div style="width:28px;height:28px;border-radius:50%;background:${colorFor(user._id||'x')};color:#fff;display:flex;align-items:center;justify-content:center;font-size:.68rem;font-weight:700;flex-shrink:0;">${user.avatar?`<img src="${user.avatar}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`:(user.username||'?').slice(0,2).toUpperCase()}</div>
+    <div style="width:28px;height:28px;border-radius:8px;background:${colorFor(user._id||'x')};color:#fff;display:flex;align-items:center;justify-content:center;font-size:.68rem;font-weight:700;flex-shrink:0;">${user.avatar?`<img src="${user.avatar}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;">`:(user.username||'?').slice(0,2).toUpperCase()}</div>
     <div style="flex:1;min-width:0;">
       <div style="display:flex;align-items:baseline;gap:.5rem;margin-bottom:.15rem;">
         <span style="font-size:.75rem;font-weight:600;color:${isMine?'var(--accent)':'var(--text)'};">${esc(user.username||'?')}${verifiedBadge(user.isVerified)}</span>
@@ -4638,6 +4655,9 @@ function openCommunitySettings(){
   document.getElementById('cs-name').value=currentCommunity.name||'';
   document.getElementById('cs-desc').value=currentCommunity.description||'';
   document.getElementById('cs-tags').value=(currentCommunity.tags||[]).map(t=>'#'+t).join(' ');
+  _communityAvatarBase64=null;
+  const csAvPrev=document.getElementById('cs-avatar-preview');
+  if(csAvPrev) csAvPrev.innerHTML=currentCommunity.avatar?'<img src="'+currentCommunity.avatar+'" style="width:100%;height:100%;object-fit:cover;border-radius:6px;">':'🏘️';
   document.getElementById('cs-public').checked=currentCommunity.isPublic!==false;
   renderCSChannels();
   renderCSMembers();
@@ -4792,7 +4812,7 @@ function renderCSMembers(){
     const div=document.createElement('div');
     div.style.cssText='display:flex;align-items:center;gap:.5rem;padding:.35rem .4rem;border-radius:6px;font-size:.72rem;';
     div.innerHTML=`
-      <div style="width:24px;height:24px;border-radius:50%;background:${colorFor(userId||'x')};color:#fff;display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:700;flex-shrink:0;">${user.avatar?`<img src="${user.avatar}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`:username.slice(0,2).toUpperCase()}</div>
+      <div style="width:24px;height:24px;border-radius:8px;background:${colorFor(userId||'x')};color:#fff;display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:700;flex-shrink:0;">${user.avatar?`<img src="${user.avatar}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;">`:username.slice(0,2).toUpperCase()}</div>
       <span style="flex:1;">${esc(username)} ${isOwner?'👑':''}</span>
       ${!isOwner?`<button onclick="kickMember('${userId}','${esc(username)}')" style="border:1px solid var(--danger);background:transparent;color:var(--danger);border-radius:4px;padding:.15rem .4rem;font-size:.6rem;cursor:pointer;">Kick</button>`:''}
       <button class="report-btn" onclick="reportUser('${userId}','${esc(username)}')" title="Report">🚩</button>`;
@@ -4821,7 +4841,7 @@ function renderCSRoles(){
     const colorInp=document.createElement('input');
     colorInp.type='color'; colorInp.value=r.color||'#6c63ff';
     colorInp.title='Role color';
-    colorInp.style.cssText='width:22px;height:22px;border:none;border-radius:50%;cursor:pointer;padding:0;background:none;flex-shrink:0;';
+    colorInp.style.cssText='width:22px;height:22px;border:none;border-radius:8px;cursor:pointer;padding:0;background:none;flex-shrink:0;';
     colorInp.onchange=()=>updateRoleColor(rid,colorInp.value);
     div.appendChild(colorInp);
     const nameEl=document.createElement('span');
@@ -4899,7 +4919,7 @@ function openRoleMembers(roleId,roleName){
     cb.type='checkbox'; cb.checked=hasRole; cb.style.cssText='accent-color:var(--accent);';
     cb.onchange=()=>toggleMemberRole(uid,roleId,cb.checked);
     const av=document.createElement('div');
-    av.style.cssText='width:24px;height:24px;border-radius:50%;background:'+colorFor(uid)+';color:#fff;display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:700;';
+    av.style.cssText='width:24px;height:24px;border-radius:8px;background:'+colorFor(uid)+';color:#fff;display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:700;';
     av.textContent=(user.username||'?').slice(0,2).toUpperCase();
     const nm=document.createElement('span');
     nm.textContent=user.username||uid;
@@ -5472,7 +5492,7 @@ async function createRoom(){
   const isPublic = document.getElementById('room-public')?.checked||false;
   const tagsRaw = document.getElementById('room-tags')?.value||'';
   const tags = tagsRaw.split(/[\s,]+/).filter(Boolean).map(t=>t.replace('#',''));
-  socket.on('connect',()=>socket.emit('create_room',{name:myName, roomName:rName, userId:currentUser?.id||null, inviteFriendIds: inviteIds, isPublic, tags}));
+  socket.on('connect',()=>socket.emit('create_room',{name:myName, roomName:rName, userId:currentUser?.id||null, inviteFriendIds: inviteIds, isPublic, tags, avatar:_roomAvatarBase64||null}));
 }
 async function joinRoom(){
   myName = (currentUser?.username) || document.getElementById('join-name').value.trim() || 'Guest';
@@ -6863,6 +6883,38 @@ function messageTagsMe(text){
   if(!text||!currentUser) return false;
   const me=currentUser.username.toLowerCase();
   return text.toLowerCase().includes('@'+me)||text.toLowerCase().includes('@everyone');
+}
+
+
+// ════════════════════════════════════════
+// ROOM & COMMUNITY AVATAR HANDLING
+// ════════════════════════════════════════
+let _roomAvatarBase64 = null;
+
+async function handleRoomAvatarUpload(input){
+  const file = input.files[0]; if(!file) return;
+  if(file.size > 2*1024*1024){ toast('⚠️ Image too large (max 2MB)'); return; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    _roomAvatarBase64 = e.target.result;
+    const prev = document.getElementById('room-avatar-preview');
+    if(prev) prev.innerHTML = '<img src="'+_roomAvatarBase64+'" style="width:100%;height:100%;object-fit:cover;border-radius:6px;">';
+  };
+  reader.readAsDataURL(file);
+}
+
+let _communityAvatarBase64 = null;
+
+async function handleCommunityAvatarUpload(input){
+  const file = input.files[0]; if(!file) return;
+  if(file.size > 2*1024*1024){ toast('⚠️ Image too large (max 2MB)'); return; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    _communityAvatarBase64 = e.target.result;
+    const prev = document.getElementById('cs-avatar-preview');
+    if(prev) prev.innerHTML = '<img src="'+_communityAvatarBase64+'" style="width:100%;height:100%;object-fit:cover;border-radius:6px;">';
+  };
+  reader.readAsDataURL(file);
 }
 
 </script>
