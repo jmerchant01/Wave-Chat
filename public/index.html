@@ -2590,30 +2590,35 @@ function dismissFriendInvite(){
   pendingInvite = null;
 }
 
-async function handleAvatarUpdate(input){
+function handleAvatarUpdate(input){
   const file = input.files[0]; if(!file) return;
   if(file.size > 5 * 1024 * 1024){ toast('⚠️ Photo must be under 5MB'); return; }
   const reader = new FileReader();
-  reader.onload = async e => {
-    const base64 = e.target.result;
-    try{
-      const res = await fetch('/api/avatar', {
-        method:'POST',
-        headers:{'Content-Type':'application/json', Authorization:`Bearer ${authToken}`},
-        body: JSON.stringify({ avatar: base64 })
-      });
-      if(!res.ok){ toast('⚠️ Failed to save photo'); return; }
-      currentUser.avatar = base64;
-      // Update all avatar elements
-      const homeAv = document.getElementById('home-avatar-el');
-      if(homeAv){
-        homeAv.innerHTML = `<img src="${base64}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;"><div style="position:absolute;inset:0;background:rgba(0,0,0,0);border-radius:8px;display:flex;align-items:center;justify-content:center;opacity:0;transition:all .2s;font-size:.6rem;" id="avatar-hover-overlay">📷</div>`;
-      }
-      updateHeaderProfile();
-      toast('✅ Profile photo updated!');
-    }catch(e){ toast('⚠️ Error updating photo'); }
+  reader.onload = e => {
+    openCropModal(e.target.result, async base64 => {
+      await applyUserAvatar(base64);
+    });
   };
   reader.readAsDataURL(file);
+  input.value='';
+}
+
+async function applyUserAvatar(base64){
+  try{
+    const res = await fetch('/api/avatar', {
+      method:'POST',
+      headers:{'Content-Type':'application/json', Authorization:`Bearer ${authToken}`},
+      body: JSON.stringify({ avatar: base64 })
+    });
+    if(!res.ok){ toast('⚠️ Failed to save photo'); return; }
+    currentUser.avatar = base64;
+    const homeAv = document.getElementById('home-avatar-el');
+    if(homeAv){
+      homeAv.innerHTML = `<img src="${base64}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;"><div style="position:absolute;inset:0;background:rgba(0,0,0,0);border-radius:8px;display:flex;align-items:center;justify-content:center;opacity:0;transition:all .2s;font-size:.6rem;" id="avatar-hover-overlay">📷</div>`;
+    }
+    updateHeaderProfile();
+    toast('✅ Profile photo updated!');
+  }catch(e){ toast('⚠️ Error updating photo'); }
 }
 
 // ── Home socket — keeps user online for real-time notifications ──
@@ -4790,11 +4795,20 @@ async function saveCommunitySettings(){
   const isPublic=document.getElementById('cs-public').checked;
   const tags=tagsRaw.split(/[\s,]+/).filter(Boolean).map(t=>t.replace('#',''));
   try{
+    const avatarToSave = _communityAvatarBase64 || currentCommunity.avatar || null;
     const res=await fetch(`/api/communities/${currentCommunity._id}`,{
       method:'PATCH',headers:{'Content-Type':'application/json',Authorization:`Bearer ${authToken}`},
-      body:JSON.stringify({name,description,isPublic,tags})
+      body:JSON.stringify({name,description,isPublic,tags,avatar:avatarToSave})
     });
-    if(res.ok){ currentCommunity.name=name; document.getElementById('cv-name').textContent=name; toast('✅ Settings saved'); closeCommunitySettings(); loadMyCommunities(); }
+    if(res.ok){
+      currentCommunity.name=name;
+      if(avatarToSave) currentCommunity.avatar=avatarToSave;
+      document.getElementById('cv-name').textContent=name;
+      // Update community view avatar
+      const cvAv=document.getElementById('cv-avatar');
+      if(cvAv) cvAv.innerHTML=currentCommunity.avatar?`<img src="${currentCommunity.avatar}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;">`:(name||'?').slice(0,2).toUpperCase();
+      toast('✅ Settings saved'); closeCommunitySettings(); loadMyCommunities();
+    }
     else{ const d=await res.json(); toast('⚠️ '+d.error); }
   }catch(e){}
 }
@@ -6891,30 +6905,218 @@ function messageTagsMe(text){
 // ════════════════════════════════════════
 let _roomAvatarBase64 = null;
 
-async function handleRoomAvatarUpload(input){
-  const file = input.files[0]; if(!file) return;
-  if(file.size > 2*1024*1024){ toast('⚠️ Image too large (max 2MB)'); return; }
-  const reader = new FileReader();
-  reader.onload = e => {
-    _roomAvatarBase64 = e.target.result;
-    const prev = document.getElementById('room-avatar-preview');
-    if(prev) prev.innerHTML = '<img src="'+_roomAvatarBase64+'" style="width:100%;height:100%;object-fit:cover;border-radius:6px;">';
+// handleRoomAvatarUpload defined in crop JS section
+
+let _communityAvatarBase64 = null; // set by crop modal
+
+
+// ════════════════════════════════════════
+// IMAGE CROP / RESIZE SYSTEM
+// ════════════════════════════════════════
+let _cropImg = null;          // HTMLImageElement
+let _cropRotation = 0;        // degrees
+let _cropCallback = null;     // called with base64 result
+let _cropDragStart = null;    // {x,y,bx,by} for box drag
+let _cropContainerSize = 0;   // px size of the square container
+
+// Open the crop modal with a file input result
+function openCropModal(base64, callback){
+  _cropCallback = callback;
+  _cropRotation = 0;
+  document.getElementById('crop-zoom').value = 1;
+  document.getElementById('img-crop-overlay').classList.remove('hidden');
+
+  const img = new Image();
+  img.onload = () => {
+    _cropImg = img;
+    const container = document.getElementById('crop-container');
+    _cropContainerSize = container.offsetWidth;
+    // Set canvas size
+    const canvas = document.getElementById('crop-canvas');
+    canvas.width  = _cropContainerSize;
+    canvas.height = _cropContainerSize;
+    // Reset crop box to center 80%
+    const box = document.getElementById('crop-box');
+    const bSize = Math.round(_cropContainerSize * 0.8);
+    const bOff  = Math.round((_cropContainerSize - bSize) / 2);
+    box.style.left   = bOff + 'px';
+    box.style.top    = bOff + 'px';
+    box.style.width  = bSize + 'px';
+    box.style.height = bSize + 'px';
+    updateCropPreview();
+    attachCropBoxDrag();
   };
-  reader.readAsDataURL(file);
+  img.src = base64;
 }
 
-let _communityAvatarBase64 = null;
+function closeCropModal(){
+  document.getElementById('img-crop-overlay').classList.add('hidden');
+  _cropImg = null; _cropCallback = null;
+}
 
-async function handleCommunityAvatarUpload(input){
-  const file = input.files[0]; if(!file) return;
-  if(file.size > 2*1024*1024){ toast('⚠️ Image too large (max 2MB)'); return; }
-  const reader = new FileReader();
-  reader.onload = e => {
-    _communityAvatarBase64 = e.target.result;
-    const prev = document.getElementById('cs-avatar-preview');
-    if(prev) prev.innerHTML = '<img src="'+_communityAvatarBase64+'" style="width:100%;height:100%;object-fit:cover;border-radius:6px;">';
+function updateCropPreview(){
+  if(!_cropImg) return;
+  const canvas = document.getElementById('crop-canvas');
+  const ctx = canvas.getContext('2d');
+  const zoom = parseFloat(document.getElementById('crop-zoom').value);
+  const S = _cropContainerSize;
+  ctx.clearRect(0,0,S,S);
+  ctx.save();
+  ctx.translate(S/2, S/2);
+  ctx.rotate(_cropRotation * Math.PI / 180);
+  // Scale image to fill the container with zoom
+  const iw = _cropImg.naturalWidth, ih = _cropImg.naturalHeight;
+  const scale = Math.max(S/iw, S/ih) * zoom;
+  ctx.drawImage(_cropImg, -iw*scale/2, -ih*scale/2, iw*scale, ih*scale);
+  ctx.restore();
+}
+
+function rotateCrop(deg){
+  _cropRotation = (_cropRotation + deg + 360) % 360;
+  updateCropPreview();
+}
+
+function applyCrop(){
+  if(!_cropImg || !_cropCallback) return;
+  const canvas = document.getElementById('crop-canvas');
+  const box    = document.getElementById('crop-box');
+  const S      = _cropContainerSize;
+  // Get box position relative to canvas
+  const bx = parseInt(box.style.left);
+  const by = parseInt(box.style.top);
+  const bw = parseInt(box.style.width);
+  const bh = parseInt(box.style.height);
+  // Clamp to canvas
+  const cx = Math.max(0, bx), cy = Math.max(0, by);
+  const cw = Math.min(bw, S-cx), ch = Math.min(bh, S-cy);
+  // Create output canvas (always square 400x400)
+  const out = document.createElement('canvas');
+  out.width = 400; out.height = 400;
+  const octx = out.getContext('2d');
+  // Draw the cropped region scaled to 400x400
+  octx.drawImage(canvas, cx, cy, cw, ch, 0, 0, 400, 400);
+  const result = out.toDataURL('image/jpeg', 0.85);
+  closeCropModal();
+  _cropCallback(result);
+}
+
+// Drag the crop box around the canvas
+function attachCropBoxDrag(){
+  const box  = document.getElementById('crop-box');
+  const cont = document.getElementById('crop-container');
+
+  let dragging=false, startX=0, startY=0, startL=0, startT=0;
+  let resizing=false, resizeEdge='', resizeStartX=0, resizeStartY=0, resizeStartL=0, resizeStartT=0, resizeStartW=0, resizeStartH=0;
+
+  // Add resize handles
+  box.innerHTML='';
+  const edges = ['nw','n','ne','e','se','s','sw','w'];
+  edges.forEach(e=>{
+    const h=document.createElement('div');
+    h.dataset.edge=e;
+    const isCorner=e.length===2;
+    const pos={
+      nw:'top:0;left:0;cursor:nwse-resize;',
+      n:'top:0;left:50%;transform:translateX(-50%);cursor:ns-resize;',
+      ne:'top:0;right:0;cursor:nesw-resize;',
+      e:'top:50%;right:0;transform:translateY(-50%);cursor:ew-resize;',
+      se:'bottom:0;right:0;cursor:nwse-resize;',
+      s:'bottom:0;left:50%;transform:translateX(-50%);cursor:ns-resize;',
+      sw:'bottom:0;left:0;cursor:nesw-resize;',
+      w:'top:50%;left:0;transform:translateY(-50%);cursor:ew-resize;',
+    }[e];
+    h.style.cssText='position:absolute;width:12px;height:12px;background:#fff;border:1px solid #666;border-radius:2px;'+pos;
+    box.appendChild(h);
+  });
+
+  const getContRect = ()=>cont.getBoundingClientRect();
+  const clamp = (v,mn,mx)=>Math.max(mn,Math.min(mx,v));
+  const S = ()=>_cropContainerSize;
+
+  box.addEventListener('mousedown', e=>{
+    e.preventDefault();
+    if(e.target.dataset.edge){
+      resizing=true; resizeEdge=e.target.dataset.edge;
+      resizeStartX=e.clientX; resizeStartY=e.clientY;
+      resizeStartL=parseInt(box.style.left)||0;
+      resizeStartT=parseInt(box.style.top)||0;
+      resizeStartW=parseInt(box.style.width)||100;
+      resizeStartH=parseInt(box.style.height)||100;
+    } else {
+      dragging=true;
+      startX=e.clientX; startY=e.clientY;
+      startL=parseInt(box.style.left)||0;
+      startT=parseInt(box.style.top)||0;
+    }
+  });
+
+  document.addEventListener('mousemove', e=>{
+    if(dragging){
+      const dx=e.clientX-startX, dy=e.clientY-startY;
+      const w=parseInt(box.style.width)||100, h=parseInt(box.style.height)||100;
+      box.style.left=clamp(startL+dx,0,S()-w)+'px';
+      box.style.top =clamp(startT+dy,0,S()-h)+'px';
+    }
+    if(resizing){
+      const dx=e.clientX-resizeStartX, dy=e.clientY-resizeStartY;
+      let l=resizeStartL,t=resizeStartT,w=resizeStartW,h=resizeStartH;
+      const ed=resizeEdge;
+      if(ed.includes('e')){ w=clamp(w+dx,40,S()-l); }
+      if(ed.includes('s')){ h=clamp(h+dy,40,S()-t); }
+      if(ed.includes('w')){ const nw=clamp(w-dx,40,resizeStartL+resizeStartW-0); const dl=resizeStartW-nw; l=clamp(resizeStartL+dl,0,resizeStartL+resizeStartW-40); w=nw; }
+      if(ed.includes('n')){ const nh=clamp(h-dy,40,resizeStartT+resizeStartH-0); const dt=resizeStartH-nh; t=clamp(resizeStartT+dt,0,resizeStartT+resizeStartH-40); h=nh; }
+      box.style.left=l+'px'; box.style.top=t+'px';
+      box.style.width=w+'px'; box.style.height=h+'px';
+    }
+  });
+
+  document.addEventListener('mouseup', ()=>{ dragging=false; resizing=false; });
+}
+
+// Replace handleCommunityAvatarUpload and handleRoomAvatarUpload to use crop modal
+function handleCommunityAvatarUpload(input){
+  const file=input.files[0]; if(!file) return;
+  if(file.size>5*1024*1024){ toast('⚠️ Image too large (max 5MB)'); return; }
+  const reader=new FileReader();
+  reader.onload=e=>{
+    openCropModal(e.target.result, base64=>{
+      _communityAvatarBase64=base64;
+      const prev=document.getElementById('cs-avatar-preview');
+      if(prev) prev.innerHTML='<img src="'+base64+'" style="width:100%;height:100%;object-fit:cover;border-radius:6px;">';
+    });
   };
   reader.readAsDataURL(file);
+  input.value=''; // reset so same file can be re-selected
+}
+
+function handleRoomAvatarUpload(input){
+  const file=input.files[0]; if(!file) return;
+  if(file.size>5*1024*1024){ toast('⚠️ Image too large (max 5MB)'); return; }
+  const reader=new FileReader();
+  reader.onload=e=>{
+    openCropModal(e.target.result, base64=>{
+      _roomAvatarBase64=base64;
+      const prev=document.getElementById('room-avatar-preview');
+      if(prev) prev.innerHTML='<img src="'+base64+'" style="width:100%;height:100%;object-fit:cover;border-radius:6px;">';
+    });
+  };
+  reader.readAsDataURL(file);
+  input.value='';
+}
+
+// Also expose for user avatar upload
+function openCropForUserAvatar(input){
+  const file=input.files[0]; if(!file) return;
+  if(file.size>5*1024*1024){ toast('⚠️ Image too large (max 5MB)'); return; }
+  const reader=new FileReader();
+  reader.onload=e=>{
+    openCropModal(e.target.result, base64=>{
+      // Same as handleAvatarUpdate but with cropped result
+      applyUserAvatar(base64);
+    });
+  };
+  reader.readAsDataURL(file);
+  input.value='';
 }
 
 </script>
@@ -7024,6 +7226,36 @@ async function handleCommunityAvatarUpload(input){
       <button class="modal-close-x" onclick="document.getElementById('role-members-overlay').classList.add('hidden')">✕</button>
     </div>
     <div id="role-members-list" style="max-height:320px;overflow-y:auto;"></div>
+  </div>
+</div>
+
+
+<!-- ── Image Crop/Resize Modal ── -->
+<div id="img-crop-overlay" class="save-modal-overlay hidden" style="z-index:10000;">
+  <div class="save-modal" style="max-width:420px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
+      <h3 style="margin:0;">✂️ Crop & Resize</h3>
+      <button class="modal-close-x" onclick="closeCropModal()">✕</button>
+    </div>
+    <!-- Canvas crop area -->
+    <div style="position:relative;width:100%;padding-bottom:100%;background:#111;border-radius:10px;overflow:hidden;margin-bottom:1rem;cursor:crosshair;" id="crop-container">
+      <canvas id="crop-canvas" style="position:absolute;top:0;left:0;width:100%;height:100%;"></canvas>
+      <!-- Crop box overlay -->
+      <div id="crop-box" style="position:absolute;border:2px solid #fff;box-shadow:0 0 0 9999px rgba(0,0,0,.55);cursor:move;box-sizing:border-box;"></div>
+    </div>
+    <!-- Controls -->
+    <div style="margin-bottom:.75rem;">
+      <label style="font-size:.65rem;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:.3rem;">Zoom</label>
+      <input type="range" id="crop-zoom" min="1" max="3" step="0.01" value="1" style="width:100%;accent-color:var(--accent);" oninput="updateCropPreview()"/>
+    </div>
+    <div style="margin-bottom:1rem;display:flex;gap:.5rem;justify-content:center;">
+      <button onclick="rotateCrop(-90)" style="border:1px solid var(--border);background:var(--surface2);color:var(--text);border-radius:8px;padding:.4rem .8rem;cursor:pointer;font-size:.8rem;">↺ Rotate Left</button>
+      <button onclick="rotateCrop(90)" style="border:1px solid var(--border);background:var(--surface2);color:var(--text);border-radius:8px;padding:.4rem .8rem;cursor:pointer;font-size:.8rem;">↻ Rotate Right</button>
+    </div>
+    <div style="display:flex;gap:.75rem;">
+      <button class="save-modal-cancel" style="flex:1;" onclick="closeCropModal()">Cancel</button>
+      <button class="auth-btn" style="flex:1;margin-top:0;" onclick="applyCrop()">✅ Apply</button>
+    </div>
   </div>
 </div>
 
