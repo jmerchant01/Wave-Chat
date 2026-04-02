@@ -563,6 +563,19 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
   z-index:0;
 }
 .home-body.grid-active::before{opacity:1;}
+/* Snap ghost — shows where panel will land on drop */
+.snap-ghost{
+  position:absolute;
+  background:rgba(108,99,255,.12);
+  border:2px dashed rgba(108,99,255,.5);
+  border-radius:12px;
+  pointer-events:none;
+  z-index:0;
+  transition:left .08s,top .08s,width .08s,height .08s;
+  display:none;
+}
+.snap-ghost.visible{display:block;}
+.snap-ghost.collide{background:rgba(255,71,87,.1);border-color:rgba(255,71,87,.5);}
 /* Panels — absolutely positioned */
 .home-section{
   position:absolute;
@@ -636,6 +649,25 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .home-card-icon{font-size:1.5rem;margin-bottom:.3rem;}
 .home-card-label{font-family:'Syne',sans-serif;font-size:.82rem;font-weight:700;margin-bottom:.15rem;}
 .home-card-sub{font-size:.65rem;color:var(--muted);margin-bottom:.4rem;}
+
+/* ── Panel loading spinner ── */
+.panel-loading{display:flex;align-items:center;justify-content:center;padding:1.5rem 0;flex-direction:column;gap:.5rem;}
+.panel-spinner{width:26px;height:26px;border:2.5px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.panel-loading-text{font-size:.65rem;color:var(--muted);}
+/* ── Discover card ── */
+.discover-card{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:.6rem .75rem;margin-bottom:.45rem;cursor:pointer;transition:border-color .15s,background .15s;display:flex;align-items:center;gap:.65rem;position:relative;}
+.discover-card:hover{border-color:var(--accent);background:rgba(108,99,255,.06);}
+.discover-card-avatar{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;color:#fff;flex-shrink:0;overflow:hidden;}
+.discover-card-avatar img{width:100%;height:100%;object-fit:cover;}
+.discover-card-info{flex:1;min-width:0;}
+.discover-card-name{font-size:.78rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.discover-card-desc{font-size:.62rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:.1rem;}
+.discover-card-meta{font-size:.6rem;color:var(--accent3);white-space:nowrap;flex-shrink:0;text-align:right;}
+.discover-card-live{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--accent3);animation:pulse 1.5s infinite;margin-right:3px;vertical-align:middle;}
+.discover-section-label{font-size:.62rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin-bottom:.35rem;display:flex;align-items:center;gap:.4rem;}
+.discover-cycle-dot{width:5px;height:5px;border-radius:50%;background:var(--accent);display:inline-block;animation:pulse 2s infinite;}
+
 
 .auth-screen{position:fixed;inset:0;background:var(--bg);z-index:500;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:1rem;}
 .auth-card{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:2rem;width:100%;max-width:380px;position:relative;overflow:hidden;}
@@ -891,6 +923,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 
   <!-- Main home content -->
   <div class="home-body" id="home-body">
+    <div class="snap-ghost" id="snap-ghost"></div>
     <div class="home-section draggable-panel" id="panel-rooms">
       <div class="home-section-title">
         <span class="drag-handle" title="Drag to reorder">⠿</span>
@@ -1016,16 +1049,34 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
       </div><!-- /panel-inner communities -->
     </div>
 
-    <!-- Public Rooms section -->
+    <!-- Discover Rooms section -->
     <div class="home-section draggable-panel" id="panel-public-rooms">
       <div class="home-section-title">
         <span class="drag-handle" title="Drag to reorder">⠿</span>
         🔍 Discover Rooms
+        <span id="rooms-spinner" class="panel-spinner" style="margin-left:auto;display:none;width:14px;height:14px;border-width:2px;"></span>
       </div>
       <div class="panel-inner">
-      <input id="public-room-search" placeholder="🔍 Search rooms or #tags…" oninput="debouncedRoomSearch(this.value)" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.5rem .75rem;color:var(--text);font-size:.78rem;outline:none;box-sizing:border-box;margin-bottom:.65rem;"/>
+      <input id="public-room-search" placeholder="🔍 Search rooms or #tags…" oninput="debouncedRoomSearch(this.value)" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.5rem .75rem;color:var(--text);font-size:.78rem;outline:none;box-sizing:border-box;margin-bottom:.55rem;"/>
+      <div id="rooms-trending-label" class="discover-section-label" style="display:none;"><span class="discover-cycle-dot"></span> Trending Now</div>
       <div id="public-rooms-list">
-        <div class="friends-empty" style="padding:.5rem 0;">No public rooms right now.<br>Create one to appear here!</div>
+        <div class="panel-loading"><div class="panel-spinner"></div><div class="panel-loading-text">Finding rooms…</div></div>
+      </div>
+      </div><!-- /panel-inner -->
+    </div>
+
+    <!-- Discover Communities section -->
+    <div class="home-section draggable-panel" id="panel-discover-communities">
+      <div class="home-section-title">
+        <span class="drag-handle" title="Drag to reorder">⠿</span>
+        🌐 Discover Communities
+        <span id="discover-communities-spinner" class="panel-spinner" style="margin-left:auto;display:none;width:14px;height:14px;border-width:2px;"></span>
+      </div>
+      <div class="panel-inner">
+      <input id="discover-community-search" placeholder="🔍 Search communities or #tags…" oninput="debouncedDiscoverCommunitySearch(this.value)" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.5rem .75rem;color:var(--text);font-size:.78rem;outline:none;box-sizing:border-box;margin-bottom:.55rem;"/>
+      <div id="discover-communities-label" class="discover-section-label"><span class="discover-cycle-dot"></span> Popular Communities</div>
+      <div id="discover-communities-list">
+        <div class="panel-loading"><div class="panel-spinner"></div><div class="panel-loading-text">Finding communities…</div></div>
       </div>
       </div><!-- /panel-inner -->
     </div>
@@ -1540,16 +1591,17 @@ let dragSrcPanel = null;
 //  DOT-GRID PANEL SYSTEM  v2
 // ══════════════════════════════════════════════════════
 
-const PANEL_LAYOUT_KEY = 'wave-grid-layout-v3';
-const PANEL_IDS = ['panel-rooms','panel-friends','panel-messages','panel-communities','panel-public-rooms'];
+const PANEL_LAYOUT_KEY = 'wave-grid-layout-v5';
+const PANEL_IDS = ['panel-rooms','panel-friends','panel-messages','panel-communities','panel-public-rooms','panel-discover-communities'];
 const CELL = 68, GAP = 8;
 
 const DEFAULT_LAYOUT = {
-  'panel-rooms':        {c:0, r:0, w:4, h:8},
-  'panel-friends':      {c:4, r:0, w:4, h:6},
-  'panel-messages':     {c:8, r:0, w:4, h:6},
-  'panel-communities':  {c:4, r:6, w:4, h:6},
-  'panel-public-rooms': {c:8, r:6, w:4, h:5},
+  'panel-rooms':               {c:0, r:0, w:4, h:8},
+  'panel-friends':             {c:4, r:0, w:4, h:6},
+  'panel-messages':            {c:8, r:0, w:4, h:6},
+  'panel-communities':         {c:4, r:6, w:4, h:6},
+  'panel-public-rooms':        {c:8, r:0, w:4, h:5},
+  'panel-discover-communities':{c:8, r:5, w:4, h:6},
 };
 
 let gridLayout = {};
@@ -1713,10 +1765,8 @@ function attachGridInteraction(){
       panel.style.left = clampedX + 'px';
       panel.style.top  = clampedY + 'px';
       // Snap target: round panel top-left to nearest grid dot
-      // snapCol/snapRow already use GAP offset: col = (px - GAP) / (CELL+GAP)
       const sc = Math.max(0, Math.min(snapCol(clampedX), cols - p.w));
       const sr = Math.max(0, snapRow(clampedY));
-      // Show snap preview — green=valid drop zone, red=occupied
       const wouldCollide = hasCollision(panel.id, sc, sr, p.w, p.h);
       panel.style.outline = wouldCollide
         ? '2px solid rgba(255,71,87,.6)'
@@ -1724,6 +1774,16 @@ function attachGridInteraction(){
       interaction.liveC = sc;
       interaction.liveR = sr;
       interaction.willCollide = wouldCollide;
+      // Show snap ghost at snapped position
+      const ghost = document.getElementById('snap-ghost');
+      if(ghost){
+        ghost.style.left   = gx(sc) + 'px';
+        ghost.style.top    = gy(sr) + 'px';
+        ghost.style.width  = gridW(p.w) + 'px';
+        ghost.style.height = gridH(p.h) + 'px';
+        ghost.classList.add('visible');
+        ghost.classList.toggle('collide', wouldCollide);
+      }
     }
 
     if(type==='resize'){
@@ -1759,6 +1819,9 @@ function attachGridInteraction(){
     const {type, panel} = interaction;
     const p = gridLayout[panel.id];
     panel.style.outline = '';
+    // Hide snap ghost
+    const ghost2 = document.getElementById('snap-ghost');
+    if(ghost2){ ghost2.classList.remove('visible','collide'); }
     if(type==='drag'){
       panel.classList.remove('panel-dragging');
       if(!interaction.willCollide){
@@ -1796,6 +1859,8 @@ function selectPanel(panel){
 function deselectPanel(){
   if(selectedPanel){ selectedPanel.classList.remove('panel-selected','panel-dragging'); selectedPanel=null; }
   document.getElementById('home-body')?.classList.remove('grid-active');
+  const ghost3 = document.getElementById('snap-ghost');
+  if(ghost3){ ghost3.classList.remove('visible','collide'); }
 }
 
 function resetPanelLayout(){
@@ -1969,6 +2034,7 @@ function onAuthSuccess(){
   loadDMInbox();
   loadMyCommunities();
   loadPublicRooms();
+  loadDiscoverCommunities();
   checkStripeReturn();
   initDraggablePanels();
   initTouchDrag();
@@ -3642,39 +3708,241 @@ function debouncedRoomSearch(val){
   _roomSearchTimer = setTimeout(()=>searchPublicRooms(), 300);
 }
 
+let _trendingRooms = [];
+let _trendingRoomsIdx = 0;
+let _trendingRoomsTimer = null;
+
 async function searchPublicRooms(){
   const q = document.getElementById('public-room-search')?.value.trim()||'';
+  showPanelSpinner('rooms-spinner');
+  const labelEl = document.getElementById('rooms-trending-label');
   try{
-    const res = await fetch(`/api/rooms/search?q=${encodeURIComponent(q)}`);
+    const res = await fetch('/api/rooms/search?q='+encodeURIComponent(q));
     const {rooms} = await res.json();
-    renderPublicRooms(rooms);
-  }catch(e){}
+    if(!q){
+      _trendingRooms = rooms.slice(0,10);
+      _trendingRoomsIdx = 0;
+      if(labelEl) labelEl.style.display = _trendingRooms.length ? 'flex' : 'none';
+      clearInterval(_trendingRoomsTimer);
+      renderDiscoverRooms(_trendingRooms, 0);
+      if(_trendingRooms.length > 1){
+        _trendingRoomsTimer = setInterval(()=>{
+          _trendingRoomsIdx = (_trendingRoomsIdx+1) % _trendingRooms.length;
+          renderDiscoverRooms(_trendingRooms, _trendingRoomsIdx);
+        }, 5000);
+      }
+    } else {
+      clearInterval(_trendingRoomsTimer);
+      if(labelEl) labelEl.style.display='none';
+      renderPublicRooms(rooms, q);
+    }
+  }catch(e){
+    const el=document.getElementById('public-rooms-list');
+    if(el) el.innerHTML='<div class="friends-empty" style="padding:.5rem 0;">Could not load rooms.</div>';
+  }
+  hidePanelSpinner('rooms-spinner');
 }
 
-function renderPublicRooms(rooms){
+function renderDiscoverRooms(rooms, startIdx){
   const el = document.getElementById('public-rooms-list');
   if(!el) return;
-  if(!rooms.length){ el.innerHTML='<div class="friends-empty" style="padding:.5rem 0;">No public rooms found.</div>'; return; }
+  if(!rooms.length){
+    el.innerHTML='<div class="friends-empty" style="padding:.5rem 0;">No public rooms right now.<br>Create one to appear here!</div>';
+    return;
+  }
+  const panelEl = document.getElementById('panel-public-rooms');
+  const panelH = panelEl ? panelEl.offsetHeight : 300;
+  const maxVisible = Math.max(1, Math.floor((panelH - 40 - 44 - 24 - 20) / 65));
+  el.innerHTML='';
+  for(let i=0; i<Math.min(maxVisible, rooms.length); i++){
+    const r = rooms[(startIdx+i) % rooms.length];
+    const card = document.createElement('div');
+    card.className='discover-card';
+    card.onclick=()=>{ document.getElementById('join-code').value=r.roomId; joinRoom(); };
+    card.innerHTML=
+      '<div class="discover-card-avatar" style="background:'+colorFor(r.roomId||'x')+';">'+
+        (r.name||'?').slice(0,2).toUpperCase()+
+      '</div>'+
+      '<div class="discover-card-info">'+
+        '<div class="discover-card-name">'+esc(r.name)+'</div>'+
+        '<div class="discover-card-desc">Host: '+esc(r.hostName)+(r.tags&&r.tags.length?' · '+r.tags.map(t=>'#'+t).join(' '):'')+'</div>'+
+      '</div>'+
+      '<div class="discover-card-meta"><span class="discover-card-live"></span>'+r.participants+' live</div>';
+    el.appendChild(card);
+  }
+  if(rooms.length > 1){
+    const dots = document.createElement('div');
+    dots.style.cssText='display:flex;justify-content:center;gap:.3rem;margin-top:.35rem;';
+    rooms.slice(0,10).forEach((_,i)=>{
+      const d=document.createElement('div');
+      d.style.cssText='width:5px;height:5px;border-radius:50%;background:'+(i===startIdx%rooms.length?'var(--accent)':'var(--border)')+';transition:background .3s;';
+      dots.appendChild(d);
+    });
+    el.appendChild(dots);
+  }
+}
+
+function renderPublicRooms(rooms, q){
+  const el = document.getElementById('public-rooms-list');
+  if(!el) return;
+  if(!rooms.length){ el.innerHTML='<div class="friends-empty" style="padding:.5rem 0;">No rooms matching "'+esc(q||'')+'".</div>'; return; }
   el.innerHTML='';
   rooms.forEach(r=>{
-    const div = document.createElement('div');
-    div.className='home-card';
-    div.style.cssText='margin-bottom:.5rem;padding:.65rem .85rem;cursor:pointer;';
-    div.onclick=()=>{ document.getElementById('join-code').value=r.roomId; joinRoom(); };
-    div.innerHTML=`
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.25rem;">
-        <span style="font-size:.8rem;font-weight:600;">${esc(r.name)}</span>
-        <span style="font-size:.65rem;color:var(--accent3);">👥 ${r.participants}</span>
-      </div>
-      <div style="font-size:.65rem;color:var(--muted);margin-bottom:.3rem;">Host: ${esc(r.hostName)}</div>
-      ${r.tags.length?`<div style="display:flex;gap:.3rem;flex-wrap:wrap;">${r.tags.map(t=>`<span style="background:rgba(108,99,255,.15);color:var(--accent);border-radius:4px;padding:.1rem .35rem;font-size:.6rem;">#${esc(t)}</span>`).join('')}</div>`:''}
-      <div style="font-size:.62rem;color:var(--accent);margin-top:.3rem;">Click to join →</div>`;
-    el.appendChild(div);
+    const card = document.createElement('div');
+    card.className='discover-card';
+    card.onclick=()=>{ document.getElementById('join-code').value=r.roomId; joinRoom(); };
+    card.innerHTML=
+      '<div class="discover-card-avatar" style="background:'+colorFor(r.roomId||'x')+';">'+
+        (r.name||'?').slice(0,2).toUpperCase()+
+      '</div>'+
+      '<div class="discover-card-info">'+
+        '<div class="discover-card-name">'+esc(r.name)+'</div>'+
+        '<div class="discover-card-desc">Host: '+esc(r.hostName)+(r.tags&&r.tags.length?' · '+r.tags.map(t=>'#'+t).join(' '):'')+'</div>'+
+      '</div>'+
+      '<div class="discover-card-meta"><span class="discover-card-live"></span>'+r.participants+' live</div>';
+    el.appendChild(card);
   });
 }
 
 // Load public rooms on home screen
 async function loadPublicRooms(){ await searchPublicRooms(); }
+
+// ── Panel spinner helpers ──
+function showPanelSpinner(id){ const el=document.getElementById(id); if(el) el.style.display='block'; }
+function hidePanelSpinner(id){ const el=document.getElementById(id); if(el) el.style.display='none'; }
+function panelLoading(id){ const el=document.getElementById(id); if(el) el.innerHTML='<div class="panel-loading"><div class="panel-spinner"></div><div class="panel-loading-text">Loading…</div></div>'; }
+
+// ── Discover Communities ──
+let _trendingCommunities = [];
+let _trendingCommIdx = 0;
+let _trendingCommTimer = null;
+let _discoverCommSearchTimer = null;
+const DISCOVER_CYCLE_MS = 5000;
+
+function debouncedDiscoverCommunitySearch(val){
+  clearTimeout(_discoverCommSearchTimer);
+  const labelEl = document.getElementById('discover-communities-label');
+  if(!val.trim()){
+    if(labelEl) labelEl.style.display='flex';
+    loadDiscoverCommunities();
+    return;
+  }
+  if(labelEl) labelEl.style.display='none';
+  _discoverCommSearchTimer = setTimeout(()=>searchDiscoverCommunities(val.trim()), 300);
+}
+
+async function loadDiscoverCommunities(){
+  if(!authToken) return;
+  showPanelSpinner('discover-communities-spinner');
+  panelLoading('discover-communities-list');
+  try{
+    // Try the trending endpoint first, fall back to search
+    let communities = [];
+    const res = await fetch('/api/communities/trending',{headers:{Authorization:`Bearer ${authToken}`}});
+    if(res.ok){ const d=await res.json(); communities=d.communities||[]; }
+    else {
+      const res2 = await fetch('/api/communities/search?q=a',{headers:{Authorization:`Bearer ${authToken}`}});
+      if(res2.ok){ const d=await res2.json(); communities=d.communities||[]; }
+    }
+    _trendingCommunities = communities.slice(0,10);
+    _trendingCommIdx = 0;
+    stopCommunityCycle();
+    renderDiscoverCommunities(_trendingCommunities, 0);
+    if(_trendingCommunities.length > 1) startCommunityCycle();
+  }catch(e){
+    const el=document.getElementById('discover-communities-list');
+    if(el) el.innerHTML='<div class="friends-empty" style="padding:.5rem 0;">Could not load communities.</div>';
+  }
+  hidePanelSpinner('discover-communities-spinner');
+}
+
+function startCommunityCycle(){
+  stopCommunityCycle();
+  _trendingCommTimer = setInterval(()=>{
+    _trendingCommIdx = (_trendingCommIdx+1) % _trendingCommunities.length;
+    renderDiscoverCommunities(_trendingCommunities, _trendingCommIdx);
+  }, DISCOVER_CYCLE_MS);
+}
+function stopCommunityCycle(){ clearInterval(_trendingCommTimer); _trendingCommTimer=null; }
+
+function renderDiscoverCommunities(communities, startIdx){
+  const el = document.getElementById('discover-communities-list');
+  if(!el) return;
+  if(!communities.length){
+    el.innerHTML='<div class="friends-empty" style="padding:.5rem 0;">No public communities yet.</div>';
+    return;
+  }
+  const panelEl = document.getElementById('panel-discover-communities');
+  const panelH = panelEl ? panelEl.offsetHeight : 320;
+  const available = panelH - 40 - 44 - 24 - 20;
+  const maxVisible = Math.max(1, Math.floor(available / 65));
+  el.innerHTML = '';
+  for(let i=0; i<Math.min(maxVisible, communities.length); i++){
+    const c = communities[(startIdx+i) % communities.length];
+    const memberCount = c.memberCount || c.members?.filter(m=>!m.banned).length || 0;
+    const card = document.createElement('div');
+    card.className = 'discover-card';
+    card.onclick = ()=> authToken ? joinOrOpenCommunity(c._id, c.isMember) : null;
+    card.innerHTML =
+      '<div class="discover-card-avatar" style="background:'+colorFor(c._id||'x')+';">' +
+        (c.avatar ? '<img src="'+esc(c.avatar)+'">' : (c.name||'?').slice(0,2).toUpperCase()) +
+      '</div>' +
+      '<div class="discover-card-info">' +
+        '<div class="discover-card-name">'+esc(c.name)+(c.isPaid?' <span style="font-size:.55rem;background:rgba(255,101,132,.15);color:var(--accent2);border-radius:4px;padding:.05rem .3rem;">💎 Paid</span>':'')+'</div>' +
+        '<div class="discover-card-desc">'+(c.description ? esc(c.description.slice(0,60))+'…' : (c.tags&&c.tags.length ? c.tags.map(t=>'#'+t).join(' ') : 'Public community'))+'</div>' +
+      '</div>' +
+      '<div class="discover-card-meta">👥 '+memberCount+'<br><span style="color:var(--accent);font-size:.58rem;">'+(c.isMember?'Open →':'Join →')+'</span></div>';
+    el.appendChild(card);
+  }
+  // Cycle indicator dots
+  if(communities.length > 1){
+    const dots = document.createElement('div');
+    dots.style.cssText='display:flex;justify-content:center;gap:.3rem;margin-top:.35rem;';
+    communities.slice(0,10).forEach((_,i)=>{
+      const d=document.createElement('div');
+      d.style.cssText='width:5px;height:5px;border-radius:50%;background:'+(i===startIdx%communities.length?'var(--accent)':'var(--border)')+';transition:background .3s;';
+      dots.appendChild(d);
+    });
+    el.appendChild(dots);
+  }
+}
+
+async function searchDiscoverCommunities(q){
+  showPanelSpinner('discover-communities-spinner');
+  panelLoading('discover-communities-list');
+  stopCommunityCycle();
+  try{
+    const res = await fetch('/api/communities/search?q='+encodeURIComponent(q),{headers:{Authorization:`Bearer ${authToken}`}});
+    const {communities} = await res.json();
+    const el = document.getElementById('discover-communities-list');
+    if(!el) return;
+    if(!communities.length){ el.innerHTML='<div class="friends-empty" style="padding:.5rem 0;">No communities matching "'+esc(q)+'".</div>'; return; }
+    el.innerHTML='';
+    communities.forEach(c=>{
+      const memberCount = c.memberCount||0;
+      const card = document.createElement('div');
+      card.className='discover-card';
+      card.onclick=()=>joinOrOpenCommunity(c._id, c.isMember);
+      card.innerHTML=
+        '<div class="discover-card-avatar" style="background:'+colorFor(c._id||'x')+';">'+(c.avatar?'<img src="'+esc(c.avatar)+'">':(c.name||'?').slice(0,2).toUpperCase())+'</div>'+
+        '<div class="discover-card-info"><div class="discover-card-name">'+esc(c.name)+(c.isPaid?' <span style="font-size:.55rem;background:rgba(255,101,132,.15);color:var(--accent2);border-radius:4px;padding:.05rem .3rem;">💎 Paid</span>':'')+'</div>'+
+        '<div class="discover-card-desc">'+(c.description?esc(c.description.slice(0,60))+'…':c.tags&&c.tags.length?c.tags.map(t=>'#'+t).join(' '):'Public community')+'</div></div>'+
+        '<div class="discover-card-meta">👥 '+memberCount+'<br><span style="color:var(--accent);font-size:.58rem;">'+(c.isMember?'Open →':'Join →')+'</span></div>';
+      el.appendChild(card);
+    });
+  }catch(e){}
+  hidePanelSpinner('discover-communities-spinner');
+}
+
+async function joinOrOpenCommunity(id, isMember){
+  if(isMember){ openCommunityById(id); return; }
+  try{
+    const res = await fetch('/api/communities/'+id+'/join',{method:'POST',headers:{Authorization:`Bearer ${authToken}`}});
+    const data = await res.json();
+    if(res.ok){ loadMyCommunities(); toast('🏘️ Joined!'); openCommunityById(id); }
+    else toast('⚠️ '+data.error);
+  }catch(e){}
+}
 
 // ═══════════════════════════════════════════════════
 //  COMMUNITIES
