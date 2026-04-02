@@ -17,21 +17,21 @@
 let notifPrefs = { friendOnline:true, friendRequest:true, directMessage:true, communityInvite:true, roomInvite:true, communityMessage:false };
 
 async function loadNotifPrefs(){
-  if(!authToken) return;
+  if(!authToken) return notifPrefs;
   try{
     const res = await fetch('/api/me/notification-prefs',{headers:{Authorization:`Bearer ${authToken}`}});
     if(res.ok){ const d=await res.json(); notifPrefs={...notifPrefs,...d.prefs}; }
   }catch(e){}
 }
 
-function openNotifPrefs(){
-  loadNotifPrefs().then(()=>{
-    Object.keys(notifPrefs).forEach(k=>{
-      const el=document.getElementById('np-'+k);
-      if(el) el.checked=!!notifPrefs[k];
-    });
-    document.getElementById('notif-prefs-overlay').classList.remove('hidden');
+async function openNotifPrefs(){
+  await loadNotifPrefs();
+  Object.keys(notifPrefs).forEach(k=>{
+    const el=document.getElementById('np-'+k);
+    if(el) el.checked=!!notifPrefs[k];
   });
+  const overlay = document.getElementById('notif-prefs-overlay');
+  if(overlay) overlay.classList.remove('hidden');
 }
 function closeNotifPrefs(){ document.getElementById('notif-prefs-overlay').classList.add('hidden'); }
 
@@ -1717,9 +1717,21 @@ function addResizeHandles(){
   });
 }
 
+// Get element's offset relative to a given ancestor
+function getOffsetRelativeTo(el, ancestor){
+  let x=0, y=0;
+  while(el && el !== ancestor){
+    x += el.offsetLeft - el.scrollLeft;
+    y += el.offsetTop  - el.scrollTop;
+    el = el.offsetParent;
+  }
+  return {x, y};
+}
+
 function attachGridInteraction(){
   const body = document.getElementById('home-body');
-  const down = (target, cx, cy, prevent)=>{
+
+  const down = (target, pageX, pageY, prevent)=>{
     if(window.innerWidth <= 700) return;
     const panel = target.closest?.('.draggable-panel');
     if(!panel) return;
@@ -1728,73 +1740,60 @@ function attachGridInteraction(){
     if(!resizeH && !dragH){ selectPanel(panel); return; }
     if(prevent) prevent();
     selectPanel(panel);
-    // Use scroll-aware body origin so snap aligns with CSS background dots
-    const bodyRect = body.getBoundingClientRect();
-    const bx = bodyRect.left;
-    const by = bodyRect.top;
     const p = gridLayout[panel.id];
+    // bodyOff = body's top-left in page coords (accounts for all scroll/offsets)
+    const bodyOff = getOffsetRelativeTo(body, null);
+    // cursor in body-local px
+    const localX = pageX - bodyOff.x;
+    const localY = pageY - bodyOff.y;
+
     if(resizeH){
       interaction = {
         type:'resize', panel,
         dir: resizeH.dataset.dir,
-        startX:cx, startY:cy,
+        startPageX: pageX, startPageY: pageY,
         startC:p.c, startR:p.r, startW:p.w, startH:p.h,
-        bx, by,
         liveC:p.c, liveR:p.r, liveW:p.w, liveH:p.h
       };
     } else {
-      // ox/oy = cursor offset from panel's grid-snapped top-left, in body-local px
-      // Must account for body scroll so snap stays correct as user scrolls
-      const bodyRect2 = body.getBoundingClientRect();
-      const curBodyX = (cx - bodyRect2.left) + body.scrollLeft;
-      const curBodyY = (cy - bodyRect2.top)  + body.scrollTop;
-      const snappedPanelX = gx(p.c);
-      const snappedPanelY = gy(p.r);
       panel.classList.add('panel-dragging');
       body.classList.add('grid-active');
+      // ox/oy: cursor offset from panel's snapped corner, in body-local px
       interaction = {
         type:'drag', panel,
-        ox: curBodyX - snappedPanelX,
-        oy: curBodyY - snappedPanelY,
-        liveC:p.c, liveR:p.r
+        ox: localX - gx(p.c),
+        oy: localY - gy(p.r),
+        liveC:p.c, liveR:p.r,
+        willCollide: false
       };
     }
   };
 
-  body.addEventListener('mousedown', e=> down(e.target,e.clientX,e.clientY,()=>e.preventDefault()));
+  body.addEventListener('mousedown', e=> down(e.target, e.pageX, e.pageY, ()=>e.preventDefault()));
   body.addEventListener('touchstart', e=>{
     const t=e.touches[0];
-    down(e.target, t.clientX, t.clientY, ()=>e.preventDefault());
+    down(e.target, t.pageX, t.pageY, ()=>e.preventDefault());
   },{passive:false});
 
-  const move = (cx,cy)=>{
+  const move = (pageX, pageY)=>{
     if(!interaction) return;
-    const {type,panel,bx,by} = interaction;
+    const {type, panel} = interaction;
     const p = gridLayout[panel.id];
     const cols = totalCols();
-    const body = document.getElementById('home-body');
-    const bodyW = body ? body.offsetWidth : 1200;
-    const bodyH = body ? body.offsetHeight : 1200;
 
     if(type==='drag'){
-      // Convert cursor to body-local coordinates accounting for scroll
-      const bodyRect3 = body.getBoundingClientRect();
-      const bodyScrollTop  = body.scrollTop;
-      const bodyScrollLeft = body.scrollLeft;
-      // cursor in body-local px (including scroll offset)
-      const curBodyX = (cx - bodyRect3.left) + bodyScrollLeft;
-      const curBodyY = (cy - bodyRect3.top)  + bodyScrollTop;
-      // panel top-left in body-local px
-      const rawX = curBodyX - interaction.ox;
-      const rawY = curBodyY - interaction.oy;
-      // Snap directly to grid — panel corner always lands on a dot
+      const bodyOff = getOffsetRelativeTo(body, null);
+      const localX = pageX - bodyOff.x;
+      const localY = pageY - bodyOff.y;
+      // Panel top-left in body-local px
+      const rawX = localX - interaction.ox;
+      const rawY = localY - interaction.oy;
+      // Snap to nearest grid dot
       const sc = Math.max(0, Math.min(snapCol(rawX), cols - p.w));
       const sr = Math.max(0, snapRow(rawY));
-      const snappedX = gx(sc);
-      const snappedY = gy(sr);
-      // Move panel to snapped position (convert back to viewport for style)
-      panel.style.left = snappedX + 'px';
-      panel.style.top  = snappedY + 'px';
+      // Move panel — style.left/top are body-local (position:absolute child)
+      panel.style.left = gx(sc) + 'px';
+      panel.style.top  = gy(sr) + 'px';
       const wouldCollide = hasCollision(panel.id, sc, sr, p.w, p.h);
       panel.style.outline = wouldCollide
         ? '2px solid rgba(255,71,87,.6)'
@@ -1802,29 +1801,23 @@ function attachGridInteraction(){
       interaction.liveC = sc;
       interaction.liveR = sr;
       interaction.willCollide = wouldCollide;
-      // Ghost matches panel exactly since we're already snapping live
-      const ghost = document.getElementById('snap-ghost');
-      if(ghost){ ghost.classList.remove('visible'); } // not needed when snapping live
     }
 
     if(type==='resize'){
       const STEP = CELL + GAP;
-      const dx = cx - interaction.startX;
-      const dy = cy - interaction.startY;
+      const dx = pageX - interaction.startPageX;
+      const dy = pageY - interaction.startPageY;
       const dir = interaction.dir;
-      // Snap to nearest dot: round to closest STEP
       const dC = Math.round(dx / STEP);
       const dR = Math.round(dy / STEP);
       let c=interaction.startC, r=interaction.startR, w=interaction.startW, h=interaction.startH;
       if(dir.includes('r')){ w = Math.max(1, interaction.startW + dC); }
-      if(dir.includes('l')){ const dc2=Math.min(dC, interaction.startW-1); w=Math.max(1,interaction.startW-dc2); c=Math.max(0,interaction.startC+dc2); }
+      if(dir.includes('l')){ const dc2=Math.min(dC,interaction.startW-1); w=Math.max(1,interaction.startW-dc2); c=Math.max(0,interaction.startC+dc2); }
       if(dir.includes('b')){ h = Math.max(1, interaction.startH + dR); }
-      if(dir.includes('t')){ const dr2=Math.min(dR, interaction.startH-1); h=Math.max(1,interaction.startH-dr2); r=Math.max(0,interaction.startR+dr2); }
-      c = Math.max(0, c);
-      r = Math.max(0, r);
-      w = Math.max(1, Math.min(w, cols - c));
-      h = Math.max(1, h);
-      if(!hasCollision(panel.id, c, r, w, h)){
+      if(dir.includes('t')){ const dr2=Math.min(dR,interaction.startH-1); h=Math.max(1,interaction.startH-dr2); r=Math.max(0,interaction.startR+dr2); }
+      c=Math.max(0,c); r=Math.max(0,r);
+      w=Math.max(1,Math.min(w,cols-c)); h=Math.max(1,h);
+      if(!hasCollision(panel.id,c,r,w,h)){
         interaction.liveC=c; interaction.liveR=r; interaction.liveW=w; interaction.liveH=h;
       }
       const lc=interaction.liveC, lr=interaction.liveR, lw=interaction.liveW, lh=interaction.liveH;
@@ -1840,17 +1833,12 @@ function attachGridInteraction(){
     const {type, panel} = interaction;
     const p = gridLayout[panel.id];
     panel.style.outline = '';
-    // Hide snap ghost
-    const ghost2 = document.getElementById('snap-ghost');
-    if(ghost2){ ghost2.classList.remove('visible','collide'); }
+    const ghost = document.getElementById('snap-ghost');
+    if(ghost) ghost.classList.remove('visible','collide');
     if(type==='drag'){
       panel.classList.remove('panel-dragging');
       body.classList.remove('grid-active');
-      if(!interaction.willCollide){
-        p.c = interaction.liveC;
-        p.r = interaction.liveR;
-      }
-      // applyLayout snaps back to last valid position if collision
+      if(!interaction.willCollide){ p.c=interaction.liveC; p.r=interaction.liveR; }
     }
     if(type==='resize'){
       p.c=interaction.liveC; p.r=interaction.liveR;
@@ -1861,10 +1849,10 @@ function attachGridInteraction(){
     applyLayout();
   };
 
-  document.addEventListener('mousemove', e=>move(e.clientX,e.clientY));
+  document.addEventListener('mousemove', e=>move(e.pageX, e.pageY));
   document.addEventListener('mouseup', up);
   document.addEventListener('touchmove', e=>{
-    if(interaction){ const t=e.touches[0]; move(t.clientX,t.clientY); e.preventDefault(); }
+    if(interaction){ const t=e.touches[0]; move(t.pageX,t.pageY); e.preventDefault(); }
   },{passive:false});
   document.addEventListener('touchend', up);
 }
