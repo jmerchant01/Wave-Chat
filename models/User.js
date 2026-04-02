@@ -7,6 +7,19 @@ const userSchema = new mongoose.Schema({
   password: { type: String, required: true },
   avatar:   { type: String, default: null },
   pushSubscription: { type: Object, default: null }, // Web Push subscription object
+  isVerified: { type: Boolean, default: false },        // Admin-verified user (blue checkmark)
+  verifiedAt:  { type: Date, default: null },
+  verifiedBy:  { type: String, default: null },         // admin username who verified
+  verificationNote: { type: String, default: '' },      // e.g. "Public figure", "Content creator"
+  blockedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], // users this user has blocked
+  notificationPrefs: {
+    friendOnline:    { type: Boolean, default: true },
+    friendRequest:   { type: Boolean, default: true },
+    directMessage:   { type: Boolean, default: true },
+    communityInvite: { type: Boolean, default: true },
+    roomInvite:      { type: Boolean, default: true },
+    communityMessage:{ type: Boolean, default: false },
+  },
   friends: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   friendRequests: [{
     from: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },

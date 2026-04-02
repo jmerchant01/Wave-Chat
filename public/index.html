@@ -10,7 +10,120 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="WAVE">
 <link rel="apple-touch-icon" href="/icons/icon-192.svg">
-<script src="/socket.io/socket.io.js"></script>
+<script src="/socket.io/socket.io.js">
+// ════════════════════════════════════════════════
+// NOTIFICATION PREFERENCES
+// ════════════════════════════════════════════════
+let notifPrefs = { friendOnline:true, friendRequest:true, directMessage:true, communityInvite:true, roomInvite:true, communityMessage:false };
+
+async function loadNotifPrefs(){
+  if(!authToken) return;
+  try{
+    const res = await fetch('/api/me/notification-prefs',{headers:{Authorization:`Bearer ${authToken}`}});
+    if(res.ok){ const d=await res.json(); notifPrefs={...notifPrefs,...d.prefs}; }
+  }catch(e){}
+}
+
+function openNotifPrefs(){
+  loadNotifPrefs().then(()=>{
+    Object.keys(notifPrefs).forEach(k=>{
+      const el=document.getElementById('np-'+k);
+      if(el) el.checked=!!notifPrefs[k];
+    });
+    document.getElementById('notif-prefs-overlay').classList.remove('hidden');
+  });
+}
+function closeNotifPrefs(){ document.getElementById('notif-prefs-overlay').classList.add('hidden'); }
+
+async function saveNotifPref(key, val){
+  notifPrefs[key] = val;
+  if(!authToken) return;
+  try{
+    await fetch('/api/me/notification-prefs',{
+      method:'PATCH', headers:{'Content-Type':'application/json',Authorization:`Bearer ${authToken}`},
+      body: JSON.stringify({[key]: val})
+    });
+  }catch(e){}
+}
+
+// Wrap notification delivery to respect prefs
+function shouldNotify(type){ return notifPrefs[type] !== false; }
+
+// ════════════════════════════════════════════════
+// CHANNEL PERMISSIONS UI
+// ════════════════════════════════════════════════
+let _channelPermsTarget = null; // { communityId, channelId, channelName }
+
+function openChannelPerms(communityId, channelId, channelName, currentViewRoles, currentWriteRoles){
+  _channelPermsTarget = { communityId, channelId };
+  document.getElementById('channel-perms-channel-name').textContent = '#' + channelName;
+  const roles = currentCommunity?.roles || [];
+
+  function renderRoleCheckboxes(containerId, currentRoles){
+    const el = document.getElementById(containerId);
+    el.innerHTML = '';
+    roles.forEach(r=>{
+      const checked = currentRoles && currentRoles.includes(r._id?.toString() || r.id?.toString());
+      const label = document.createElement('label');
+      label.style.cssText='display:flex;align-items:center;gap:.5rem;font-size:.8rem;cursor:pointer;';
+      label.innerHTML = `<input type="checkbox" value="${r._id||r.id}" ${checked?'checked':''} style="accent-color:var(--accent);"/> <span style="color:${r.color||'var(--accent)'};">●</span> ${esc(r.name)}`;
+      el.appendChild(label);
+    });
+  }
+
+  renderRoleCheckboxes('channel-view-roles', currentViewRoles || []);
+  renderRoleCheckboxes('channel-write-roles', currentWriteRoles || []);
+  document.getElementById('channel-perms-overlay').classList.remove('hidden');
+}
+
+function closeChannelPerms(){ document.getElementById('channel-perms-overlay').classList.add('hidden'); }
+
+async function saveChannelPerms(){
+  if(!_channelPermsTarget) return;
+  const viewRoles  = [...document.querySelectorAll('#channel-view-roles  input:checked')].map(i=>i.value);
+  const writeRoles = [...document.querySelectorAll('#channel-write-roles input:checked')].map(i=>i.value);
+  try{
+    const res = await fetch(`/api/communities/${_channelPermsTarget.communityId}/channels/${_channelPermsTarget.channelId}/permissions`,{
+      method:'PATCH',
+      headers:{'Content-Type':'application/json',Authorization:`Bearer ${authToken}`},
+      body: JSON.stringify({ viewRoles, writeRoles })
+    });
+    if(res.ok){ toast('✅ Channel permissions saved'); closeChannelPerms(); }
+    else{ const d=await res.json(); toast('⚠️ '+d.error); }
+  }catch(e){ toast('⚠️ Error saving permissions'); }
+}
+
+// ════════════════════════════════════════════════
+// ADMIN: USER VERIFICATION
+// ════════════════════════════════════════════════
+async function adminVerifyUser(userId, username){
+  const note = prompt(`Verification note for ${username} (e.g. "Public figure", "Content creator"):`);
+  if(note === null) return; // cancelled
+  try{
+    const res = await fetch(`/api/admin/users/${userId}/verify`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json',Authorization:`Bearer ${authToken}`},
+      body: JSON.stringify({ verified: true, note })
+    });
+    if(res.ok){ toast('✅ ' + username + ' is now verified!'); }
+    else{ const d=await res.json(); toast('⚠️ '+d.error); }
+  }catch(e){ toast('⚠️ Error'); }
+}
+
+async function adminUnverifyUser(userId, username){
+  if(!confirm('Remove verification from ' + username + '?')) return;
+  try{
+    const res = await fetch(`/api/admin/users/${userId}/verify`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json',Authorization:`Bearer ${authToken}`},
+      body: JSON.stringify({ verified: false })
+    });
+    if(res.ok){ toast('✅ Verification removed from ' + username); }
+    else{ const d=await res.json(); toast('⚠️ '+d.error); }
+  }catch(e){ toast('⚠️ Error'); }
+}
+
+</script>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#050508;--surface:#0d0d14;--surface2:#13131e;--border:#1e1e2e;--accent:#6c63ff;--accent2:#ff6584;--accent3:#43e97b;--text:#e8e8f0;--muted:#6b6b80;--host:#ffd700;--danger:#ff4757;}
@@ -443,7 +556,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
   inset:0;
   background-image:radial-gradient(circle,rgba(108,99,255,.6) 2.5px,transparent 2.5px);
   background-size:calc(var(--gcell) + var(--ggap)) calc(var(--gcell) + var(--ggap));
-  background-position:0 0;
+  background-position:var(--ggap) var(--ggap);
   pointer-events:none;
   opacity:0;
   transition:opacity .25s;
@@ -578,6 +691,17 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .friend-btn.accept{border-color:var(--accent3);color:var(--accent3);}
 .friend-btn.accept:hover{background:var(--accent3);color:#000;border-color:var(--accent3);}
 .friends-empty{text-align:center;color:var(--muted);font-size:.72rem;padding:2rem 1rem;line-height:1.8;}
+
+/* ── Verified badge ── */
+.verified-badge{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;background:#1d9bf0;border-radius:50%;margin-left:3px;flex-shrink:0;vertical-align:middle;}
+.verified-badge svg{width:9px;height:9px;fill:#fff;}
+.verified-badge-lg{width:18px;height:18px;}
+.verified-badge-lg svg{width:12px;height:12px;}
+/* ── Channel permission lock ── */
+.ch-locked-icon{font-size:.65rem;opacity:.5;margin-left:3px;}
+/* ── Record permission request popup ── */
+.record-req-popup{position:fixed;bottom:5rem;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--accent);border-radius:12px;padding:.85rem 1.25rem;z-index:9000;display:flex;align-items:center;gap:.75rem;box-shadow:0 8px 32px rgba(0,0,0,.4);min-width:280px;}
+
 .friend-badge{background:var(--danger);color:#fff;border-radius:50%;width:16px;height:16px;font-size:.6rem;display:inline-flex;align-items:center;justify-content:center;margin-left:.3rem;vertical-align:middle;}
 
 /* ── Profile button in header ── */
@@ -608,6 +732,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     <button class="gnav-icon-btn" id="notif-btn" onclick="toggleNotifPanel()" title="Notifications">
       🔔
       <span class="notif-badge hidden" id="notif-badge">0</span>
+      <button onclick="openNotifPrefs()" title="Notification settings" style="background:none;border:none;cursor:pointer;font-size:.8rem;padding:.2rem;opacity:.6;" class="home-nav-btn">⚙️</button>
     </button>
     <!-- Theme toggle -->
     <button class="gnav-icon-btn" onclick="toggleTheme()" title="Toggle theme">🌙</button>
@@ -856,7 +981,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
           <button class="dm-back-btn" onclick="closeDMChat()">← Back</button>
           <div class="dm-chat-with">
             <div class="dm-chat-avatar" id="dm-chat-avatar"></div>
-            <span id="dm-chat-username"></span>
+            <span id="dm-chat-username"></span><span id="dm-chat-verified"></span>
           </div>
           <button class="report-btn" id="dm-report-btn" onclick="reportUser(activeDMUserId,activeDMUsername)" title="Report user" style="margin-left:.5rem;opacity:.5;">🚩</button>
           <div id="dm-typing-indicator" class="dm-typing" style="display:none;">typing…</div>
@@ -1541,17 +1666,18 @@ function attachGridInteraction(){
         liveC:p.c, liveR:p.r, liveW:p.w, liveH:p.h
       };
     } else {
-      // ox/oy = offset of mouse from panel's snapped grid position (not raw rect)
-      // This ensures when we release, the panel snaps to the dot the cursor is near
-      const panelRect = panel.getBoundingClientRect();
-      const snapOffX = panelRect.left - bx - gx(p.c); // should be ~0 if already aligned
-      const snapOffY = panelRect.top  - by - gy(p.r);
+      // ox/oy = cursor offset from panel's snapped top-left corner in body space.
+      // Using snapped position (gx/gy) not raw rect ensures release always lands
+      // with the panel's top-left corner exactly on a grid dot.
+      const snappedPanelX = gx(p.c); // panel's current snapped left in body coords
+      const snappedPanelY = gy(p.r);
+      const bodyRect2 = body.getBoundingClientRect();
       panel.classList.add('panel-dragging');
       body.classList.add('grid-active');
       interaction = {
         type:'drag', panel,
-        ox: cx - panelRect.left + snapOffX,
-        oy: cy - panelRect.top  + snapOffY,
+        ox: (cx - bodyRect2.left) - snappedPanelX,
+        oy: (cy - bodyRect2.top)  - snappedPanelY,
         bx, by,
         liveC:p.c, liveR:p.r
       };
@@ -1574,26 +1700,27 @@ function attachGridInteraction(){
     const bodyH = body ? body.offsetHeight : 1200;
 
     if(type==='drag'){
-      const relX = cx - bx - interaction.ox;
-      const relY = cy - by - interaction.oy;
-      // Panel floats freely under cursor while dragging — no grid snapping mid-drag
+      // Compute where the panel top-left should be in body coordinates
+      const bodyRect3 = body.getBoundingClientRect();
+      const rawX = (cx - bodyRect3.left) - interaction.ox;
+      const rawY = (cy - bodyRect3.top)  - interaction.oy;
       const panelW = gridW(p.w);
       const panelH = gridH(p.h);
-      const clampedX = Math.max(0, Math.min(relX, bodyW - panelW));
-      const clampedY = Math.max(0, Math.min(relY, bodyH - panelH));
+      // Clamp so panel stays inside body
+      const clampedX = Math.max(0, Math.min(rawX, bodyW - panelW));
+      const clampedY = Math.max(0, Math.min(rawY, bodyH - panelH));
+      // Show panel floating freely under cursor for smooth feel
       panel.style.left = clampedX + 'px';
       panel.style.top  = clampedY + 'px';
-      // Compute where it WOULD snap on release (center of panel)
-      const midX = clampedX + panelW/2;
-      const midY = clampedY + panelH/2;
+      // Snap target: round panel top-left to nearest grid dot
+      // snapCol/snapRow already use GAP offset: col = (px - GAP) / (CELL+GAP)
       const sc = Math.max(0, Math.min(snapCol(clampedX), cols - p.w));
       const sr = Math.max(0, snapRow(clampedY));
-      // Show snap preview on the panel border — green=valid, red=occupied
+      // Show snap preview — green=valid drop zone, red=occupied
       const wouldCollide = hasCollision(panel.id, sc, sr, p.w, p.h);
       panel.style.outline = wouldCollide
         ? '2px solid rgba(255,71,87,.6)'
         : '2px solid rgba(108,99,255,.5)';
-      // Always store intended position — collision check happens on drop
       interaction.liveC = sc;
       interaction.liveR = sr;
       interaction.willCollide = wouldCollide;
@@ -2043,6 +2170,14 @@ async function doLogin(){
   finally{ setAuthLoading('login-btn', false, 'Log In →'); }
 }
 
+
+// ── Verified badge helper ──
+function verifiedBadge(isVerified, large=false){
+  if(!isVerified) return '';
+  const cls = large ? 'verified-badge verified-badge-lg' : 'verified-badge';
+  return '<span class="' + cls + '" title="Verified by WAVE"><svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg></span>';
+}
+
 function logout(){
   localStorage.removeItem('wave-token');
   localStorage.removeItem('wave-user-cache');
@@ -2256,6 +2391,15 @@ function sendRoomInvite(toUserId, toUsername){
 // ── PWA Service Worker + Web Push ──
 async function registerServiceWorker(){
   if(!('serviceWorker' in navigator)) return;
+  // Only register SW on the real app domain — not on preview/CDN URLs
+  const hostname = location.hostname;
+  const isRealDomain = !hostname.includes('claudeusercontent') &&
+                       !hostname.includes('localhost') === false ||
+                       hostname.includes('onrender.com') ||
+                       hostname.includes('wave-chat');
+  // More precise: skip registration if sw.js can't be at root scope
+  if(location.protocol !== 'https:' && hostname !== 'localhost') return;
+  if(hostname.includes('claudeusercontent')) return;
   try{
     const reg = await navigator.serviceWorker.register('/sw.js');
     console.log('✅ Service worker registered');
@@ -2391,6 +2535,19 @@ function initHomeSocket(){
   });
   homeSocket.on('friends_status_refresh', ()=>{ fetchFriendStatuses(); });
 
+  // ── Real-time friend online notification (server pushes this directly) ──
+  homeSocket.on('friend_came_online', ({ userId, username, isVerified })=>{
+    const bells = getFriendBells();
+    if(!bells[userId]) return; // user hasn't enabled bell for this friend
+    const prev = friendStatuses[userId];
+    if(prev?.online) return; // already knew they were online
+    friendStatuses[userId] = { online: true, roomId: null };
+    updateFriendStatusDots();
+    toast(`🟢 ${username} is now online!`);
+    showBrowserNotification('🟢 Friend Online', `${username} just came online on WAVE`, null);
+    addNotification({ icon:'🟢', text:`${username} is now online`, type:'friend_online' });
+  });
+
   // Join request result (we requested to join someone's room)
   homeSocket.on('join_request_result', ({ approved, roomId })=>{
     pendingJoinRequests.delete(roomId);
@@ -2407,10 +2564,12 @@ function initHomeSocket(){
     toast('⚠️ That friend is not online right now — an email has been sent');
   });
   homeSocket.on('friend_invite', ({ fromName, roomId: rid, roomName })=>{
+    if(!shouldNotify('roomInvite')) return;
     showInvitePopup(fromName, rid, roomName);
     addNotification({ icon:'🎙️', text:`${fromName} invited you to join "${roomName||'a room'}"`, type:'room_invite', action:'join_room', actionLabel:'Join', actionData:rid });
   });
   homeSocket.on('community_invite_received', ({ fromName, communityId, communityName, inviteCode, autoJoined })=>{
+    if(!shouldNotify('communityInvite')) return;
     if(autoJoined){
       toast(`🏘️ ${fromName} added you to "${communityName}"!`);
       showBrowserNotification('🏘️ Added to Community', `${fromName} added you to "${communityName}"`, null);
@@ -3289,7 +3448,7 @@ async function startStripeConnect(e){
 }
 
 // Handle Stripe return URLs
-async function checkStripeReturn(){
+function checkStripeReturn(){
   const p = new URLSearchParams(location.search);
   if(p.get('sub_success')){
     const cid = p.get('community');
@@ -3303,24 +3462,8 @@ async function checkStripeReturn(){
   }
   if(p.get('stripe_return')){
     const accountId = p.get('account');
-    history.replaceState(null,'',location.pathname);
-    // Save accountId to the current community if we have one
-    if(accountId && currentCommunity && authToken){
-      try{
-        await fetch(`/api/communities/${currentCommunity._id}/stripe-account`,{
-          method:'POST',
-          headers:{'Content-Type':'application/json',Authorization:`Bearer ${authToken}`},
-          body: JSON.stringify({ accountId })
-        });
-        currentCommunity.stripeAccountId = accountId;
-        // Refresh the connected badge
-        const badge = document.getElementById('stripe-connected-badge');
-        const link = document.getElementById('stripe-connect-link');
-        if(badge) badge.classList.remove('hidden');
-        if(link) link.classList.add('hidden');
-      }catch(err){ console.error('Failed to save Stripe account:', err); }
-    }
     toast('✅ Stripe account connected!');
+    history.replaceState(null,'',location.pathname);
   }
 }
 
@@ -4058,7 +4201,7 @@ function renderCVMessage(m, container){
     <div style="width:28px;height:28px;border-radius:50%;background:${colorFor(user._id||'x')};color:#fff;display:flex;align-items:center;justify-content:center;font-size:.68rem;font-weight:700;flex-shrink:0;">${user.avatar?`<img src="${user.avatar}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`:(user.username||'?').slice(0,2).toUpperCase()}</div>
     <div style="flex:1;min-width:0;">
       <div style="display:flex;align-items:baseline;gap:.5rem;margin-bottom:.15rem;">
-        <span style="font-size:.75rem;font-weight:600;color:${isMine?'var(--accent)':'var(--text)'};">${esc(user.username||'?')}</span>
+        <span style="font-size:.75rem;font-weight:600;color:${isMine?'var(--accent)':'var(--text)'};">${esc(user.username||'?')}${verifiedBadge(user.isVerified)}</span>
         <span style="font-size:.58rem;color:var(--muted);">${time}</span>
         ${(isMine||isAdmin)?`<button onclick="deleteCVMessage('${m._id}',this)" style="border:none;background:transparent;color:var(--muted);cursor:pointer;font-size:.6rem;margin-left:.2rem;opacity:0;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0">✕</button>`:''}
         ${!isMine?`<button onclick="reportUser('${user._id||''}','${esc(user.username||'?')}')" title="Report" style="border:none;background:transparent;cursor:pointer;font-size:.6rem;margin-left:.1rem;opacity:0;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0">🚩</button>`:``}
@@ -4202,6 +4345,7 @@ function renderCSChannels(){
       ${ch.type!=='room'?`<label style="display:flex;align-items:center;gap:.25rem;font-size:.65rem;color:var(--muted);cursor:pointer;user-select:none;margin-left:.4rem;" title="Lock chat (only admins can post)">
         <input type="checkbox" ${ch.chatLocked?'checked':''} onchange="toggleChatLockByCheckbox('${ch._id}',this.checked)" style="accent-color:var(--accent2);cursor:pointer;"/> 💬 Chat locked
       </label>`:''}
+      <button onclick="openChannelPerms('${currentCommunity._id}','${ch._id}','${esc(ch.name)}',${JSON.stringify(ch.viewRoles||[])},${JSON.stringify(ch.writeRoles||[])})" style="border:none;background:transparent;color:var(--accent);cursor:pointer;font-size:.75rem;padding:.1rem .3rem;" title="Channel permissions">🔑</button>
       <button onclick="deleteChannelFromMenu('${ch._id}')" style="border:none;background:transparent;color:var(--danger);cursor:pointer;font-size:.75rem;padding:.1rem .3rem;" title="Delete channel">🗑</button>`;
     el.appendChild(div);
   });
@@ -4398,6 +4542,8 @@ async function openDMChat(userId, username, avatar){
   av.innerHTML = avatar?`<img src="${avatar}">`:(username||'?').slice(0,2).toUpperCase();
   av.style.background = colorFor(userId); av.style.color='#fff';
   document.getElementById('dm-chat-username').textContent = username;
+  const verEl = document.getElementById('dm-chat-verified');
+  if(verEl) verEl.innerHTML = verifiedBadge(isVerified);
   document.getElementById('dm-messages-list').innerHTML='<div style="text-align:center;color:var(--muted);font-size:.7rem;padding:.5rem;">Loading…</div>';
   dmPage = 1;
   await loadDMMessages();
@@ -4605,6 +4751,8 @@ function connectSocket(){
     myId=socket.id;
     // Register as online with JWT so friends can invite us
     if(authToken) socket.emit('user_online', { token: authToken });
+    // Set up recording permission handlers
+    setupRecordPermissionHandlers();
   });
 
   // Friend invite received
@@ -5467,17 +5615,77 @@ let recWritable = null;
 
 function toggleRecording(){
   if(isRecording){ stopRecording(); return; }
-  // Show save location modal
+  // Non-host must request permission from host before recording
+  if(socket && socket.data?.isHost === false){
+    requestRecordPermission();
+  } else {
+    openSaveModal();
+  }
+}
+
+function openSaveModal(){
   const overlay = document.getElementById('save-modal-overlay');
   overlay.classList.remove('hidden');
-  // Hide "Choose folder" if File System Access API not supported
   const pickerBtn = document.getElementById('save-opt-picker');
   if(!window.showSaveFilePicker) pickerBtn.style.display = 'none';
+}
+
+let _recordPermPending = false;
+function requestRecordPermission(){
+  if(_recordPermPending){ toast('Already waiting for host approval…'); return; }
+  _recordPermPending = true;
+  toast('📹 Asking host for recording permission…');
+  socket.emit('request_record_permission', { roomId: socket.data?.roomId || currentRoomId });
+}
+
+// Handle permission response from host
+function setupRecordPermissionHandlers(){
+  if(!socket) return;
+  socket.on('record_permission_granted', ()=>{
+    _recordPermPending = false;
+    toast('✅ Recording permission granted!');
+    openSaveModal();
+  });
+  socket.on('record_permission_denied', ({ reason })=>{
+    _recordPermPending = false;
+    toast('❌ ' + (reason || 'Recording denied by host'));
+  });
+  // Host side — someone is requesting to record
+  socket.on('record_permission_request', ({ fromId, fromName })=>{
+    showRecordPermissionRequest(fromId, fromName);
+  });
+}
+
+function showRecordPermissionRequest(fromId, fromName){
+  // Remove any existing popup
+  document.getElementById('rec-perm-popup')?.remove();
+  const popup = document.createElement('div');
+  popup.id = 'rec-perm-popup';
+  popup.className = 'record-req-popup';
+  popup.innerHTML = '<span style="font-size:1.1rem;">📹</span>' +
+    '<div style="flex:1;"><div style="font-size:.82rem;font-weight:700;">' + esc(fromName) + ' wants to record</div>' +
+    '<div style="font-size:.7rem;color:var(--muted);">Allow them to record this room?</div></div>' +
+    '<button onclick="approveRecord(\"' + fromId + '\")" style="background:var(--accent3);color:#000;border:none;border-radius:8px;padding:.4rem .8rem;font-size:.75rem;font-weight:700;cursor:pointer;">Allow</button>' +
+    '<button onclick="denyRecord(\"' + fromId + '\")" style="background:var(--danger);color:#fff;border:none;border-radius:8px;padding:.4rem .8rem;font-size:.75rem;font-weight:700;cursor:pointer;margin-left:.35rem;">Deny</button>';
+  document.body.appendChild(popup);
+  setTimeout(()=>popup.remove(), 30000);
+}
+
+function approveRecord(targetId){
+  socket.emit('record_permission_approve', { targetId });
+  document.getElementById('rec-perm-popup')?.remove();
+  toast('✅ Recording approved');
+}
+function denyRecord(targetId){
+  socket.emit('record_permission_deny', { targetId });
+  document.getElementById('rec-perm-popup')?.remove();
 }
 
 function closeSaveModal(){
   document.getElementById('save-modal-overlay').classList.add('hidden');
 }
+// alias
+const closeSaveModalOverlay = closeSaveModal;
 
 async function startRecordingWithPicker(){
   closeSaveModal();
@@ -6075,5 +6283,68 @@ function toast(msg,dur=3500){
   setTimeout(()=>{t.style.opacity='0';t.style.transition='opacity .4s';setTimeout(()=>t.remove(),400);},dur);
 }
 </script>
+
+<!-- ── Notification Preferences Modal ── -->
+<div id="notif-prefs-overlay" class="save-modal-overlay hidden" style="z-index:9999;">
+  <div class="save-modal" style="max-width:400px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
+      <h3 style="margin:0;">🔔 Notification Settings</h3>
+      <button class="modal-close-x" onclick="closeNotifPrefs()">✕</button>
+    </div>
+    <div id="notif-prefs-list" style="display:flex;flex-direction:column;gap:.65rem;">
+      <label style="display:flex;align-items:center;justify-content:space-between;font-size:.82rem;">
+        <span>🟢 Friend comes online</span>
+        <input type="checkbox" id="np-friendOnline" style="accent-color:var(--accent);width:16px;height:16px;cursor:pointer;" onchange="saveNotifPref('friendOnline',this.checked)"/>
+      </label>
+      <label style="display:flex;align-items:center;justify-content:space-between;font-size:.82rem;">
+        <span>👥 Friend requests</span>
+        <input type="checkbox" id="np-friendRequest" style="accent-color:var(--accent);width:16px;height:16px;cursor:pointer;" onchange="saveNotifPref('friendRequest',this.checked)"/>
+      </label>
+      <label style="display:flex;align-items:center;justify-content:space-between;font-size:.82rem;">
+        <span>💬 Direct messages</span>
+        <input type="checkbox" id="np-directMessage" style="accent-color:var(--accent);width:16px;height:16px;cursor:pointer;" onchange="saveNotifPref('directMessage',this.checked)"/>
+      </label>
+      <label style="display:flex;align-items:center;justify-content:space-between;font-size:.82rem;">
+        <span>🏘️ Community invites</span>
+        <input type="checkbox" id="np-communityInvite" style="accent-color:var(--accent);width:16px;height:16px;cursor:pointer;" onchange="saveNotifPref('communityInvite',this.checked)"/>
+      </label>
+      <label style="display:flex;align-items:center;justify-content:space-between;font-size:.82rem;">
+        <span>🎙️ Room invites</span>
+        <input type="checkbox" id="np-roomInvite" style="accent-color:var(--accent);width:16px;height:16px;cursor:pointer;" onchange="saveNotifPref('roomInvite',this.checked)"/>
+      </label>
+      <label style="display:flex;align-items:center;justify-content:space-between;font-size:.82rem;">
+        <span>📢 Community messages</span>
+        <input type="checkbox" id="np-communityMessage" style="accent-color:var(--accent);width:16px;height:16px;cursor:pointer;" onchange="saveNotifPref('communityMessage',this.checked)"/>
+      </label>
+    </div>
+    <div style="margin-top:1rem;padding-top:.75rem;border-top:1px solid var(--border);font-size:.7rem;color:var(--muted);">Browser notifications must also be enabled in your system settings.</div>
+  </div>
+</div>
+
+<!-- ── Channel Permissions Modal ── -->
+<div id="channel-perms-overlay" class="save-modal-overlay hidden" style="z-index:9999;">
+  <div class="save-modal" style="max-width:420px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
+      <h3 style="margin:0;">🔒 Channel Permissions</h3>
+      <button class="modal-close-x" onclick="closeChannelPerms()">✕</button>
+    </div>
+    <div id="channel-perms-channel-name" style="font-size:.75rem;color:var(--muted);margin-bottom:.75rem;"></div>
+    <div style="margin-bottom:1rem;">
+      <div style="font-size:.72rem;font-weight:700;color:var(--text);margin-bottom:.5rem;">👁️ Who can VIEW this channel?</div>
+      <div style="font-size:.65rem;color:var(--muted);margin-bottom:.5rem;">Leave all unchecked = everyone can view</div>
+      <div id="channel-view-roles" style="display:flex;flex-direction:column;gap:.4rem;"></div>
+    </div>
+    <div style="margin-bottom:1.25rem;">
+      <div style="font-size:.72rem;font-weight:700;color:var(--text);margin-bottom:.5rem;">✏️ Who can WRITE to this channel?</div>
+      <div style="font-size:.65rem;color:var(--muted);margin-bottom:.5rem;">Leave all unchecked = all viewers can write</div>
+      <div id="channel-write-roles" style="display:flex;flex-direction:column;gap:.4rem;"></div>
+    </div>
+    <div style="display:flex;gap:.75rem;">
+      <button class="save-modal-cancel" style="flex:1;" onclick="closeChannelPerms()">Cancel</button>
+      <button class="auth-btn" style="flex:1;margin-top:0;" onclick="saveChannelPerms()">Save Permissions</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>

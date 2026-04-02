@@ -17,6 +17,24 @@ function getMember(community, userId) {
   return community.members.find(m => m.userId.toString() === userId.toString());
 }
 
+// Check if a user can view a channel based on viewRoles
+function canViewChannel(community, channel, userId) {
+  if(!channel.viewRoles || channel.viewRoles.length === 0) return true; // open to all
+  if(community.ownerId.toString() === userId.toString()) return true;
+  const member = getMember(community, userId);
+  if(!member) return false;
+  return member.roles.some(rId => channel.viewRoles.includes(rId));
+}
+
+// Check if a user can write to a channel based on writeRoles
+function canWriteChannel(community, channel, userId) {
+  if(community.ownerId.toString() === userId.toString()) return true;
+  if(!channel.writeRoles || channel.writeRoles.length === 0) return true;
+  const member = getMember(community, userId);
+  if(!member) return false;
+  return member.roles.some(rId => channel.writeRoles.includes(rId));
+}
+
 function hasPermission(community, userId, perm) {
   const member = getMember(community, userId);
   if (!member) return false;
@@ -49,6 +67,11 @@ router.post('/communities', auth, async (req, res) => {
   try {
     const { name, description, isPublic, tags, avatar } = req.body;
     if (!name) return res.status(400).json({ error: 'Name required' });
+
+    // Enforce unique community names (case-insensitive)
+    const nameTaken = await Community.findOne({ name: new RegExp(`^${name.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') });
+    if(nameTaken) return res.status(400).json({ error: `A community named "${name}" already exists. Please choose a different name.` });
+
     const inviteCode = Math.random().toString(36).substr(2, 8).toUpperCase();
     const community = await Community.create({
       name, description: description||'', isPublic: isPublic!==false,
@@ -80,6 +103,34 @@ router.get('/communities/mine', auth, async (req, res) => {
     // Populate member user info for all communities
     const populated = await Promise.all(communities.map(c => populateCommunityLean(c)));
     res.json({ communities: populated });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+
+// ── Trending/popular public communities ──
+router.get('/communities/trending', auth, async (req, res) => {
+  try {
+    // Get public communities sorted by member count descending, top 10
+    const communities = await Community.find({ isPublic: true })
+      .select('name avatar description tags members ownerId isPaid stripeProductId')
+      .lean();
+
+    // Sort by active member count
+    const ranked = communities
+      .map(c => ({
+        ...c,
+        memberCount: c.members?.filter(m => !m.banned).length || 0,
+        isMember: c.members?.some(m => m.userId.toString() === req.user.id) || false
+      }))
+      .sort((a, b) => b.memberCount - a.memberCount)
+      .slice(0, 10)
+      .map(c => {
+        // Don't send full members array to client
+        const { members, ...rest } = c;
+        return rest;
+      });
+
+    res.json({ communities: ranked });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -198,7 +249,14 @@ router.patch('/communities/:id', auth, async (req, res) => {
     if (!community) return res.status(404).json({ error: 'Not found' });
     if (!hasPermission(community, req.user.id, 'isAdmin')) return res.status(403).json({ error: 'No permission' });
     const { name, description, isPublic, tags, avatar } = req.body;
-    if (name) community.name = name;
+    if (name && name !== community.name) {
+      const nameTaken = await Community.findOne({
+        name: new RegExp(`^${name.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i'),
+        _id: { $ne: community._id }
+      });
+      if(nameTaken) return res.status(400).json({ error: `A community named "${name}" already exists.` });
+      community.name = name;
+    }
     if (description !== undefined) community.description = description;
     if (isPublic !== undefined) community.isPublic = isPublic;
     if (tags) community.tags = tags.slice(0, 10);
@@ -353,6 +411,9 @@ router.get('/communities/:id/channels/:channelId/messages', auth, async (req, re
     const community = await Community.findById(req.params.id).lean();
     if (!community) return res.status(404).json({ error: 'Not found' });
     if (!getMember(community, req.user.id)) return res.status(403).json({ error: 'Not a member' });
+    const channel = community.channels.find(c => c._id.toString() === req.params.channelId);
+    if(!channel) return res.status(404).json({ error: 'Channel not found' });
+    if(!canViewChannel(community, channel, req.user.id)) return res.status(403).json({ error: 'You do not have permission to view this channel' });
     const { page = 1 } = req.query;
     const messages = await CommunityMessage.find({
       communityId: req.params.id,
@@ -373,6 +434,8 @@ router.post('/communities/:id/channels/:channelId/messages', auth, async (req, r
     if (!member || member.banned) return res.status(403).json({ error: 'Not a member' });
     const channel = community.channels.find(c => c._id.toString() === req.params.channelId);
     if (!channel) return res.status(404).json({ error: 'Channel not found' });
+    if(!canViewChannel(community, channel, req.user.id)) return res.status(403).json({ error: 'You do not have permission to view this channel' });
+    if(!canWriteChannel(community, channel, req.user.id)) return res.status(403).json({ error: 'You do not have permission to post in this channel' });
     if (channel.type === 'announcement' && !hasPermission(community, req.user.id, 'isAdmin'))
       return res.status(403).json({ error: 'Only admins can post in announcements' });
     const { text, fileUrl, fileType, fileName } = req.body;
@@ -398,6 +461,24 @@ router.delete('/communities/:id/channels/:channelId/messages/:msgId', auth, asyn
     if (!isOwn && !isAdmin) return res.status(403).json({ error: 'No permission' });
     await CommunityMessage.findByIdAndUpdate(req.params.msgId, { deleted: true });
     res.json({ success: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+
+// ── Update channel view/write role permissions ──
+router.patch('/communities/:id/channels/:channelId/permissions', auth, async (req, res) => {
+  try {
+    const community = await Community.findById(req.params.id);
+    if (!community) return res.status(404).json({ error: 'Not found' });
+    if (!hasPermission(community, req.user.id, 'isAdmin') && community.ownerId.toString() !== req.user.id)
+      return res.status(403).json({ error: 'Admin only' });
+    const ch = community.channels.id(req.params.channelId);
+    if (!ch) return res.status(404).json({ error: 'Channel not found' });
+    const { viewRoles, writeRoles } = req.body;
+    if(viewRoles  !== undefined) ch.viewRoles  = viewRoles  || [];
+    if(writeRoles !== undefined) ch.writeRoles = writeRoles || [];
+    await community.save();
+    res.json({ success: true, channel: ch });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 

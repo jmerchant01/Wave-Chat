@@ -9,6 +9,10 @@ const channelSchema = new mongoose.Schema({
   permissions: [{ roleId: String, canRead: Boolean, canWrite: Boolean }],
   locked: { type: Boolean, default: false },
   chatLocked: { type: Boolean, default: false },
+  // Roles that can VIEW this channel (empty = all roles can view)
+  viewRoles: [{ type: String }],
+  // Roles that can WRITE to this channel (empty = all roles can write, subject to chatLocked)
+  writeRoles: [{ type: String }],
   activeRoomId: { type: String, default: null }
 });
 

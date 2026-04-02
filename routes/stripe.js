@@ -32,6 +32,31 @@ const PLAN_INTERVALS = {
   lifetime: null // one-time payment
 };
 
+// ── Blocked third-party payment platforms ──
+// Creators may not direct subscribers to external payment services.
+// All monetization must flow through WAVE's Stripe integration or Apple IAP.
+const BLOCKED_PAYMENT_PLATFORMS = [
+  'whop', 'patreon', 'gumroad', 'buymeacoffee', 'buy me a coffee',
+  'ko-fi', 'kofi', 'paypal', 'cashapp', 'cash app', 'venmo', 'zelle',
+  'onlyfans', 'only fans', 'substack', 'memberful', 'podia',
+  'teachable', 'thinkific', 'kajabi', 'fanhouse',
+  'beacons', 'stan store', 'stanstore'
+];
+
+function containsBlockedPaymentPlatform(text) {
+  if(!text) return false;
+  const lower = text.toLowerCase();
+  return BLOCKED_PAYMENT_PLATFORMS.some(p => lower.includes(p));
+}
+
+function validateCommunityContent(name, description) {
+  if(containsBlockedPaymentPlatform(name))
+    return 'Community name may not reference external payment platforms.';
+  if(containsBlockedPaymentPlatform(description))
+    return 'Community description may not reference external payment platforms. All subscriptions must be managed through WAVE.';
+  return null;
+}
+
 // ── Get community subscription info (public) ──
 router.get('/communities/:id/subscription', auth, async (req, res) => {
   try {
@@ -73,6 +98,11 @@ router.post('/communities/:id/subscription/setup', auth, async (req, res) => {
       return res.status(403).json({ error: 'Only the owner can set up subscriptions' });
 
     const { weekly, monthly, yearly, lifetime, enableFlatFee } = req.body;
+
+    // Block third-party payment platform references
+    const contentError = validateCommunityContent(community.name, community.description);
+    if(contentError) return res.status(400).json({ error: contentError });
+
     // Prices in dollars → convert to cents
     const plans = { weekly, monthly, yearly, lifetime };
 

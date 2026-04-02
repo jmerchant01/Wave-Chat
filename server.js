@@ -8,6 +8,7 @@ const adminRouter = require('./routes/admin');
 const messagesRouter = require('./routes/messages');
 const communityRouter = require('./routes/communities');
 const stripeRouter = require('./routes/stripe');
+const moderationRouter = require('./routes/moderation');
 const jwt = require('jsonwebtoken');
 // Pre-load all models so Mongoose registers them before routes use them
 require('./models/User');
@@ -17,6 +18,8 @@ require('./models/CommunityMessage');
 require('./models/Report');
 require('./models/Subscription');
 require('./models/WaveSettings');
+require('./models/Block');
+require('./models/MonetizationApplication');
 
 const app = express();
 const server = http.createServer(app);
@@ -44,6 +47,7 @@ app.use('/api', adminRouter);
 app.use('/api', messagesRouter);
 app.use('/api', communityRouter);
 app.use('/api', stripeRouter);
+app.use('/api', moderationRouter);
 
 // ── Public rooms registry ──
 const publicRooms = new Map(); // roomId -> { name, tags, hostName, participants, createdAt }
@@ -95,14 +99,35 @@ function getRoomPublicState(room) {
 
 io.on('connection', (socket) => {
 
-  socket.on('user_online', ({ token }) => {
+  socket.on('user_online', async ({ token }) => {
     try {
       const decoded = jwt.verify(token, JWT_SECRET);
       socket.data.userId = decoded.id;
       socket.data.username = decoded.username;
+      const wasOnline = onlineUsers.has(decoded.id);
       onlineUsers.set(decoded.id, { socketId: socket.id, username: decoded.username, roomId: null });
       // Broadcast online status to this user so they get fresh friend statuses
       socket.emit('friends_status_refresh');
+      // Notify friends with bell enabled that this user came online
+      if(!wasOnline){
+        try {
+          const User = require('./models/User');
+          const user = await User.findById(decoded.id).select('friends username avatar isVerified').lean();
+          if(user && user.friends){
+            for(const fid of user.friends){
+              const friendSocket = onlineUsers.get(fid.toString());
+              if(friendSocket){
+                io.to(friendSocket.socketId).emit('friend_came_online', {
+                  userId: decoded.id,
+                  username: decoded.username,
+                  avatar: user.avatar || null,
+                  isVerified: user.isVerified || false
+                });
+              }
+            }
+          }
+        } catch(e){ console.error('friend_came_online error:', e.message); }
+      }
     } catch {}
   });
 
@@ -438,6 +463,36 @@ io.on('connection', (socket) => {
   socket.on('end_room', () => {
     const r=socket.data.roomId; const room=rooms.get(r); if(!room||room.hostId!==socket.id) return;
     io.to(r).emit('room_ended'); rooms.delete(r);
+  });
+
+  // ── Screen recording permission ──
+  socket.on('request_record_permission', ({ roomId }) => {
+    const room = rooms.get(roomId);
+    if(!room) return socket.emit('record_permission_denied', { reason: 'Room not found' });
+    if(room.hostId === socket.id){
+      // Host can always record
+      socket.emit('record_permission_granted');
+      return;
+    }
+    // Ask host for permission
+    io.to(room.hostId).emit('record_permission_request', {
+      fromId: socket.id,
+      fromName: room.participants.get(socket.id)?.name || 'Someone'
+    });
+  });
+
+  socket.on('record_permission_approve', ({ targetId }) => {
+    const r = socket.data.roomId;
+    const room = rooms.get(r);
+    if(!room || room.hostId !== socket.id) return;
+    io.to(targetId).emit('record_permission_granted');
+  });
+
+  socket.on('record_permission_deny', ({ targetId }) => {
+    const r = socket.data.roomId;
+    const room = rooms.get(r);
+    if(!room || room.hostId !== socket.id) return;
+    io.to(targetId).emit('record_permission_denied', { reason: 'The host denied your recording request' });
   });
 
   socket.on('disconnect', () => {
