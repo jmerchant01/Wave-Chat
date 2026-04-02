@@ -4800,17 +4800,18 @@ async function saveCommunitySettings(){
       method:'PATCH',headers:{'Content-Type':'application/json',Authorization:`Bearer ${authToken}`},
       body:JSON.stringify({name,description,isPublic,tags,avatar:avatarToSave})
     });
+    const d=await res.json();
     if(res.ok){
       currentCommunity.name=name;
       if(avatarToSave) currentCommunity.avatar=avatarToSave;
       document.getElementById('cv-name').textContent=name;
-      // Update community view avatar
       const cvAv=document.getElementById('cv-avatar');
       if(cvAv) cvAv.innerHTML=currentCommunity.avatar?`<img src="${currentCommunity.avatar}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;">`:(name||'?').slice(0,2).toUpperCase();
+      _communityAvatarBase64=null;
       toast('✅ Settings saved'); closeCommunitySettings(); loadMyCommunities();
     }
-    else{ const d=await res.json(); toast('⚠️ '+d.error); }
-  }catch(e){}
+    else{ toast('⚠️ '+(d.error||'Could not save settings')); }
+  }catch(e){ toast('⚠️ Error saving: '+e.message); console.error('saveCommunitySettings error:',e); }
 }
 
 function renderCSMembers(){

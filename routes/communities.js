@@ -247,7 +247,8 @@ router.patch('/communities/:id', auth, async (req, res) => {
   try {
     const community = await Community.findById(req.params.id);
     if (!community) return res.status(404).json({ error: 'Not found' });
-    if (!hasPermission(community, req.user.id, 'isAdmin')) return res.status(403).json({ error: 'No permission' });
+    const isOwner = community.ownerId.toString() === req.user.id;
+    if (!isOwner && !hasPermission(community, req.user.id, 'isAdmin')) return res.status(403).json({ error: 'No permission' });
     const { name, description, isPublic, tags, avatar } = req.body;
     if (name && name !== community.name) {
       const nameTaken = await Community.findOne({
