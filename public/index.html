@@ -6913,164 +6913,249 @@ let _communityAvatarBase64 = null; // set by crop modal
 // ════════════════════════════════════════
 // IMAGE CROP / RESIZE SYSTEM
 // ════════════════════════════════════════
-let _cropImg = null;          // HTMLImageElement
-let _cropRotation = 0;        // degrees
-let _cropCallback = null;     // called with base64 result
-let _cropDragStart = null;    // {x,y,bx,by} for box drag
-let _cropContainerSize = 0;   // px size of the square container
+// ════════════════════════════════════════
+// IMAGE CROP / RESIZE SYSTEM v2
+// Pan + Zoom + Rotate + Flip + Resize crop box
+// ════════════════════════════════════════
+let _cropImg      = null;
+let _cropCallback = null;
+let _cropRot      = 0;      // degrees: 0,90,180,270
+let _cropFlipH    = false;
+let _cropFlipV    = false;
+let _cropZoom     = 1;      // image scale
+let _cropPanX     = 0;      // image pan offset (canvas px)
+let _cropPanY     = 0;
+let _cropBox      = {x:0,y:0,w:0,h:0}; // crop region in canvas px
+let _cropCS       = 0;      // container size in px (square)
+// Interaction state
+let _ci = null; // {mode:'pan'|'move'|'resize', edge, sx,sy, ox,oy, bx,by,bw,bh}
 
-// Open the crop modal with a file input result
 function openCropModal(base64, callback){
   _cropCallback = callback;
-  _cropRotation = 0;
-  document.getElementById('crop-zoom').value = 1;
   document.getElementById('img-crop-overlay').classList.remove('hidden');
-
   const img = new Image();
-  img.onload = () => {
-    _cropImg = img;
-    const container = document.getElementById('crop-container');
-    _cropContainerSize = container.offsetWidth;
-    // Set canvas size
-    const canvas = document.getElementById('crop-canvas');
-    canvas.width  = _cropContainerSize;
-    canvas.height = _cropContainerSize;
-    // Reset crop box to center 80%
-    const box = document.getElementById('crop-box');
-    const bSize = Math.round(_cropContainerSize * 0.8);
-    const bOff  = Math.round((_cropContainerSize - bSize) / 2);
-    box.style.left   = bOff + 'px';
-    box.style.top    = bOff + 'px';
-    box.style.width  = bSize + 'px';
-    box.style.height = bSize + 'px';
-    updateCropPreview();
-    attachCropBoxDrag();
+  img.onload = ()=>{
+    _cropImg=img; _cropRot=0; _cropFlipH=false; _cropFlipV=false;
+    const cont = document.getElementById('crop-container');
+    // Use setTimeout to allow layout to settle after modal becomes visible
+    setTimeout(()=>{
+      _cropCS = cont.offsetWidth || 360;
+      const canvas = document.getElementById('crop-canvas');
+      canvas.width = _cropCS; canvas.height = _cropCS;
+      resetCrop();
+      attachCropInteraction();
+    }, 50);
   };
   img.src = base64;
 }
 
-function closeCropModal(){
-  document.getElementById('img-crop-overlay').classList.add('hidden');
-  _cropImg = null; _cropCallback = null;
+function resetCrop(){
+  if(!_cropImg) return;
+  // Fit image to contain within canvas
+  const iw = rotW(), ih = rotH();
+  _cropZoom = Math.min(_cropCS/iw, _cropCS/ih);
+  _cropPanX = 0; _cropPanY = 0;
+  document.getElementById('crop-zoom').value = _cropZoom;
+  document.getElementById('crop-zoom').min = Math.min(0.1, _cropZoom * 0.5);
+  document.getElementById('crop-zoom').max = _cropZoom * 8;
+  // Crop box = 80% of canvas centered
+  const bSize = Math.round(_cropCS * 0.8);
+  const bOff  = Math.round((_cropCS - bSize) / 2);
+  _cropBox = {x:bOff, y:bOff, w:bSize, h:bSize};
+  drawCrop();
 }
 
-function updateCropPreview(){
+// Rotated image dimensions
+function rotW(){ if(!_cropImg) return 1; return (_cropRot%180===0)?_cropImg.naturalWidth:_cropImg.naturalHeight; }
+function rotH(){ if(!_cropImg) return 1; return (_cropRot%180===0)?_cropImg.naturalHeight:_cropImg.naturalWidth; }
+
+function drawCrop(){
   if(!_cropImg) return;
   const canvas = document.getElementById('crop-canvas');
   const ctx = canvas.getContext('2d');
-  const zoom = parseFloat(document.getElementById('crop-zoom').value);
-  const S = _cropContainerSize;
+  const S = _cropCS;
   ctx.clearRect(0,0,S,S);
   ctx.save();
-  ctx.translate(S/2, S/2);
-  ctx.rotate(_cropRotation * Math.PI / 180);
-  // Scale image to fill the container with zoom
-  const iw = _cropImg.naturalWidth, ih = _cropImg.naturalHeight;
-  const scale = Math.max(S/iw, S/ih) * zoom;
-  ctx.drawImage(_cropImg, -iw*scale/2, -ih*scale/2, iw*scale, ih*scale);
+  ctx.translate(S/2 + _cropPanX, S/2 + _cropPanY);
+  ctx.rotate(_cropRot * Math.PI/180);
+  if(_cropFlipH) ctx.scale(-1,1);
+  if(_cropFlipV) ctx.scale(1,-1);
+  const iw=_cropImg.naturalWidth, ih=_cropImg.naturalHeight;
+  const dw=iw*_cropZoom, dh=ih*_cropZoom;
+  ctx.drawImage(_cropImg, -dw/2, -dh/2, dw, dh);
   ctx.restore();
+  updateCropOverlay();
+  updateCropHandles();
+  document.getElementById('crop-zoom-label').textContent = _cropZoom.toFixed(2)+'×';
+}
+
+function updateCropOverlay(){
+  const {x,y,w,h} = _cropBox;
+  const S = _cropCS;
+  // 6 overlay rects: top, bottom, left-mid, right-mid, (border handled separately)
+  const set = (id, l,t,ww,hh)=>{
+    const el=document.getElementById(id);
+    if(el){ el.style.left=l+'px';el.style.top=t+'px';el.style.width=ww+'px';el.style.height=hh+'px'; }
+  };
+  set('crop-overlay-tl', 0, 0,     x,     y);           // top-left
+  set('crop-overlay-tr', x+w, 0,   S-x-w, y);           // top-right
+  set('crop-overlay-ml', 0, y,     x,     h);            // mid-left
+  set('crop-overlay-mr', x+w, y,   S-x-w, h);           // mid-right
+  set('crop-overlay-bl', 0, y+h,   x+w,   S-y-h);       // bottom-left
+  set('crop-overlay-br', x+w, y+h, S-x-w, S-y-h);       // bottom-right
+  // Border
+  const bd=document.getElementById('crop-border');
+  if(bd){ bd.style.left=x+'px';bd.style.top=y+'px';bd.style.width=w+'px';bd.style.height=h+'px'; }
+}
+
+function updateCropHandles(){
+  const {x,y,w,h} = _cropBox;
+  const handles = {
+    'ch-nw':{lx:x,    ly:y},    'ch-n':{lx:x+w/2,ly:y},
+    'ch-ne':{lx:x+w,  ly:y},    'ch-e':{lx:x+w,  ly:y+h/2},
+    'ch-se':{lx:x+w,  ly:y+h},  'ch-s':{lx:x+w/2,ly:y+h},
+    'ch-sw':{lx:x,    ly:y+h},  'ch-w':{lx:x,    ly:y+h/2},
+  };
+  Object.entries(handles).forEach(([id,{lx,ly}])=>{
+    const el=document.getElementById(id);
+    if(el){ el.style.left=lx+'px'; el.style.top=ly+'px'; }
+  });
+}
+
+function cropZoomFromSlider(){
+  _cropZoom = parseFloat(document.getElementById('crop-zoom').value);
+  drawCrop();
 }
 
 function rotateCrop(deg){
-  _cropRotation = (_cropRotation + deg + 360) % 360;
-  updateCropPreview();
+  _cropRot = (_cropRot + deg + 360) % 360;
+  // Swap pan X/Y to keep image visually stable
+  const tmp = _cropPanX;
+  if(deg===90){  _cropPanX=-_cropPanY; _cropPanY=tmp; }
+  if(deg===-90){ _cropPanX=_cropPanY; _cropPanY=-tmp; }
+  // Update zoom to fit new orientation
+  const iw=rotW(), ih=rotH();
+  const fitZoom = Math.min(_cropCS/iw, _cropCS/ih);
+  if(_cropZoom < fitZoom*0.3) _cropZoom = fitZoom;
+  document.getElementById('crop-zoom').value = _cropZoom;
+  drawCrop();
+}
+function flipCrop(dir){
+  if(dir==='h') _cropFlipH=!_cropFlipH;
+  else _cropFlipV=!_cropFlipV;
+  drawCrop();
 }
 
+function updateCropPreview(){ drawCrop(); } // alias for slider
+
 function applyCrop(){
-  if(!_cropImg || !_cropCallback) return;
-  const canvas = document.getElementById('crop-canvas');
-  const box    = document.getElementById('crop-box');
-  const S      = _cropContainerSize;
-  // Get box position relative to canvas
-  const bx = parseInt(box.style.left);
-  const by = parseInt(box.style.top);
-  const bw = parseInt(box.style.width);
-  const bh = parseInt(box.style.height);
-  // Clamp to canvas
-  const cx = Math.max(0, bx), cy = Math.max(0, by);
-  const cw = Math.min(bw, S-cx), ch = Math.min(bh, S-cy);
-  // Create output canvas (always square 400x400)
-  const out = document.createElement('canvas');
-  out.width = 400; out.height = 400;
-  const octx = out.getContext('2d');
-  // Draw the cropped region scaled to 400x400
-  octx.drawImage(canvas, cx, cy, cw, ch, 0, 0, 400, 400);
-  const result = out.toDataURL('image/jpeg', 0.85);
+  if(!_cropImg||!_cropCallback) return;
+  const canvas=document.getElementById('crop-canvas');
+  const {x,y,w,h}=_cropBox;
+  const S=_cropCS;
+  const cx=Math.max(0,x), cy=Math.max(0,y);
+  const cw=Math.min(w,S-cx), ch=Math.min(h,S-cy);
+  const out=document.createElement('canvas');
+  out.width=400; out.height=400;
+  out.getContext('2d').drawImage(canvas,cx,cy,cw,ch,0,0,400,400);
+  const result=out.toDataURL('image/jpeg',0.88);
   closeCropModal();
   _cropCallback(result);
 }
 
-// Drag the crop box around the canvas
-function attachCropBoxDrag(){
-  const box  = document.getElementById('crop-box');
-  const cont = document.getElementById('crop-container');
+function closeCropModal(){
+  document.getElementById('img-crop-overlay').classList.add('hidden');
+  _cropImg=null; _cropCallback=null; _ci=null;
+}
 
-  let dragging=false, startX=0, startY=0, startL=0, startT=0;
-  let resizing=false, resizeEdge='', resizeStartX=0, resizeStartY=0, resizeStartL=0, resizeStartT=0, resizeStartW=0, resizeStartH=0;
+function attachCropInteraction(){
+  const cont=document.getElementById('crop-container');
+  const handles=['ch-nw','ch-n','ch-ne','ch-e','ch-se','ch-s','ch-sw','ch-w'];
+  const edgeMap={'ch-nw':'nw','ch-n':'n','ch-ne':'ne','ch-e':'e','ch-se':'se','ch-s':'s','ch-sw':'sw','ch-w':'w'};
 
-  // Add resize handles
-  box.innerHTML='';
-  const edges = ['nw','n','ne','e','se','s','sw','w'];
-  edges.forEach(e=>{
-    const h=document.createElement('div');
-    h.dataset.edge=e;
-    const isCorner=e.length===2;
-    const pos={
-      nw:'top:0;left:0;cursor:nwse-resize;',
-      n:'top:0;left:50%;transform:translateX(-50%);cursor:ns-resize;',
-      ne:'top:0;right:0;cursor:nesw-resize;',
-      e:'top:50%;right:0;transform:translateY(-50%);cursor:ew-resize;',
-      se:'bottom:0;right:0;cursor:nwse-resize;',
-      s:'bottom:0;left:50%;transform:translateX(-50%);cursor:ns-resize;',
-      sw:'bottom:0;left:0;cursor:nesw-resize;',
-      w:'top:50%;left:0;transform:translateY(-50%);cursor:ew-resize;',
-    }[e];
-    h.style.cssText='position:absolute;width:12px;height:12px;background:#fff;border:1px solid #666;border-radius:2px;'+pos;
-    box.appendChild(h);
-  });
+  // Remove old listeners by cloning
+  const nc=cont.cloneNode(true);
+  cont.parentNode.replaceChild(nc,cont);
+  const container=document.getElementById('crop-container');
 
-  const getContRect = ()=>cont.getBoundingClientRect();
-  const clamp = (v,mn,mx)=>Math.max(mn,Math.min(mx,v));
-  const S = ()=>_cropContainerSize;
+  const clamp=(v,mn,mx)=>Math.max(mn,Math.min(mx,v));
+  const MIN_BOX=40;
 
-  box.addEventListener('mousedown', e=>{
+  const getPos=e=>{
+    const r=container.getBoundingClientRect();
+    const src=e.touches?e.touches[0]:e;
+    return {x:src.clientX-r.left, y:src.clientY-r.top};
+  };
+
+  container.addEventListener('mousedown', onDown);
+  container.addEventListener('touchstart', onDown, {passive:false});
+
+  function onDown(e){
     e.preventDefault();
-    if(e.target.dataset.edge){
-      resizing=true; resizeEdge=e.target.dataset.edge;
-      resizeStartX=e.clientX; resizeStartY=e.clientY;
-      resizeStartL=parseInt(box.style.left)||0;
-      resizeStartT=parseInt(box.style.top)||0;
-      resizeStartW=parseInt(box.style.width)||100;
-      resizeStartH=parseInt(box.style.height)||100;
+    const pos=getPos(e);
+    const el=e.target;
+    const edge=edgeMap[el.id];
+    if(edge){
+      // Resize crop box
+      _ci={mode:'resize',edge,sx:pos.x,sy:pos.y,bx:_cropBox.x,by:_cropBox.y,bw:_cropBox.w,bh:_cropBox.h};
+    } else if(el.id==='crop-border'||el.closest?.('#crop-border')){
+      // Move crop box
+      _ci={mode:'move',sx:pos.x,sy:pos.y,bx:_cropBox.x,by:_cropBox.y};
     } else {
-      dragging=true;
-      startX=e.clientX; startY=e.clientY;
-      startL=parseInt(box.style.left)||0;
-      startT=parseInt(box.style.top)||0;
+      // Pan image
+      _ci={mode:'pan',sx:pos.x,sy:pos.y,ox:_cropPanX,oy:_cropPanY};
     }
-  });
+  }
 
-  document.addEventListener('mousemove', e=>{
-    if(dragging){
-      const dx=e.clientX-startX, dy=e.clientY-startY;
-      const w=parseInt(box.style.width)||100, h=parseInt(box.style.height)||100;
-      box.style.left=clamp(startL+dx,0,S()-w)+'px';
-      box.style.top =clamp(startT+dy,0,S()-h)+'px';
-    }
-    if(resizing){
-      const dx=e.clientX-resizeStartX, dy=e.clientY-resizeStartY;
-      let l=resizeStartL,t=resizeStartT,w=resizeStartW,h=resizeStartH;
-      const ed=resizeEdge;
-      if(ed.includes('e')){ w=clamp(w+dx,40,S()-l); }
-      if(ed.includes('s')){ h=clamp(h+dy,40,S()-t); }
-      if(ed.includes('w')){ const nw=clamp(w-dx,40,resizeStartL+resizeStartW-0); const dl=resizeStartW-nw; l=clamp(resizeStartL+dl,0,resizeStartL+resizeStartW-40); w=nw; }
-      if(ed.includes('n')){ const nh=clamp(h-dy,40,resizeStartT+resizeStartH-0); const dt=resizeStartH-nh; t=clamp(resizeStartT+dt,0,resizeStartT+resizeStartH-40); h=nh; }
-      box.style.left=l+'px'; box.style.top=t+'px';
-      box.style.width=w+'px'; box.style.height=h+'px';
-    }
-  });
+  function onMove(e){
+    if(!_ci) return;
+    e.preventDefault();
+    const pos=getPos(e);
+    const dx=pos.x-_ci.sx, dy=pos.y-_ci.sy;
+    const S=_cropCS;
 
-  document.addEventListener('mouseup', ()=>{ dragging=false; resizing=false; });
+    if(_ci.mode==='pan'){
+      _cropPanX=_ci.ox+dx; _cropPanY=_ci.oy+dy;
+      drawCrop(); return;
+    }
+    if(_ci.mode==='move'){
+      _cropBox.x=clamp(_ci.bx+dx,0,S-_cropBox.w);
+      _cropBox.y=clamp(_ci.by+dy,0,S-_cropBox.h);
+      drawCrop(); return;
+    }
+    if(_ci.mode==='resize'){
+      let {bx:l,by:t,bw:w,bh:h}=_ci;
+      const ed=_ci.edge;
+      if(ed.includes('e')){ w=clamp(w+dx,MIN_BOX,S-l); }
+      if(ed.includes('s')){ h=clamp(h+dy,MIN_BOX,S-t); }
+      if(ed.includes('w')){
+        const nw=clamp(w-dx,MIN_BOX,_ci.bx+_ci.bw);
+        l=_ci.bx+_ci.bw-nw; w=nw;
+      }
+      if(ed.includes('n')){
+        const nh=clamp(h-dy,MIN_BOX,_ci.by+_ci.bh);
+        t=_ci.by+_ci.bh-nh; h=nh;
+      }
+      _cropBox={x:clamp(l,0,S-MIN_BOX),y:clamp(t,0,S-MIN_BOX),w:clamp(w,MIN_BOX,S),h:clamp(h,MIN_BOX,S)};
+      drawCrop(); return;
+    }
+  }
+
+  function onUp(){ _ci=null; }
+
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup',   onUp);
+  document.addEventListener('touchmove', onMove, {passive:false});
+  document.addEventListener('touchend',  onUp);
+
+  // Scroll to zoom
+  container.addEventListener('wheel', e=>{
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? 0.95 : 1.05;
+    _cropZoom = Math.max(0.05, _cropZoom * delta);
+    document.getElementById('crop-zoom').value = _cropZoom;
+    drawCrop();
+  }, {passive:false});
 }
 
 // Replace handleCommunityAvatarUpload and handleRoomAvatarUpload to use crop modal
@@ -7232,25 +7317,65 @@ function openCropForUserAvatar(input){
 
 <!-- ── Image Crop/Resize Modal ── -->
 <div id="img-crop-overlay" class="save-modal-overlay hidden" style="z-index:10000;">
-  <div class="save-modal" style="max-width:420px;">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
+  <div class="save-modal" style="max-width:440px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem;">
       <h3 style="margin:0;">✂️ Crop & Resize</h3>
       <button class="modal-close-x" onclick="closeCropModal()">✕</button>
     </div>
-    <!-- Canvas crop area -->
-    <div style="position:relative;width:100%;padding-bottom:100%;background:#111;border-radius:10px;overflow:hidden;margin-bottom:1rem;cursor:crosshair;" id="crop-container">
-      <canvas id="crop-canvas" style="position:absolute;top:0;left:0;width:100%;height:100%;"></canvas>
-      <!-- Crop box overlay -->
-      <div id="crop-box" style="position:absolute;border:2px solid #fff;box-shadow:0 0 0 9999px rgba(0,0,0,.55);cursor:move;box-sizing:border-box;"></div>
+    <div style="font-size:.68rem;color:var(--muted);margin-bottom:.6rem;">
+      🖱️ <strong>Drag image</strong> to pan · <strong>Drag handles</strong> to resize crop area · <strong>Scroll</strong> to zoom
     </div>
-    <!-- Controls -->
-    <div style="margin-bottom:.75rem;">
-      <label style="font-size:.65rem;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:.3rem;">Zoom</label>
-      <input type="range" id="crop-zoom" min="1" max="3" step="0.01" value="1" style="width:100%;accent-color:var(--accent);" oninput="updateCropPreview()"/>
+    <!-- Crop viewport -->
+    <div id="crop-container" style="position:relative;width:100%;aspect-ratio:1/1;background:#0a0a12;border-radius:10px;overflow:hidden;margin-bottom:.85rem;touch-action:none;user-select:none;">
+      <!-- Image drawn on canvas -->
+      <canvas id="crop-canvas" style="position:absolute;top:0;left:0;width:100%;height:100%;display:block;"></canvas>
+      <!-- Crop overlay: 4 dark quadrants + transparent center -->
+      <div id="crop-overlay-tl" style="position:absolute;background:rgba(0,0,0,.55);pointer-events:none;"></div>
+      <div id="crop-overlay-tr" style="position:absolute;background:rgba(0,0,0,.55);pointer-events:none;"></div>
+      <div id="crop-overlay-bl" style="position:absolute;background:rgba(0,0,0,.55);pointer-events:none;"></div>
+      <div id="crop-overlay-br" style="position:absolute;background:rgba(0,0,0,.55);pointer-events:none;"></div>
+      <div id="crop-overlay-ml" style="position:absolute;background:rgba(0,0,0,.55);pointer-events:none;"></div>
+      <div id="crop-overlay-mr" style="position:absolute;background:rgba(0,0,0,.55);pointer-events:none;"></div>
+      <!-- Crop border -->
+      <div id="crop-border" style="position:absolute;border:2px solid #fff;box-sizing:border-box;pointer-events:none;">
+        <!-- Rule-of-thirds grid lines -->
+        <div style="position:absolute;inset:0;display:grid;grid-template-columns:1fr 1fr 1fr;grid-template-rows:1fr 1fr 1fr;pointer-events:none;">
+          <div style="border-right:1px solid rgba(255,255,255,.25);border-bottom:1px solid rgba(255,255,255,.25);"></div>
+          <div style="border-right:1px solid rgba(255,255,255,.25);border-bottom:1px solid rgba(255,255,255,.25);"></div>
+          <div style="border-bottom:1px solid rgba(255,255,255,.25);"></div>
+          <div style="border-right:1px solid rgba(255,255,255,.25);border-bottom:1px solid rgba(255,255,255,.25);"></div>
+          <div style="border-right:1px solid rgba(255,255,255,.25);border-bottom:1px solid rgba(255,255,255,.25);"></div>
+          <div style="border-bottom:1px solid rgba(255,255,255,.25);"></div>
+          <div style="border-right:1px solid rgba(255,255,255,.25);"></div>
+          <div style="border-right:1px solid rgba(255,255,255,.25);"></div>
+          <div></div>
+        </div>
+      </div>
+      <!-- Drag handles (8 directions) -->
+      <div class="crop-handle" id="ch-nw" style="position:absolute;width:16px;height:16px;background:#fff;border:2px solid #555;border-radius:3px;cursor:nwse-resize;transform:translate(-50%,-50%);"></div>
+      <div class="crop-handle" id="ch-n"  style="position:absolute;width:16px;height:16px;background:#fff;border:2px solid #555;border-radius:3px;cursor:ns-resize;transform:translate(-50%,-50%);"></div>
+      <div class="crop-handle" id="ch-ne" style="position:absolute;width:16px;height:16px;background:#fff;border:2px solid #555;border-radius:3px;cursor:nesw-resize;transform:translate(-50%,-50%);"></div>
+      <div class="crop-handle" id="ch-e"  style="position:absolute;width:16px;height:16px;background:#fff;border:2px solid #555;border-radius:3px;cursor:ew-resize;transform:translate(-50%,-50%);"></div>
+      <div class="crop-handle" id="ch-se" style="position:absolute;width:16px;height:16px;background:#fff;border:2px solid #555;border-radius:3px;cursor:nwse-resize;transform:translate(-50%,-50%);"></div>
+      <div class="crop-handle" id="ch-s"  style="position:absolute;width:16px;height:16px;background:#fff;border:2px solid #555;border-radius:3px;cursor:ns-resize;transform:translate(-50%,-50%);"></div>
+      <div class="crop-handle" id="ch-sw" style="position:absolute;width:16px;height:16px;background:#fff;border:2px solid #555;border-radius:3px;cursor:nesw-resize;transform:translate(-50%,-50%);"></div>
+      <div class="crop-handle" id="ch-w"  style="position:absolute;width:16px;height:16px;background:#fff;border:2px solid #555;border-radius:3px;cursor:ew-resize;transform:translate(-50%,-50%);"></div>
     </div>
-    <div style="margin-bottom:1rem;display:flex;gap:.5rem;justify-content:center;">
-      <button onclick="rotateCrop(-90)" style="border:1px solid var(--border);background:var(--surface2);color:var(--text);border-radius:8px;padding:.4rem .8rem;cursor:pointer;font-size:.8rem;">↺ Rotate Left</button>
-      <button onclick="rotateCrop(90)" style="border:1px solid var(--border);background:var(--surface2);color:var(--text);border-radius:8px;padding:.4rem .8rem;cursor:pointer;font-size:.8rem;">↻ Rotate Right</button>
+    <!-- Zoom -->
+    <div style="margin-bottom:.6rem;">
+      <div style="display:flex;justify-content:space-between;margin-bottom:.2rem;">
+        <label style="font-size:.65rem;color:var(--muted);text-transform:uppercase;">Zoom</label>
+        <span id="crop-zoom-label" style="font-size:.65rem;color:var(--muted);">1.0×</span>
+      </div>
+      <input type="range" id="crop-zoom" min="0.1" max="5" step="0.01" value="1" style="width:100%;accent-color:var(--accent);" oninput="cropZoomFromSlider()"/>
+    </div>
+    <!-- Rotate + Flip -->
+    <div style="display:flex;gap:.4rem;margin-bottom:.85rem;flex-wrap:wrap;">
+      <button onclick="rotateCrop(-90)" style="flex:1;border:1px solid var(--border);background:var(--surface2);color:var(--text);border-radius:8px;padding:.4rem .6rem;cursor:pointer;font-size:.78rem;">↺ −90°</button>
+      <button onclick="rotateCrop(90)"  style="flex:1;border:1px solid var(--border);background:var(--surface2);color:var(--text);border-radius:8px;padding:.4rem .6rem;cursor:pointer;font-size:.78rem;">↻ +90°</button>
+      <button onclick="flipCrop('h')"   style="flex:1;border:1px solid var(--border);background:var(--surface2);color:var(--text);border-radius:8px;padding:.4rem .6rem;cursor:pointer;font-size:.78rem;">⇔ Flip H</button>
+      <button onclick="flipCrop('v')"   style="flex:1;border:1px solid var(--border);background:var(--surface2);color:var(--text);border-radius:8px;padding:.4rem .6rem;cursor:pointer;font-size:.78rem;">⇕ Flip V</button>
+      <button onclick="resetCrop()"     style="flex:1;border:1px solid var(--border);background:var(--surface2);color:var(--muted);border-radius:8px;padding:.4rem .6rem;cursor:pointer;font-size:.78rem;">↩ Reset</button>
     </div>
     <div style="display:flex;gap:.75rem;">
       <button class="save-modal-cancel" style="flex:1;" onclick="closeCropModal()">Cancel</button>
