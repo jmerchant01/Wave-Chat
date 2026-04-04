@@ -1676,21 +1676,22 @@ function hasCollision(id, c, r, w, h){
 // Find the largest N where GAP stays >= MIN_GAP (keeps dots readable).
 function recalcGridSize(){
   if(window.innerWidth <= 700) return;
-  const body = document.getElementById('home-body');
-  if(!body) return;
-  const W = body.offsetWidth;
-  const MIN_GAP = 6;
-  // Find largest N such that GAP = (W - N*CELL)/(N+1) >= MIN_GAP
-  let bestN = 6, bestGAP = (W - 6*CELL) / 7;
-  for(let N = 6; N <= 40; N++){
-    const g = (W - N * CELL) / (N + 1);
-    if(g < MIN_GAP) break;
-    bestN = N; bestGAP = g;
+  // window.innerWidth = full viewport width, no scrollbar ambiguity
+  // home-body spans full width (flex child of full-width #landing, no sidebar)
+  const W = window.innerWidth;
+  const MIN_GAP = 5;
+  // Solve: GAP*(N+1) + N*CELL = W → last dot gx(N) exactly at right edge
+  // Find largest N where GAP = (W - N*CELL)/(N+1) >= MIN_GAP
+  let bestN = 6;
+  for(let N = 6; N <= 60; N++){
+    if((W - N * CELL) / (N + 1) < MIN_GAP) break;
+    bestN = N;
   }
-  GAP = bestGAP;
-  // Sync CSS: dot grid background uses --ggap for size and position
-  document.documentElement.style.setProperty('--ggap', GAP.toFixed(3) + 'px');
-  document.documentElement.style.setProperty('--gcell', CELL + 'px');
+  GAP = (W - bestN * CELL) / (bestN + 1);
+  // Push CSS variables — both background-size and background-position use --ggap
+  const root = document.documentElement;
+  root.style.setProperty('--ggap', GAP.toFixed(4) + 'px');
+  root.style.setProperty('--gcell', CELL + 'px');
 }
 
 function initDraggablePanels(){
@@ -1703,6 +1704,8 @@ function initDraggablePanels(){
   applyLayout();
   addResizeHandles();
   attachGridInteraction();
+  // Re-run after full paint so window.innerWidth is final
+  requestAnimationFrame(()=>{ recalcGridSize(); applyLayout(); });
   document.addEventListener('mousedown', e=>{
     if(!e.target.closest('.home-section')) deselectPanel();
   });
@@ -3806,16 +3809,23 @@ async function searchPublicRooms(){
 function renderDiscoverRooms(rooms, startIdx){
   const el = document.getElementById('public-rooms-list');
   if(!el) return;
-  if(!rooms.length){
+  // Deduplicate by roomId before rendering
+  const seen = new Set();
+  const unique = rooms.filter(r=>{ if(seen.has(r.roomId)) return false; seen.add(r.roomId); return true; });
+  if(!unique.length){
     el.innerHTML='<div class="friends-empty" style="padding:.5rem 0;">No public rooms right now.<br>Create one to appear here!</div>';
     return;
   }
   const panelEl = document.getElementById('panel-public-rooms');
   const panelH = panelEl ? panelEl.offsetHeight : 300;
   const maxVisible = Math.max(1, Math.floor((panelH - 40 - 44 - 24 - 20) / 65));
+  // Clamp startIdx to valid range and show a non-repeating window
+  const N = unique.length;
+  const start = startIdx % N;
   el.innerHTML='';
-  for(let i=0; i<Math.min(maxVisible, rooms.length); i++){
-    const r = rooms[(startIdx+i) % rooms.length];
+  const count = Math.min(maxVisible, N);
+  for(let i=0; i<count; i++){
+    const r = unique[(start + i) % N];
     const card = document.createElement('div');
     card.className='discover-card';
     card.onclick=()=>{ document.getElementById('join-code').value=r.roomId; joinRoom(); };
@@ -3830,12 +3840,12 @@ function renderDiscoverRooms(rooms, startIdx){
       '<div class="discover-card-meta"><span class="discover-card-live"></span>'+r.participants+' live</div>';
     el.appendChild(card);
   }
-  if(rooms.length > 1){
+  if(N > 1){
     const dots = document.createElement('div');
     dots.style.cssText='display:flex;justify-content:center;gap:.3rem;margin-top:.35rem;';
-    rooms.slice(0,10).forEach((_,i)=>{
+    unique.slice(0,10).forEach((_,i)=>{
       const d=document.createElement('div');
-      d.style.cssText='width:5px;height:5px;border-radius:50%;background:'+(i===startIdx%rooms.length?'var(--accent)':'var(--border)')+';transition:background .3s;';
+      d.style.cssText='width:5px;height:5px;border-radius:50%;background:'+(i===start?'var(--accent)':'var(--border)')+';transition:background .3s;';
       dots.appendChild(d);
     });
     el.appendChild(dots);
@@ -3928,7 +3938,10 @@ function stopCommunityCycle(){ clearInterval(_trendingCommTimer); _trendingCommT
 function renderDiscoverCommunities(communities, startIdx){
   const el = document.getElementById('discover-communities-list');
   if(!el) return;
-  if(!communities.length){
+  // Deduplicate by _id before rendering
+  const seen = new Set();
+  const unique = communities.filter(c=>{ const id=(c._id||'').toString(); if(seen.has(id)) return false; seen.add(id); return true; });
+  if(!unique.length){
     el.innerHTML='<div class="friends-empty" style="padding:.5rem 0;">No public communities yet.</div>';
     return;
   }
@@ -3936,9 +3949,11 @@ function renderDiscoverCommunities(communities, startIdx){
   const panelH = panelEl ? panelEl.offsetHeight : 320;
   const available = panelH - 40 - 44 - 24 - 20;
   const maxVisible = Math.max(1, Math.floor(available / 65));
+  const N = unique.length;
+  const start = startIdx % N;
   el.innerHTML = '';
-  for(let i=0; i<Math.min(maxVisible, communities.length); i++){
-    const c = communities[(startIdx+i) % communities.length];
+  for(let i=0; i<Math.min(maxVisible, N); i++){
+    const c = unique[(start+i) % N];
     const memberCount = c.memberCount || c.members?.filter(m=>!m.banned).length || 0;
     const card = document.createElement('div');
     card.className = 'discover-card';
@@ -3955,12 +3970,12 @@ function renderDiscoverCommunities(communities, startIdx){
     el.appendChild(card);
   }
   // Cycle indicator dots
-  if(communities.length > 1){
+  if(N > 1){
     const dots = document.createElement('div');
     dots.style.cssText='display:flex;justify-content:center;gap:.3rem;margin-top:.35rem;';
-    communities.slice(0,10).forEach((_,i)=>{
+    unique.slice(0,10).forEach((_,i)=>{
       const d=document.createElement('div');
-      d.style.cssText='width:5px;height:5px;border-radius:50%;background:'+(i===startIdx%communities.length?'var(--accent)':'var(--border)')+';transition:background .3s;';
+      d.style.cssText='width:5px;height:5px;border-radius:50%;background:'+(i===start?'var(--accent)':'var(--border)')+';transition:background .3s;';
       dots.appendChild(d);
     });
     el.appendChild(dots);
@@ -5518,14 +5533,17 @@ async function createRoom(){
   const isPublic = document.getElementById('room-public')?.checked||false;
   const tagsRaw = document.getElementById('room-tags')?.value||'';
   const tags = tagsRaw.split(/[\s,]+/).filter(Boolean).map(t=>t.replace('#',''));
-  socket.on('connect',()=>socket.emit('create_room',{name:myName, roomName:rName, userId:currentUser?.id||null, inviteFriendIds: inviteIds, isPublic, tags, avatar:_roomAvatarBase64||null}));
+  // Emit immediately if already connected (mic permission may have delayed us past connect)
+  const doCreate=()=>socket.emit('create_room',{name:myName, roomName:rName, userId:currentUser?.id||null, inviteFriendIds: inviteIds, isPublic, tags, avatar:_roomAvatarBase64||null});
+  if(socket.connected) doCreate(); else socket.once('connect', doCreate);
 }
 async function joinRoom(){
   myName = (currentUser?.username) || document.getElementById('join-name').value.trim() || 'Guest';
   const code = document.getElementById('join-code').value.trim().toUpperCase();
   if(!code){toast('Enter a room code');return;}
   disableForms(); await initMic(); connectSocket();
-  socket.on('connect',()=>socket.emit('join_room',{roomId:code, name:myName, userId:currentUser?.id||null}));
+  const doJoin=()=>socket.emit('join_room',{roomId:code, name:myName, userId:currentUser?.id||null});
+  if(socket.connected) doJoin(); else socket.once('connect', doJoin);
 }
 function disableForms(){document.getElementById('create-btn').disabled=true;document.getElementById('join-btn').disabled=true;}
 function enableForms(){document.getElementById('create-btn').disabled=false;document.getElementById('join-btn').disabled=false;}

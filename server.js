@@ -506,6 +506,15 @@ io.on('connection', (socket) => {
     room.participants.delete(socket.id);
     if(room.participants.size===0){rooms.delete(r);return;}
     if(room.hostId===socket.id){
+      if(room.communityId){
+        // Community rooms always shut down when the host leaves — no promotion
+        io.to(r).emit('room_ended');
+        rooms.delete(r);
+        if(room.isPublic) publicRooms.delete(r);
+        broadcastCommunityRoomUpdate(io, room, r, true);
+        return;
+      }
+      // Regular rooms: promote the next participant to host
       const newHostId=room.participants.keys().next().value;
       room.hostId=newHostId;
       const p=room.participants.get(newHostId); if(p) p.isHost=true;
@@ -513,7 +522,6 @@ io.on('connection', (socket) => {
     }
     io.to(r).emit('participant_left',{id:socket.id});
     io.to(r).emit('room_state_update',getRoomPublicState(room));
-    // Update public room participant count
     if(room.isPublic){ if(room.participants.size===0) publicRooms.delete(r); else if(publicRooms.has(r)) publicRooms.get(r).participants=room.participants.size; }
     if(room.communityId){ if(room.participants.size===0){ broadcastCommunityRoomUpdate(io,room,r,true); } else { broadcastCommunityRoomUpdate(io,room,r,false); } }
   });
