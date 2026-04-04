@@ -1619,7 +1619,7 @@ let dragSrcPanel = null;
 //  DOT-GRID PANEL SYSTEM  v2
 // ══════════════════════════════════════════════════════
 
-const PANEL_LAYOUT_KEY = 'wave-grid-layout-v6';
+const PANEL_LAYOUT_KEY = 'wave-grid-layout-v7';
 const PANEL_IDS = ['panel-rooms','panel-friends','panel-messages','panel-communities','panel-public-rooms','panel-discover-communities'];
 const CELL = 68, GAP = 8;
 
@@ -1745,35 +1745,13 @@ function addResizeHandles(){
   });
 }
 
-// Convert clientX/Y to coordinates local to the home-body element
-// Uses offsetLeft/Top chain to avoid getBoundingClientRect viewport issues
-function toBodyLocal(clientX, clientY){
-  const body = document.getElementById('home-body');
-  // Walk up offsetParent chain to get body's true page offset
-  let ox=0, oy=0, el=body;
-  while(el){
-    ox += el.offsetLeft;
-    oy += el.offsetTop;
-    el = el.offsetParent;
-  }
-  // Account for any scroll on the body itself and on ancestor elements
-  let sx=0, sy=0, sel=body;
-  while(sel && sel !== document.body){
-    sx += sel.scrollLeft;
-    sy += sel.scrollTop;
-    sel = sel.parentElement;
-  }
-  // clientX/Y -> page coords (add window scroll) -> body local
-  const pageX = clientX + window.scrollX;
-  const pageY = clientY + window.scrollY;
-  return {
-    x: pageX - ox + sx,
-    y: pageY - oy + sy
-  };
-}
-
 function attachGridInteraction(){
   const body = document.getElementById('home-body');
+
+  // ── DELTA-BASED DRAG ──
+  // Instead of converting clientX/Y to body-local coords (fragile),
+  // we track the DELTA from mousedown and add it to the panel's known
+  // snapped grid position. This works regardless of scroll, DPI, or layout.
 
   const down = (target, clientX, clientY, prevent)=>{
     if(window.innerWidth <= 700) return;
@@ -1785,13 +1763,12 @@ function attachGridInteraction(){
     if(prevent) prevent();
     selectPanel(panel);
     const p = gridLayout[panel.id];
-    const loc = toBodyLocal(clientX, clientY);
 
     if(resizeH){
       interaction = {
         type:'resize', panel,
         dir: resizeH.dataset.dir,
-        startClientX: clientX, startClientY: clientY,
+        startX: clientX, startY: clientY,
         startC:p.c, startR:p.r, startW:p.w, startH:p.h,
         liveC:p.c, liveR:p.r, liveW:p.w, liveH:p.h
       };
@@ -1800,9 +1777,11 @@ function attachGridInteraction(){
       body.classList.add('grid-active');
       interaction = {
         type:'drag', panel,
-        ox: loc.x - gx(p.c),
-        oy: loc.y - gy(p.r),
-        liveC:p.c, liveR:p.r,
+        startX: clientX, startY: clientY,
+        // Record the panel's current SNAPPED pixel position as the base
+        baseLeft: gx(p.c),
+        baseTop:  gy(p.r),
+        liveC: p.c, liveR: p.r,
         willCollide: false
       };
     }
@@ -1821,9 +1800,13 @@ function attachGridInteraction(){
     const cols = totalCols();
 
     if(type==='drag'){
-      const loc = toBodyLocal(clientX, clientY);
-      const rawX = loc.x - interaction.ox;
-      const rawY = loc.y - interaction.oy;
+      // Delta from mousedown in screen pixels
+      const dx = clientX - interaction.startX;
+      const dy = clientY - interaction.startY;
+      // New desired panel top-left in body-local px
+      const rawX = interaction.baseLeft + dx;
+      const rawY = interaction.baseTop  + dy;
+      // Snap to nearest grid dot
       const sc = Math.max(0, Math.min(snapCol(rawX), cols - p.w));
       const sr = Math.max(0, snapRow(rawY));
       panel.style.left = gx(sc) + 'px';
@@ -1839,8 +1822,9 @@ function attachGridInteraction(){
 
     if(type==='resize'){
       const STEP = CELL + GAP;
-      const dx = clientX - interaction.startClientX;
-      const dy = clientY - interaction.startClientY;
+      // Delta from resize-start in screen pixels → convert to grid units
+      const dx = clientX - interaction.startX;
+      const dy = clientY - interaction.startY;
       const dir = interaction.dir;
       const dC = Math.round(dx / STEP);
       const dR = Math.round(dy / STEP);
