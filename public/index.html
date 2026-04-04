@@ -1382,6 +1382,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
           <div id="cv-room-status" style="display:flex;align-items:center;gap:.4rem;font-size:.68rem;color:var(--muted);"></div>
           <button id="cv-create-room-btn" onclick="handleRoomChannelBtn()" style="padding:.35rem .75rem;border-radius:7px;border:none;background:var(--accent);color:#fff;font-size:.72rem;cursor:pointer;font-family:'Inter',system-ui,sans-serif;font-weight:600;">🎙️ Create Room</button>
           <button id="cv-join-room-btn" onclick="joinActiveCommunityRoom()" class="hidden" style="padding:.35rem .75rem;border-radius:7px;border:1px solid var(--accent3);background:transparent;color:var(--accent3);font-size:.72rem;cursor:pointer;font-family:'Inter',system-ui,sans-serif;font-weight:600;">🔊 Join Room</button>
+          <button id="cv-end-room-btn" onclick="adminEndRoom()" class="hidden" style="padding:.35rem .75rem;border-radius:7px;border:1px solid var(--danger);background:transparent;color:var(--danger);font-size:.72rem;cursor:pointer;font-family:'Inter',system-ui,sans-serif;font-weight:600;" title="Force end room (admin)">⏹ End Room</button>
         </div>
         <button id="cv-delete-channel-btn" class="hidden" onclick="deleteChannel()" style="margin-left:auto;border:none;background:transparent;color:var(--danger);cursor:pointer;font-size:.75rem;">🗑</button>
       </div>
@@ -2757,21 +2758,23 @@ function updateRoomChannelUI(channel){
   const activeRoomId = channel.activeRoomId;
   const members = communityRoomMembers[activeRoomId]||[];
 
+  const endBtn = document.getElementById('cv-end-room-btn');
   if(activeRoomId){
     // Room is active
     idleEl.classList.add('hidden');
     activeEl.classList.remove('hidden');
     joinBtn.classList.remove('hidden');
+    if(endBtn) endBtn.classList.toggle('hidden', !isOwnerOrAdmin);
     createBtn.textContent='🎙️ New Room';
     roomStatus.innerHTML=`<span style="width:8px;height:8px;border-radius:50%;background:var(--accent3);animation:pulse 1.5s infinite;display:inline-block;"></span> <span style="color:var(--accent3);">Live</span>`;
     memberList.textContent = members.length ? `${members.length} member${members.length!==1?'s':''} in room: ${members.slice(0,5).join(', ')}${members.length>5?` +${members.length-5} more`:''}` : 'Room is active';
-    // Update join button with roomId
     document.getElementById('cv-join-room-btn').onclick = ()=>joinCommunityRoom(activeRoomId);
   } else {
     // No active room
     idleEl.classList.remove('hidden');
     activeEl.classList.add('hidden');
     joinBtn.classList.add('hidden');
+    if(endBtn) endBtn.classList.add('hidden');
     createBtn.textContent='🎙️ Create Room';
     roomStatus.innerHTML='';
     const idleTitle = document.getElementById('cv-room-idle-title');
@@ -4386,8 +4389,24 @@ async function createCommunityRoom(ch){
   }
 }
 
-function joinCommunityRoom(roomId){
-  // Join without closing community view
+async function joinCommunityRoom(roomId){
+  // Verify room exists before destroying homeSocket
+  try{
+    const _r = await fetch('/api/rooms/'+roomId+'/check');
+    const _d = await _r.json();
+    if(!_d.exists){
+      // Ghost room — clear it without connecting socket
+      const ch = currentCommunity?.channels?.find(c=>c.activeRoomId===roomId||c.activeRoomId?.toString()===roomId);
+      if(ch){ ch.activeRoomId=null; delete communityRoomMembers[roomId]; }
+      renderCVChannels(currentCommunity?.channels||[]);
+      if(currentChannelId){
+        const _ch2=currentCommunity?.channels?.find(c=>c._id===currentChannelId||c._id?.toString()===currentChannelId);
+        if(_ch2) updateRoomChannelUI(_ch2);
+      }
+      toast('⚠️ This room is no longer active');
+      return;
+    }
+  }catch(e){}
   window._lastCommunityId = currentCommunity?._id;
   document.getElementById('join-code').value = roomId;
   joinRoom();
@@ -4472,6 +4491,19 @@ async function openChannel(channel){
     roomBtns.classList.remove('hidden'); roomBtns.style.display='flex';
     deleteBtn.style.marginLeft='';
     deleteBtn.classList.toggle('hidden',!isOwnerOrAdmin);
+    // Verify room still exists on server before showing "Active" state
+    if(channel.activeRoomId){
+      try{
+        const _chk = await fetch('/api/rooms/'+channel.activeRoomId+'/check');
+        const _chkD = await _chk.json();
+        if(!_chkD.exists){
+          const _deadId = channel.activeRoomId;
+          channel.activeRoomId = null;
+          delete communityRoomMembers[_deadId];
+          renderCVChannels(currentCommunity?.channels||[]);
+        }
+      }catch(e){}
+    }
     updateRoomChannelUI(channel);
   } else {
     messagesEl.style.display='flex';
@@ -7232,6 +7264,32 @@ function openCropForUserAvatar(input){
   };
   reader.readAsDataURL(file);
   input.value='';
+}
+
+
+async function adminEndRoom(){
+  const ch = currentCommunity?.channels?.find(c=>c._id===currentChannelId||c._id?.toString()===currentChannelId);
+  if(!ch||!currentCommunity||!authToken) return;
+  if(!confirm('Force-end the active room in this channel?')) return;
+  try{
+    const res = await fetch('/api/rooms/admin-end',{
+      method:'POST',
+      headers:{'Content-Type':'application/json',Authorization:`Bearer ${authToken}`},
+      body:JSON.stringify({communityId:currentCommunity._id, channelId:ch._id})
+    });
+    const d = await res.json();
+    if(res.ok){
+      // Clear locally
+      const _deadId = ch.activeRoomId;
+      ch.activeRoomId = null;
+      if(_deadId) delete communityRoomMembers[_deadId];
+      renderCVChannels(currentCommunity.channels||[]);
+      updateRoomChannelUI(ch);
+      toast('✅ Room ended');
+    } else {
+      toast('⚠️ '+(d.error||'Could not end room'));
+    }
+  }catch(e){ toast('⚠️ Error: '+e.message); }
 }
 
 </script>

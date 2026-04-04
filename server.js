@@ -533,5 +533,52 @@ io.on('connection', (socket) => {
   });
 });
 
+// ── Check if a room exists (for ghost-room detection) ──
+app.get('/api/rooms/:roomId/check', (req, res) => {
+  const exists = rooms.has((req.params.roomId||'').toUpperCase());
+  res.json({ exists });
+});
+
+// ── Admin: force-end a community room channel ──
+app.post('/api/rooms/admin-end', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization||'';
+    const token = authHeader.replace('Bearer ','');
+    if(!token) return res.status(401).json({error:'Unauthorized'});
+    const jwt = require('jsonwebtoken');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const Community = require('./models/Community');
+    const { communityId, channelId } = req.body;
+    const community = await Community.findById(communityId);
+    if(!community) return res.status(404).json({error:'Community not found'});
+    const isOwner = community.ownerId.toString() === decoded.id;
+    const member = community.members?.find(m=>(m.userId?._id||m.userId)?.toString()===decoded.id);
+    const isAdmin = isOwner || member?.roles?.some(rid=>{
+      const role = community.roles?.find(r=>r._id?.toString()===rid?.toString());
+      return role?.permissions?.isAdmin;
+    });
+    if(!isAdmin) return res.status(403).json({error:'No permission'});
+    // Find and end the room matching this community+channel
+    let ended = false;
+    for(const [roomId, room] of rooms.entries()){
+      if((room.communityId||'')===communityId && (room.channelId||'')===channelId){
+        io.to(roomId).emit('room_ended');
+        broadcastCommunityRoomUpdate(io, room, roomId, true);
+        if(room.isPublic) publicRooms.delete(roomId);
+        rooms.delete(roomId);
+        ended = true;
+        break;
+      }
+    }
+    // Even if no live room, clear the ghost by broadcasting ended=true
+    if(!ended){
+      io.to(`community:${communityId}`).emit('community_room_update',{
+        communityId, channelId, roomId:'ghost', members:[], ended:true
+      });
+    }
+    res.json({ success: true, ended });
+  } catch(e) { res.status(500).json({error:e.message}); }
+});
+
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`🌊 WAVE running on port ${PORT}`));
