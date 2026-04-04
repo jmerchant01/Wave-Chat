@@ -1621,7 +1621,7 @@ let dragSrcPanel = null;
 
 const PANEL_LAYOUT_KEY = 'wave-grid-layout-v7';
 const PANEL_IDS = ['panel-rooms','panel-friends','panel-messages','panel-communities','panel-public-rooms','panel-discover-communities'];
-const CELL = 68, GAP = 8;
+const CELL = 68; let GAP = 8; // GAP recalculated dynamically on resize
 
 const DEFAULT_LAYOUT = {
   // Col 0-3: Voice rooms (tall left column)
@@ -1670,12 +1670,35 @@ function hasCollision(id, c, r, w, h){
   return false;
 }
 
+// Recalculate GAP so the rightmost dot lands exactly at the right edge.
+// We want: gx(N) = GAP + N*(CELL+GAP) = W
+// Which means: GAP*(N+1) + N*CELL = W  →  GAP = (W - N*CELL) / (N+1)
+// Find the largest N where GAP stays >= MIN_GAP (keeps dots readable).
+function recalcGridSize(){
+  if(window.innerWidth <= 700) return;
+  const body = document.getElementById('home-body');
+  if(!body) return;
+  const W = body.offsetWidth;
+  const MIN_GAP = 6;
+  // Find largest N such that GAP = (W - N*CELL)/(N+1) >= MIN_GAP
+  let bestN = 6, bestGAP = (W - 6*CELL) / 7;
+  for(let N = 6; N <= 40; N++){
+    const g = (W - N * CELL) / (N + 1);
+    if(g < MIN_GAP) break;
+    bestN = N; bestGAP = g;
+  }
+  GAP = bestGAP;
+  // Sync CSS: dot grid background uses --ggap for size and position
+  document.documentElement.style.setProperty('--ggap', GAP.toFixed(3) + 'px');
+  document.documentElement.style.setProperty('--gcell', CELL + 'px');
+}
+
 function initDraggablePanels(){
   const body = document.getElementById('home-body');
   if(!body) return;
   const saved = loadLayout();
   gridLayout = saved || JSON.parse(JSON.stringify(DEFAULT_LAYOUT));
-  // Ensure no panels overlap on load
+  recalcGridSize();
   resolveOverlaps();
   applyLayout();
   addResizeHandles();
@@ -1683,7 +1706,11 @@ function initDraggablePanels(){
   document.addEventListener('mousedown', e=>{
     if(!e.target.closest('.home-section')) deselectPanel();
   });
-  window.addEventListener('resize', ()=>{ resolveOverlaps(); applyLayout(); });
+  window.addEventListener('resize', ()=>{
+    recalcGridSize();
+    resolveOverlaps();
+    applyLayout();
+  });
 }
 
 // Push overlapping panels down so nothing ever stacks on load
