@@ -3783,17 +3783,11 @@ async function searchPublicRooms(){
     const res = await fetch('/api/rooms/search?q='+encodeURIComponent(q));
     const {rooms} = await res.json();
     if(!q){
-      _trendingRooms = rooms.slice(0,10);
+      _trendingRooms = rooms;
       _trendingRoomsIdx = 0;
       if(labelEl) labelEl.style.display = _trendingRooms.length ? 'flex' : 'none';
       clearInterval(_trendingRoomsTimer);
-      renderDiscoverRooms(_trendingRooms, 0);
-      if(_trendingRooms.length > 1){
-        _trendingRoomsTimer = setInterval(()=>{
-          _trendingRoomsIdx = (_trendingRoomsIdx+1) % _trendingRooms.length;
-          renderDiscoverRooms(_trendingRooms, _trendingRoomsIdx);
-        }, 5000);
-      }
+      renderDiscoverRooms(_trendingRooms);
     } else {
       clearInterval(_trendingRoomsTimer);
       if(labelEl) labelEl.style.display='none';
@@ -3806,26 +3800,18 @@ async function searchPublicRooms(){
   hidePanelSpinner('rooms-spinner');
 }
 
-function renderDiscoverRooms(rooms, startIdx){
+function renderDiscoverRooms(rooms){
   const el = document.getElementById('public-rooms-list');
   if(!el) return;
-  // Deduplicate by roomId before rendering
+  // Deduplicate by roomId
   const seen = new Set();
-  const unique = rooms.filter(r=>{ if(seen.has(r.roomId)) return false; seen.add(r.roomId); return true; });
+  const unique = (rooms||[]).filter(r=>{ if(seen.has(r.roomId)) return false; seen.add(r.roomId); return true; });
   if(!unique.length){
     el.innerHTML='<div class="friends-empty" style="padding:.5rem 0;">No public rooms right now.<br>Create one to appear here!</div>';
     return;
   }
-  const panelEl = document.getElementById('panel-public-rooms');
-  const panelH = panelEl ? panelEl.offsetHeight : 300;
-  const maxVisible = Math.max(1, Math.floor((panelH - 40 - 44 - 24 - 20) / 65));
-  // Clamp startIdx to valid range and show a non-repeating window
-  const N = unique.length;
-  const start = startIdx % N;
   el.innerHTML='';
-  const count = Math.min(maxVisible, N);
-  for(let i=0; i<count; i++){
-    const r = unique[(start + i) % N];
+  unique.forEach(r=>{
     const card = document.createElement('div');
     card.className='discover-card';
     card.onclick=()=>{ document.getElementById('join-code').value=r.roomId; joinRoom(); };
@@ -3839,17 +3825,7 @@ function renderDiscoverRooms(rooms, startIdx){
       '</div>'+
       '<div class="discover-card-meta"><span class="discover-card-live"></span>'+r.participants+' live</div>';
     el.appendChild(card);
-  }
-  if(N > 1){
-    const dots = document.createElement('div');
-    dots.style.cssText='display:flex;justify-content:center;gap:.3rem;margin-top:.35rem;';
-    unique.slice(0,10).forEach((_,i)=>{
-      const d=document.createElement('div');
-      d.style.cssText='width:5px;height:5px;border-radius:50%;background:'+(i===start?'var(--accent)':'var(--border)')+';transition:background .3s;';
-      dots.appendChild(d);
-    });
-    el.appendChild(dots);
-  }
+  });
 }
 
 function renderPublicRooms(rooms, q){
@@ -3914,11 +3890,10 @@ async function loadDiscoverCommunities(){
       const res2 = await fetch('/api/communities/search?q=a',{headers:{Authorization:`Bearer ${authToken}`}});
       if(res2.ok){ const d=await res2.json(); communities=d.communities||[]; }
     }
-    _trendingCommunities = communities.slice(0,10);
+    _trendingCommunities = communities;
     _trendingCommIdx = 0;
     stopCommunityCycle();
-    renderDiscoverCommunities(_trendingCommunities, 0);
-    if(_trendingCommunities.length > 1) startCommunityCycle();
+    renderDiscoverCommunities(_trendingCommunities);
   }catch(e){
     const el=document.getElementById('discover-communities-list');
     if(el) el.innerHTML='<div class="friends-empty" style="padding:.5rem 0;">Could not load communities.</div>';
@@ -3935,26 +3910,18 @@ function startCommunityCycle(){
 }
 function stopCommunityCycle(){ clearInterval(_trendingCommTimer); _trendingCommTimer=null; }
 
-function renderDiscoverCommunities(communities, startIdx){
+function renderDiscoverCommunities(communities){
   const el = document.getElementById('discover-communities-list');
   if(!el) return;
-  // Deduplicate by _id before rendering
   const seen = new Set();
-  const unique = communities.filter(c=>{ const id=(c._id||'').toString(); if(seen.has(id)) return false; seen.add(id); return true; });
+  const unique = (communities||[]).filter(c=>{ const id=(c._id||'').toString(); if(seen.has(id)) return false; seen.add(id); return true; });
   if(!unique.length){
     el.innerHTML='<div class="friends-empty" style="padding:.5rem 0;">No public communities yet.</div>';
     return;
   }
-  const panelEl = document.getElementById('panel-discover-communities');
-  const panelH = panelEl ? panelEl.offsetHeight : 320;
-  const available = panelH - 40 - 44 - 24 - 20;
-  const maxVisible = Math.max(1, Math.floor(available / 65));
-  const N = unique.length;
-  const start = startIdx % N;
   el.innerHTML = '';
-  for(let i=0; i<Math.min(maxVisible, N); i++){
-    const c = unique[(start+i) % N];
-    const memberCount = c.memberCount || c.members?.filter(m=>!m.banned).length || 0;
+  unique.forEach(c=>{
+    const memberCount = c.memberCount || 0;
     const card = document.createElement('div');
     card.className = 'discover-card';
     card.onclick = ()=> authToken ? joinOrOpenCommunity(c._id, c.isMember) : null;
@@ -3968,20 +3935,8 @@ function renderDiscoverCommunities(communities, startIdx){
       '</div>' +
       '<div class="discover-card-meta">👥 '+memberCount+'<br><span style="color:var(--accent);font-size:.58rem;">'+(c.isMember?'Open →':'Join →')+'</span></div>';
     el.appendChild(card);
-  }
-  // Cycle indicator dots
-  if(N > 1){
-    const dots = document.createElement('div');
-    dots.style.cssText='display:flex;justify-content:center;gap:.3rem;margin-top:.35rem;';
-    unique.slice(0,10).forEach((_,i)=>{
-      const d=document.createElement('div');
-      d.style.cssText='width:5px;height:5px;border-radius:50%;background:'+(i===start?'var(--accent)':'var(--border)')+';transition:background .3s;';
-      dots.appendChild(d);
-    });
-    el.appendChild(dots);
-  }
+  });
 }
-
 async function searchDiscoverCommunities(q){
   showPanelSpinner('discover-communities-spinner');
   panelLoading('discover-communities-list');
@@ -5401,7 +5356,28 @@ function connectSocket(){
   socket.on('message_deleted',({msgId})=>{
     const el=document.getElementById(msgId); if(el)el.remove();
   });
-  socket.on('error_msg',(msg)=>{toast(`❌ ${msg}`);enableForms();});
+  socket.on('error_msg',(msg)=>{
+    toast(`❌ ${msg}`);
+    enableForms();
+    // If room not found while trying to join a community room, clear ghost activeRoomId
+    if(msg.toLowerCase().includes('not found') || msg.toLowerCase().includes('room')){
+      if(window._lastCommunityId){
+        // Find the channel whose activeRoomId we tried to join and clear it
+        if(currentCommunity){
+          const code = document.getElementById('join-code')?.value?.trim();
+          currentCommunity.channels?.forEach(ch=>{
+            if(ch.activeRoomId === code || ch.activeRoomId === code?.toLowerCase()){
+              ch.activeRoomId = null;
+            }
+          });
+          renderCVChannels(currentCommunity.channels||[]);
+        }
+      }
+    }
+    // Re-init homeSocket so the user isn't left disconnected
+    if(!homeSocket || !homeSocket.connected) initHomeSocket();
+    socket.disconnect(); socket = null;
+  });
 
   socket.on('screen_requests_toggle',({enabled})=>{
     screenRequestsEnabled=enabled;

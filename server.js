@@ -504,14 +504,20 @@ io.on('connection', (socket) => {
     const r=socket.data.roomId; if(!r) return;
     const room=rooms.get(r); if(!room) return;
     room.participants.delete(socket.id);
-    if(room.participants.size===0){rooms.delete(r);return;}
+    if(room.participants.size===0){
+      // Always broadcast community room ended BEFORE deleting so members clear their ghost room
+      if(room.communityId) broadcastCommunityRoomUpdate(io, room, r, true);
+      if(room.isPublic) publicRooms.delete(r);
+      rooms.delete(r);
+      return;
+    }
     if(room.hostId===socket.id){
       if(room.communityId){
         // Community rooms always shut down when the host leaves — no promotion
         io.to(r).emit('room_ended');
-        rooms.delete(r);
         if(room.isPublic) publicRooms.delete(r);
         broadcastCommunityRoomUpdate(io, room, r, true);
+        rooms.delete(r);
         return;
       }
       // Regular rooms: promote the next participant to host
