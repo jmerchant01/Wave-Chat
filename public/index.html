@@ -662,6 +662,27 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .msg-mention-me{background:rgba(255,101,132,.22);color:var(--accent2);border-radius:3px;padding:0 2px;font-weight:600;animation:pulse 2s infinite;}
 .cv-unread-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--accent2);margin-left:auto;flex-shrink:0;}
 
+
+/* ── Community inline room ── */
+#cv-room-participants .cv-p-tile{
+  display:flex;flex-direction:column;align-items:center;gap:.4rem;
+  padding:.75rem .6rem;border-radius:12px;background:var(--surface2);
+  border:2px solid transparent;min-width:90px;max-width:120px;flex:1;
+  transition:border-color .2s;position:relative;
+}
+#cv-room-participants .cv-p-tile.speaking{ border-color:var(--accent3); }
+#cv-room-participants .cv-p-tile.muted .cv-p-mic{ opacity:.35; }
+.cv-p-avatar{
+  width:46px;height:46px;border-radius:10px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.1rem;font-weight:700;color:#fff;
+  border:2px solid transparent;flex-shrink:0;
+}
+.cv-p-tile.speaking .cv-p-avatar{ border-color:var(--accent3); }
+.cv-p-name{ font-size:.68rem;font-weight:600;color:var(--text);text-align:center;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+.cv-p-mic{ font-size:.75rem; }
+#cv-mic-btn.muted{ border-color:var(--danger);color:var(--danger); }
+
 .panel-loading{display:flex;align-items:center;justify-content:center;padding:1.5rem 0;flex-direction:column;gap:.5rem;}
 .panel-spinner{width:26px;height:26px;border:2.5px solid var(--border);border-top-color:var(--accent);border-radius:8px;animation:spin .7s linear infinite;flex-shrink:0;}
 @keyframes spin{to{transform:rotate(360deg);}}
@@ -1387,18 +1408,36 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
         <button id="cv-delete-channel-btn" class="hidden" onclick="deleteChannel()" style="margin-left:auto;border:none;background:transparent;color:var(--danger);cursor:pointer;font-size:.75rem;">🗑</button>
       </div>
       <!-- Room channel view (replaces messages for room type) -->
-      <div id="cv-room-view" class="hidden" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem;padding:2rem;">
-        <div id="cv-room-idle" style="text-align:center;">
+      <div id="cv-room-view" class="hidden" style="flex:1;display:flex;flex-direction:column;overflow:hidden;">
+        <!-- Idle state: no active room -->
+        <div id="cv-room-idle" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem;padding:2rem;text-align:center;">
           <div style="font-size:2.5rem;margin-bottom:.75rem;">🎙️</div>
           <div style="font-family:'Syne',sans-serif;font-size:1rem;font-weight:700;margin-bottom:.4rem;" id="cv-room-idle-title">No active room</div>
           <div style="font-size:.75rem;color:var(--muted);max-width:260px;line-height:1.6;" id="cv-room-idle-sub">Create a room to start a voice session with community members.</div>
         </div>
-        <div id="cv-room-active-info" class="hidden" style="text-align:center;">
+        <!-- Active state: room exists but user hasn't joined -->
+        <div id="cv-room-active-info" class="hidden" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem;padding:2rem;text-align:center;">
           <div style="display:flex;align-items:center;justify-content:center;gap:.5rem;margin-bottom:.5rem;">
             <div style="width:10px;height:10px;border-radius:8px;background:var(--accent3);animation:pulse 1.5s infinite;"></div>
             <span style="font-family:'Syne',sans-serif;font-size:1rem;font-weight:700;color:var(--accent3);">Room Active</span>
           </div>
           <div id="cv-room-member-list" style="font-size:.75rem;color:var(--muted);margin-bottom:1rem;"></div>
+        </div>
+        <!-- LIVE state: user is in the room — inline room UI -->
+        <div id="cv-room-live" class="hidden" style="flex:1;display:flex;flex-direction:column;overflow:hidden;">
+          <!-- Participant tiles -->
+          <div id="cv-room-participants" style="flex:1;display:flex;flex-wrap:wrap;gap:.75rem;padding:1.25rem;overflow-y:auto;align-content:flex-start;"></div>
+          <!-- Inline room control bar -->
+          <div style="padding:.65rem 1rem;border-top:1px solid var(--border);background:var(--surface);display:flex;align-items:center;gap:.6rem;flex-shrink:0;flex-wrap:wrap;">
+            <span style="font-size:.65rem;color:var(--accent3);display:flex;align-items:center;gap:.3rem;font-weight:700;">
+              <span style="width:6px;height:6px;border-radius:50%;background:var(--accent3);animation:pulse 1.5s infinite;display:inline-block;"></span>LIVE
+            </span>
+            <button id="cv-mic-btn" onclick="cvToggleMute()" style="padding:.3rem .65rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:.72rem;cursor:pointer;display:flex;align-items:center;gap:.3rem;">🎙️ <span id="cv-mic-label">Mic On</span></button>
+            <button onclick="cvToggleCam()" id="cv-cam-btn" style="padding:.3rem .65rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:.72rem;cursor:pointer;">📷 Camera</button>
+            <button onclick="copyRoomURL()" style="padding:.3rem .65rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:.72rem;cursor:pointer;">🔗 Invite</button>
+            <span id="cv-room-p-count" style="font-size:.68rem;color:var(--muted);margin-left:auto;"></span>
+            <button onclick="cvLeaveRoom()" style="padding:.3rem .75rem;border-radius:7px;border:none;background:var(--danger);color:#fff;font-size:.72rem;cursor:pointer;font-weight:600;">📞 Leave</button>
+          </div>
         </div>
       </div>
       <div id="cv-messages" style="flex:1;overflow-y:auto;padding:.75rem 1rem;display:flex;flex-direction:column;gap:.5rem;"></div>
@@ -4333,6 +4372,7 @@ async function createCommunityRoom(ch){
   const channelId = ch._id;
 
   try {
+    _communityRoomMode = true; // stay in community view
     // Initialize mic and socket, create room
     await initMic();
     connectSocket();
@@ -4390,6 +4430,7 @@ async function createCommunityRoom(ch){
 }
 
 async function joinCommunityRoom(roomId){
+  _communityRoomMode = true; // stay in community view
   // Verify room exists before destroying homeSocket
   try{
     const _r = await fetch('/api/rooms/'+roomId+'/check');
@@ -5372,10 +5413,17 @@ function connectSocket(){
     applyMute(); toast('🔊 You were unmuted by the host'); updateBadges();
   });
   socket.on('kicked',({reason})=>{toast(`⛔ ${reason}`);setTimeout(()=>leaveRoom(true),1500);});
-  socket.on('room_ended',()=>{toast('⛔ The host ended the room.');setTimeout(()=>leaveRoom(true),1500);});
+  socket.on('room_ended',()=>{
+    const msg = _communityRoomMode ? '⛔ Room ended by host' : '⛔ The host ended the room.';
+    toast(msg);
+    setTimeout(()=>{
+      if(_communityRoomMode) cvLeaveRoom();
+      else leaveRoom(true);
+    },1500);
+  });
   socket.on('promoted_to_host',()=>{
     isHost=true;
-    document.getElementById('host-panel').classList.remove('hidden');
+    if(!_communityRoomMode) document.getElementById('host-panel').classList.remove('hidden');
     toast('👑 You are now the host!');
     const p=participants.get(socket.id); if(p)p.isHost=true;
     renderParticipants();
@@ -6563,35 +6611,98 @@ function closePeer(peerId){
 }
 
 // ── Show room ──
+let _communityRoomMode = false;
+
 function showRoom(name){
+  if(_communityRoomMode){
+    // Show inline in community channel — do NOT hide landing or show #room
+    showCommunityInlineRoom(name);
+    return;
+  }
+  // Standard fullscreen room view
   document.getElementById('landing').style.display='none';
   document.getElementById('room').style.display='block';
   document.getElementById('room-title').textContent=name||'Voice Room';
   if(isHost)document.getElementById('host-panel').classList.remove('hidden');
   updateInvite(); updateConnDot('connected');
-  // Init resize handles once room is visible
   initResizeHandle('cam-resize','cam-area','cam-body', 80, 600);
   initResizeHandle('screen-resize','screen-area','screen-body', 80, 700);
   initChatResize();
-  // Only disable screen share if the API truly isn't available
   const screenBtn = document.getElementById('screen-btn');
   const hasDisplayMedia = !!(navigator.mediaDevices?.getDisplayMedia);
   const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-
   if(!hasDisplayMedia || isIOS){
-    // iOS Safari doesn't support getDisplayMedia at all
     if(screenBtn){
-      screenBtn.style.opacity = '0.4';
-      screenBtn.style.cursor = 'not-allowed';
-      screenBtn.title = isIOS
-        ? 'Screen share is not supported on iPhone/iPad (iOS limitation)'
-        : 'Screen share is not supported in this browser';
-      screenBtn.onclick = ()=>toast(isIOS
-        ? '🍎 iOS does not allow screen sharing from browsers. This is an Apple limitation.'
-        : '🖥️ Screen share is not supported in this browser.');
+      screenBtn.style.opacity = '0.4'; screenBtn.style.cursor = 'not-allowed';
+      screenBtn.title = isIOS ? 'Screen share not supported on iOS' : 'Screen share not supported in this browser';
+      screenBtn.onclick = ()=>toast(isIOS ? '🍎 iOS does not allow screen sharing.' : '🖥️ Not supported in this browser.');
     }
   }
-  // Android Chrome DOES support getDisplayMedia — button stays fully enabled
+}
+
+function showCommunityInlineRoom(name){
+  // Keep community view open; show live room inside cv-room-view
+  const idleEl = document.getElementById('cv-room-idle');
+  const activeEl = document.getElementById('cv-room-active-info');
+  const liveEl = document.getElementById('cv-room-live');
+  if(idleEl) idleEl.style.display='none';
+  if(activeEl) activeEl.classList.add('hidden');
+  if(liveEl){ liveEl.classList.remove('hidden'); liveEl.style.display='flex'; }
+  // Hide the join/create/end buttons since user is now in the room
+  const joinBtn=document.getElementById('cv-join-room-btn');
+  const createBtn=document.getElementById('cv-create-room-btn');
+  const endBtn=document.getElementById('cv-end-room-btn');
+  if(joinBtn) joinBtn.classList.add('hidden');
+  if(createBtn) createBtn.style.display='none';
+  if(endBtn) endBtn.classList.add('hidden');
+  // Update room status in header
+  const roomStatus=document.getElementById('cv-room-status');
+  if(roomStatus) roomStatus.innerHTML='<span style="width:8px;height:8px;border-radius:50%;background:var(--accent3);animation:pulse 1.5s infinite;display:inline-block;"></span> <span style="color:var(--accent3);">Live — In Room</span>';
+  cvRenderParticipants();
+}
+
+function cvRenderParticipants(){
+  const el = document.getElementById('cv-room-participants');
+  if(!el) return;
+  el.innerHTML = '';
+  const count = document.getElementById('cv-room-p-count');
+  if(count) count.textContent = participants.size + ' participant' + (participants.size!==1?'s':'');
+  participants.forEach((p, id)=>{
+    const isMine = id === socket?.id;
+    const tile = document.createElement('div');
+    tile.className = 'cv-p-tile' + (p.speaking?' speaking':'') + (p.muted?' muted':'');
+    const bg = colorFor(id);
+    tile.innerHTML =
+      '<div class="cv-p-avatar" style="background:'+bg+';">' +
+        (p.avatar ? '<img src="'+p.avatar+'" style="width:100%;height:100%;object-fit:cover;border-radius:8px;">' : esc((p.name||'?').slice(0,2).toUpperCase())) +
+      '</div>' +
+      '<div class="cv-p-name">' + esc(p.name||'?') + (p.isHost?' 👑':'') + (isMine?' (you)':'') + '</div>' +
+      '<span class="cv-p-mic">' + (p.muted?'🔇':'🎙️') + '</span>';
+    el.appendChild(tile);
+  });
+}
+
+function cvToggleMute(){
+  toggleMute(); // reuse existing mute logic
+  const btn=document.getElementById('cv-mic-btn');
+  const lbl=document.getElementById('cv-mic-label');
+  if(btn) btn.classList.toggle('muted', isMuted);
+  if(lbl) lbl.textContent = isMuted ? 'Unmute' : 'Mic On';
+}
+
+function cvToggleCam(){
+  toggleCamera(); // reuse existing camera logic
+}
+
+function cvLeaveRoom(){
+  _communityRoomMode = false;
+  leaveRoom();
+  // Return to community channel view after leaving
+  if(window._lastCommunityId){
+    setTimeout(()=>{
+      openCommunityById(window._lastCommunityId);
+    }, 100);
+  }
 }
 function updateInvite(){
   const url=`${location.origin}${location.pathname}?room=${roomId}`;
@@ -6606,6 +6717,8 @@ function updateBadges(){
 
 // ── Participants render ──
 function renderParticipants(){
+  // Also update community inline view if active
+  if(_communityRoomMode) cvRenderParticipants();
   const list=document.getElementById('p-list');
   const count=participants.size;
   document.getElementById('p-count').textContent=count;
@@ -6801,8 +6914,14 @@ function leaveRoom(forced=false){
   participants.clear(); videoTiles.clear(); camStreams.clear(); screenStreams.clear();
   isMuted=false;isSpeaking=false;isLocked=false;isChatLocked=false;isHost=false;
   roomId='';micHostLocked=false;isAllMuted=false;isCameraOn=false;isScreenSharing=false;screenShareAllowed=false;screenRequestsEnabled=true;
-  document.getElementById('room').style.display='none';
-  document.getElementById('landing').style.display='flex';
+  if(!_communityRoomMode){
+    document.getElementById('room').style.display='none';
+    document.getElementById('landing').style.display='flex';
+  }
+  _communityRoomMode = false;
+  // Restore community inline view to idle/active state
+  const liveEl=document.getElementById('cv-room-live');
+  if(liveEl){ liveEl.classList.add('hidden'); liveEl.style.display='none'; }
   document.getElementById('p-list').innerHTML='';
   document.getElementById('chat-messages').innerHTML='';
   document.getElementById('cam-grid').innerHTML='';
@@ -6823,7 +6942,7 @@ function leaveRoom(forced=false){
   enableForms();
   history.replaceState(null,'',location.pathname);
   // Re-register as online on home screen
-  if(authToken) initHomeSocket();
+  if(authToken && (!homeSocket || !homeSocket.connected)) initHomeSocket();
   clearPendingInvites();
 }
 
