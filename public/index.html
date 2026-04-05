@@ -207,7 +207,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .r2-drag{width:5px;flex-shrink:0;cursor:ew-resize;background:transparent;transition:background .15s;z-index:5;}
 .r2-drag:hover,.r2-drag.dragging{background:var(--accent);}
 /* Video grid — always shown */
-.r2-video-panel{flex-shrink:0;background:#0a0a12;display:flex;flex-direction:column;position:relative;min-height:80px;}
+.r2-video-panel{flex-shrink:0;background:#0a0a12;display:flex;flex-direction:column;position:relative;min-height:80px;border:1.5px solid #2a2a3a;border-radius:8px;margin:.35rem;overflow:hidden;}
 .r2-video-resize{height:5px;cursor:ns-resize;background:transparent;flex-shrink:0;transition:background .15s;}
 .r2-video-resize:hover,.r2-video-resize.dragging{background:var(--accent);}
 /* spotlight-row overridden in r2-tile block */
@@ -228,10 +228,10 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .r2-tile:hover .r2-tile-actions{opacity:1;}
 .r2-tile .ta-btn{width:20px;height:20px;border-radius:4px;border:none;background:rgba(0,0,0,.6);color:#fff;font-size:.6rem;cursor:pointer;display:flex;align-items:center;justify-content:center;}
 /* Screen share area */
-.r2-screen-panel{flex-shrink:0;background:#050508;border-top:1px solid var(--border);display:none;min-height:80px;position:relative;}
+.r2-screen-panel{flex-shrink:0;background:#050508;border:1.5px solid #2a2a3a;border-radius:8px;display:none;min-height:80px;position:relative;margin:.35rem .35rem 0;overflow:hidden;}
 .r2-screen-panel.visible{display:flex;flex-direction:column;}
-.r2-screen-panel .sp-header{padding:.3rem .6rem;font-size:.62rem;color:var(--muted);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
-.r2-screen-panel .sp-grid{flex:1;display:flex;gap:.3rem;padding:.3rem;overflow-x:auto;}
+.r2-screen-panel .sp-header{padding:.3rem .7rem;font-size:.62rem;color:var(--muted);border-bottom:1.5px solid #2a2a3a;display:flex;align-items:center;justify-content:space-between;background:#050508;}
+.r2-screen-panel .sp-grid{flex:1;display:flex;gap:.3rem;padding:.35rem;overflow-x:auto;}
 .r2-screen-resize{height:5px;cursor:ns-resize;background:transparent;flex-shrink:0;transition:background .15s;}
 .r2-screen-resize:hover,.r2-screen-resize.dragging{background:var(--accent2);}
 /* Right column */
@@ -1549,14 +1549,14 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
       </div>
 
       <!-- Video grid BELOW (always visible) -->
-      <div class="r2-video-panel" id="r2-video-panel" style="flex:1;min-height:80px;display:flex;flex-direction:column;">
+      <div class="r2-video-panel" id="r2-video-panel" style="flex:1;min-height:80px;display:flex;flex-direction:column;min-height:0;">
         <!-- Favorites half — takes 50% height when favs exist, hidden otherwise -->
         <div id="r2-fav-half" style="display:none;flex-shrink:0;overflow:hidden;"></div>
         <!-- Divider shown only when both halves have content -->
         <div id="r2-half-divider" style="display:none;height:3px;background:var(--border);flex-shrink:0;"></div>
         <!-- Regular participants half -->
         <div id="r2-grid-area" style="flex:1;padding:.35rem;display:flex;flex-wrap:wrap;gap:.35rem;overflow-y:auto;align-content:flex-start;min-height:60px;"></div>
-        <div class="r2-video-resize" id="r2-video-resize"></div>
+
       </div>
 
     </div>
@@ -8193,23 +8193,8 @@ function initR2Resize(){
   });
 }
 
-function initR2VideoResize(){
-  const handle=document.getElementById('r2-video-resize');
-  const panel=document.getElementById('r2-video-panel');
-  if(!handle||!panel) return;
-  let dragging=false, startY=0, startH=0;
-  handle.addEventListener('mousedown', e=>{
-    e.preventDefault(); dragging=true; startY=e.clientY; startH=panel.offsetHeight;
-    handle.classList.add('dragging');
-  });
-  document.addEventListener('mousemove', e=>{
-    if(!dragging) return;
-    const newH=Math.max(80, Math.min(window.innerHeight*0.85, startH+(e.clientY-startY)));
-    panel.style.flex='none'; panel.style.height=newH+'px';
-    r2RenderVideoGrid(); // re-render so fav half recalculates
-  });
-  document.addEventListener('mouseup', ()=>{ if(dragging){dragging=false;handle.classList.remove('dragging');} });
-}
+// Video panel always flex:1 — no manual resize needed
+function initR2VideoResize(){ /* no-op */ }
 
 function initR2ScreenResize(){
   const handle=document.getElementById('r2-screen-resize');
@@ -8222,7 +8207,14 @@ function initR2ScreenResize(){
   });
   document.addEventListener('mousemove', e=>{
     if(!dragging) return;
-    panel.style.height=Math.max(60, Math.min(600, startH+(e.clientY-startY)))+'px';
+    const col=panel.parentElement;
+    const colH=col?col.offsetHeight:800;
+    // Min 80px for screen, max 85% of column — video fills the rest via flex:1
+    const newH=Math.max(80, Math.min(Math.round(colH*0.85), startH+(e.clientY-startY)));
+    panel.style.height=newH+'px';
+    panel._userResized=true;
+    // Re-render video grid tiles to fill new available space
+    r2RenderVideoGrid();
   });
   document.addEventListener('mouseup', ()=>{ if(dragging){dragging=false;handle.classList.remove('dragging');} });
 }
@@ -8239,19 +8231,18 @@ function initR2ScreenResize(){
     if(!sp||!grid) return;
     if(screenStreams.size===0){
       sp.classList.remove('visible');
-      // Restore video panel to flex:1
+      sp._userResized=false;
       const vp=document.getElementById('r2-video-panel');
-      if(vp){ vp.style.flex='1'; vp.style.height=''; }
+      if(vp){ vp.style.flex='1'; vp.style.height=''; vp.style.minHeight='80px'; }
       r2RenderVideoGrid();
       return;
     }
     sp.classList.add('visible');
-    // Auto-size: screen gets 55%, video gets 45%
+    // Screen gets 55% initial height; video panel always flex:1 (fills remainder)
     const midH=sp.parentElement?.offsetHeight||600;
-    const screenFrac = 0.55;
-    sp.style.height=Math.round(midH*screenFrac)+'px';
+    if(!sp._userResized) sp.style.height=Math.round(midH*0.55)+'px';
     const vp=document.getElementById('r2-video-panel');
-    if(vp){ vp.style.flex='none'; vp.style.height=Math.round(midH*(1-screenFrac))+'px'; }
+    if(vp){ vp.style.flex='1'; vp.style.height=''; vp.style.minHeight='80px'; }
     const sc=document.getElementById('screen-count'); if(sc) sc.textContent=screenStreams.size;
     // Render screen tiles into r2-screen-grid — click to enlarge
     grid.innerHTML='';
