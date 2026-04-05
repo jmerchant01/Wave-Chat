@@ -781,5 +781,86 @@ app.get('/api/admin/communities/:id/full', async (req, res) => {
   } catch(e) { res.status(500).json({error:e.message}); }
 });
 
+
+// ── Admin: list all conversations for a user (grouped by other participant) ──
+app.get('/api/admin/users/:userId/conversations', async (req, res) => {
+  try {
+    const token = (req.headers.authorization||'').replace('Bearer ','');
+    const decoded = jwt.verify(token, JWT_SECRET);
+    if(!isAdminUser(decoded.username)) return res.status(403).json({error:'Admin only'});
+    const mongoose = require('mongoose');
+    const Message = require('./models/Message');
+    const User = require('./models/User');
+    const uid = new mongoose.Types.ObjectId(req.params.userId);
+
+    // Find all unique conversation partners
+    const pipeline = [
+      { $match: { $or:[{from:uid},{to:uid}], deleted:{$ne:true} } },
+      { $addFields: { otherUser: { $cond:[{$eq:['$from',uid]},'$to','$from'] } } },
+      { $sort: { createdAt: -1 } },
+      { $group: {
+          _id: '$otherUser',
+          lastMessage: { $first: '$$ROOT' },
+          messageCount: { $sum: 1 }
+      }},
+      { $sort: { 'lastMessage.createdAt': -1 } }
+    ];
+
+    const groups = await Message.aggregate(pipeline);
+    // Populate other user details
+    const otherIds = groups.map(g => g._id);
+    const users = await User.find({_id:{$in:otherIds}}).select('username avatar').lean();
+    const userMap = {};
+    users.forEach(u => userMap[u._id.toString()] = u);
+
+    const conversations = groups.map(g => {
+      const other = userMap[g._id.toString()] || {};
+      return {
+        otherUserId: g._id.toString(),
+        otherUsername: other.username || 'Unknown',
+        otherAvatar: other.avatar || null,
+        messageCount: g.messageCount,
+        lastMessage: {
+          text: g.lastMessage.text || '',
+          createdAt: g.lastMessage.createdAt,
+          fileUrl: g.lastMessage.fileUrl || null
+        }
+      };
+    });
+    res.json({ conversations });
+  } catch(e) { res.status(500).json({error:e.message}); }
+});
+
+// ── Admin: get message thread between two users (paginated) ──
+app.get('/api/admin/users/:userId/conversations/:otherUserId', async (req, res) => {
+  try {
+    const token = (req.headers.authorization||'').replace('Bearer ','');
+    const decoded = jwt.verify(token, JWT_SECRET);
+    if(!isAdminUser(decoded.username)) return res.status(403).json({error:'Admin only'});
+    const mongoose = require('mongoose');
+    const Message = require('./models/Message');
+    const { userId, otherUserId } = req.params;
+    const page = Math.max(1, parseInt(req.query.page)||1);
+    const limit = 50;
+    const uid  = new mongoose.Types.ObjectId(userId);
+    const oid  = new mongoose.Types.ObjectId(otherUserId);
+
+    const filter = {
+      $or: [{from:uid,to:oid},{from:oid,to:uid}],
+      deleted: {$ne:true}
+    };
+    const total = await Message.countDocuments(filter);
+    const messages = await Message.find(filter)
+      .populate('from','username avatar')
+      .populate('to','username avatar')
+      .sort({createdAt:1})
+      .skip((page-1)*limit)
+      .limit(limit)
+      .lean();
+
+    res.json({ messages, total, page, pages: Math.ceil(total/limit) });
+  } catch(e) { res.status(500).json({error:e.message}); }
+});
+
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`🌊 WAVE running on port ${PORT}`));

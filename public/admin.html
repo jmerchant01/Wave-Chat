@@ -161,10 +161,23 @@ body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;min-
     <div id="tab-messages-body" class="hidden">
       <div class="section-title">💬 Direct Messages</div>
       <div class="search-row">
-        <input class="search-input" id="dm-user-search" placeholder="Enter username to view their DMs…" onkeydown="if(event.key==='Enter')searchDMUser()"/>
+        <input class="search-input" id="dm-user-search" placeholder="Search by username…" onkeydown="if(event.key==='Enter')searchDMUser()"/>
         <button class="filter-btn" onclick="searchDMUser()">Search</button>
       </div>
+      <!-- User search results -->
       <div id="dm-user-results" style="margin-bottom:.75rem;"></div>
+      <!-- Conversation list (shown after selecting a user) -->
+      <div id="dm-conv-header" style="display:none;align-items:center;gap:.6rem;margin-bottom:.65rem;">
+        <button class="action-btn" onclick="clearDMView()">← Back</button>
+        <span id="dm-conv-username" style="font-size:.82rem;font-weight:700;"></span>
+        <span style="font-size:.68rem;color:var(--muted);" id="dm-conv-count"></span>
+      </div>
+      <div id="dm-conv-list" style="display:flex;flex-direction:column;gap:.4rem;"></div>
+      <!-- Thread view (shown after clicking a conversation) -->
+      <div id="dm-thread-header" style="display:none;align-items:center;gap:.6rem;margin-bottom:.65rem;">
+        <button class="action-btn" id="dm-thread-back-btn" onclick="">← Conversations</button>
+        <span id="dm-thread-title" style="font-size:.82rem;font-weight:700;"></span>
+      </div>
       <div id="dm-messages-list" style="display:flex;flex-direction:column;gap:.4rem;"></div>
       <div class="pagination" id="dm-pages"></div>
     </div>
@@ -589,59 +602,166 @@ async function deleteCommMsg(communityId, msgId, btn){
 }
 
 // ── DMs ──
-let dmSearchUserId=null;
-async function searchDMUser(){
-  const q=document.getElementById('dm-user-search').value.trim();
-  if(!q) return;
-  try{
-    const res=await apiFetch(`/api/admin/users?search=${encodeURIComponent(q)}&page=1`);
-    const d=await res.json();
-    const el=document.getElementById('dm-user-results');
-    el.innerHTML='';
-    d.users.forEach(u=>{
-      const div=document.createElement('div');
-      div.style.cssText='display:flex;align-items:center;gap:.5rem;padding:.4rem .6rem;background:var(--surface);border:1px solid var(--border);border-radius:8px;margin-bottom:.35rem;font-size:.75rem;cursor:pointer;';
-      div.innerHTML=`<div class="user-av" style="background:var(--accent);color:#fff;">${(u.username||'?').slice(0,2).toUpperCase()}</div><span style="flex:1;">${esc(u.username)}</span><button class="filter-btn active" onclick="loadDMs('${u.id}','${esc(u.username)}')">View DMs →</button>`;
-      el.appendChild(div);
-    });
-    if(!d.users.length) el.innerHTML='<div style="color:var(--muted);font-size:.75rem;">No users found.</div>';
-  }catch(e){}
+let dmCurrentUserId = null;
+let dmCurrentUsername = null;
+let dmCurrentOtherId = null;
+let dmCurrentOtherName = null;
+
+function clearDMView(){
+  dmCurrentUserId = null; dmCurrentUsername = null;
+  dmCurrentOtherId = null; dmCurrentOtherName = null;
+  document.getElementById('dm-conv-header').style.display = 'none';
+  document.getElementById('dm-conv-list').innerHTML = '';
+  document.getElementById('dm-thread-header').style.display = 'none';
+  document.getElementById('dm-messages-list').innerHTML = '';
+  document.getElementById('dm-pages').innerHTML = '';
+  document.getElementById('dm-user-results').innerHTML = '';
+  document.getElementById('dm-user-search').value = '';
 }
 
-async function loadDMs(userId, username, page=1){
-  dmSearchUserId=userId;
+async function searchDMUser(){
+  const q = document.getElementById('dm-user-search').value.trim();
+  if(!q) return;
   try{
-    const res=await apiFetch(`/api/admin/messages?userId=${userId}&page=${page}`);
-    const d=await res.json();
-    const el=document.getElementById('dm-messages-list');
-    el.innerHTML=`<div style="font-size:.72rem;color:var(--muted);margin-bottom:.5rem;">DMs involving <strong style="color:var(--text);">${esc(username)}</strong> (${d.total} total)</div>`;
-    if(!d.messages?.length){ el.innerHTML+='<div style="color:var(--muted);font-size:.75rem;">No messages found.</div>'; return; }
-    d.messages.forEach(m=>{
-      const div=document.createElement('div');
-      div.style.cssText='background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:.55rem .85rem;display:flex;align-items:flex-start;gap:.65rem;';
-      const time=new Date(m.createdAt).toLocaleString();
-      div.innerHTML=`
-        <div style="display:flex;align-items:center;gap:.4rem;font-size:.7rem;color:var(--muted);flex-shrink:0;min-width:180px;">
-          <span style="color:var(--text);font-weight:600;">${esc(m.from?.username||'?')}</span>
-          <span>→</span>
-          <span style="color:var(--text);">${esc(m.to?.username||'?')}</span>
+    const res = await apiFetch(`/api/admin/users?search=${encodeURIComponent(q)}&page=1`);
+    const d = await res.json();
+    const el = document.getElementById('dm-user-results');
+    el.innerHTML = '';
+    if(!d.users?.length){
+      el.innerHTML = '<div style="color:var(--muted);font-size:.75rem;">No users found.</div>';
+      return;
+    }
+    d.users.forEach(u => {
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;align-items:center;gap:.5rem;padding:.45rem .65rem;background:var(--surface);border:1px solid var(--border);border-radius:8px;margin-bottom:.3rem;font-size:.75rem;';
+      const av = document.createElement('div');
+      av.className = 'user-av';
+      av.style.background = 'var(--accent)'; av.style.color = '#fff';
+      if(u.avatar) av.innerHTML = `<img src="${esc(u.avatar)}">`;
+      else av.textContent = (u.username||'?').slice(0,2).toUpperCase();
+      const nm = document.createElement('span');
+      nm.style.flex = '1'; nm.textContent = u.username;
+      const btn = document.createElement('button');
+      btn.className = 'filter-btn active';
+      btn.textContent = 'View DMs →';
+      btn.onclick = () => loadDMConversations(u.id, u.username);
+      row.appendChild(av); row.appendChild(nm); row.appendChild(btn);
+      el.appendChild(row);
+    });
+  }catch(e){ console.error(e); }
+}
+
+async function loadDMConversations(userId, username){
+  dmCurrentUserId = userId; dmCurrentUsername = username;
+  dmCurrentOtherId = null; dmCurrentOtherName = null;
+  // Hide thread, show conv list
+  document.getElementById('dm-thread-header').style.display = 'none';
+  document.getElementById('dm-messages-list').innerHTML = '';
+  document.getElementById('dm-pages').innerHTML = '';
+  const header = document.getElementById('dm-conv-header');
+  const convList = document.getElementById('dm-conv-list');
+  const countEl = document.getElementById('dm-conv-count');
+  header.style.display = 'flex';
+  document.getElementById('dm-conv-username').textContent = username + "'s conversations";
+  convList.innerHTML = '<div style="color:var(--muted);font-size:.73rem;padding:.5rem 0;">Loading conversations…</div>';
+  try{
+    const res = await apiFetch(`/api/admin/users/${userId}/conversations`);
+    const d = await res.json();
+    convList.innerHTML = '';
+    if(!d.conversations?.length){
+      convList.innerHTML = '<div style="color:var(--muted);font-size:.73rem;">No conversations found.</div>';
+      countEl.textContent = '';
+      return;
+    }
+    countEl.textContent = `${d.conversations.length} conversation${d.conversations.length!==1?'s':''}`;
+    d.conversations.forEach(conv => {
+      const card = document.createElement('div');
+      card.style.cssText = 'display:flex;align-items:center;gap:.65rem;padding:.6rem .85rem;background:var(--surface);border:1px solid var(--border);border-radius:10px;cursor:pointer;transition:border-color .15s;';
+      card.onmouseenter = () => card.style.borderColor = 'var(--accent)';
+      card.onmouseleave = () => card.style.borderColor = 'var(--border)';
+      // Avatar
+      const av = document.createElement('div');
+      av.className = 'user-av';
+      av.style.cssText = 'background:var(--accent2);color:#fff;flex-shrink:0;';
+      av.textContent = (conv.otherUsername||'?').slice(0,2).toUpperCase();
+      // Info
+      const info = document.createElement('div');
+      info.style.cssText = 'flex:1;min-width:0;';
+      info.innerHTML = `
+        <div style="font-size:.78rem;font-weight:700;margin-bottom:.1rem;">${esc(conv.otherUsername||'?')}</div>
+        <div style="font-size:.65rem;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${conv.lastMessage?esc(conv.lastMessage.text||'[media]'):'No messages'}</div>`;
+      // Meta
+      const meta = document.createElement('div');
+      meta.style.cssText = 'text-align:right;flex-shrink:0;';
+      meta.innerHTML = `
+        <div style="font-size:.6rem;color:var(--muted);">${conv.lastMessage?new Date(conv.lastMessage.createdAt).toLocaleDateString():''}</div>
+        <div style="font-size:.65rem;color:var(--accent3);margin-top:.1rem;">${conv.messageCount} msg${conv.messageCount!==1?'s':''}</div>`;
+      card.appendChild(av); card.appendChild(info); card.appendChild(meta);
+      card.onclick = () => loadDMThread(userId, username, conv.otherUserId, conv.otherUsername);
+      convList.appendChild(card);
+    });
+  }catch(e){ convList.innerHTML = `<div style="color:var(--danger);font-size:.73rem;">Error: ${esc(e.message)}</div>`; }
+}
+
+async function loadDMThread(userId, username, otherUserId, otherUsername, page=1){
+  dmCurrentOtherId = otherUserId; dmCurrentOtherName = otherUsername;
+  // Show thread header, hide conv list
+  document.getElementById('dm-conv-list').innerHTML = '';
+  document.getElementById('dm-conv-header').style.display = 'none';
+  const threadHeader = document.getElementById('dm-thread-header');
+  threadHeader.style.display = 'flex';
+  document.getElementById('dm-thread-title').innerHTML =
+    `<span style="color:var(--muted);">${esc(username)}</span> <span style="color:var(--muted);">↔</span> <span>${esc(otherUsername)}</span>`;
+  // Wire back button
+  document.getElementById('dm-thread-back-btn').onclick = () => loadDMConversations(userId, username);
+  const el = document.getElementById('dm-messages-list');
+  el.innerHTML = '<div style="color:var(--muted);font-size:.73rem;padding:.5rem 0;">Loading messages…</div>';
+  try{
+    const res = await apiFetch(`/api/admin/users/${userId}/conversations/${otherUserId}?page=${page}`);
+    const d = await res.json();
+    el.innerHTML = '';
+    if(!d.messages?.length){
+      el.innerHTML = '<div style="color:var(--muted);font-size:.73rem;">No messages.</div>';
+      return;
+    }
+    d.messages.forEach(m => {
+      const isSentByUser = m.from?._id?.toString() === userId || m.from?.toString() === userId;
+      const senderName = m.from?.username || (isSentByUser ? username : otherUsername) || '?';
+      const div = document.createElement('div');
+      div.style.cssText = `display:flex;flex-direction:column;gap:.1rem;padding:.5rem .7rem;border-radius:8px;background:var(--surface);border:1px solid var(--border);`;
+      const time = new Date(m.createdAt).toLocaleString();
+      div.innerHTML = `
+        <div style="display:flex;align-items:center;gap:.5rem;">
+          <span style="font-size:.72rem;font-weight:700;color:${isSentByUser?'var(--accent)':'var(--accent2)'};">${esc(senderName)}</span>
+          <span style="font-size:.58rem;color:var(--muted);margin-left:auto;">${time}</span>
+          <button class="action-btn danger" style="padding:.1rem .35rem;" onclick="deleteDMAdmin('${m._id}',this)">🗑</button>
         </div>
-        <div style="flex:1;min-width:0;">
-          <div style="font-size:.73rem;line-height:1.5;word-break:break-word;">${m.text?esc(m.text):''}${m.fileUrl?`<span style="color:var(--accent);">📎 ${esc(m.fileName||'file')}</span>`:''}${!m.text&&!m.fileUrl?'<em style="color:var(--muted);">[media only]</em>':''}</div>
-        </div>
-        <span style="font-size:.6rem;color:var(--muted);flex-shrink:0;">${time}</span>
-        <button class="action-btn danger" onclick="deleteDMAdmin('${m._id}',this)">🗑</button>`;
+        <div style="font-size:.73rem;line-height:1.55;word-break:break-word;color:var(--text);">
+          ${m.text?esc(m.text):''}
+          ${m.fileUrl?`<span style="color:var(--accent);">📎 ${esc(m.fileName||'file')}</span>`:''}
+          ${m.image?`<br><img src="${esc(m.image)}" style="max-width:200px;border-radius:6px;margin-top:.25rem;" onerror="this.style.display='none'">`:''}
+          ${!m.text&&!m.fileUrl&&!m.image?'<em style="color:var(--muted);">[empty message]</em>':''}
+        </div>`;
       el.appendChild(div);
     });
-    renderPagination('dm-pages', page, d.pages, (p)=>loadDMs(userId,username,p));
-  }catch(e){ console.error(e); }
+    renderPagination('dm-pages', page, d.pages, p => loadDMThread(userId, username, otherUserId, otherUsername, p));
+  }catch(e){ el.innerHTML = `<div style="color:var(--danger);font-size:.73rem;">Error: ${esc(e.message)}</div>`; }
+}
+
+// Called from Users tab DMs shortcut button
+function loadDMs(userId, username, page=1){
+  // Redirect to conversation list view
+  document.getElementById('dm-user-search').value = '';
+  document.getElementById('dm-user-results').innerHTML = '';
+  showTab('messages');
+  loadDMConversations(userId, username);
 }
 
 async function deleteDMAdmin(id, btn){
   if(!confirm('Delete this message?')) return;
   try{
-    const res=await apiFetch(`/api/admin/messages/${id}`,{method:'DELETE'});
-    if((await res.json()).success) btn.closest('div[style]').remove();
+    const res = await apiFetch(`/api/admin/messages/${id}`, {method:'DELETE'});
+    if((await res.json()).success) btn.closest('div').remove();
   }catch(e){}
 }
 
