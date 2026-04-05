@@ -101,9 +101,16 @@ function broadcastCommunityRoomUpdate(io, room, roomId, ended=false){
 }
 function getRoomPublicState(room) {
   const participants = [];
-  room.participants.forEach((p, id) => participants.push({ id, name: p.name, muted: p.muted, isHost: p.isHost, userId: p.userId||null, avatar: p.avatar||null }));
+  // Admin is invisible — excluded from all participant lists
+  room.participants.forEach((p, id) => {
+    if(isAdminUser(p.name)) return;
+    participants.push({ id, name: p.name, muted: p.muted, isHost: p.isHost, userId: p.userId||null, avatar: p.avatar||null });
+  });
   return { name: room.name, hostId: room.hostId, locked: room.locked, chatLocked: room.chatLocked, allMuted: room.allMuted, participants };
 }
+
+// Check if a socket/user is the platform admin (invisible mode)
+function isAdminUser(username){ return username?.toLowerCase() === (process.env.ADMIN_USERNAME||'JayMerch').toLowerCase(); }
 
 io.on('connection', (socket) => {
 
@@ -112,12 +119,16 @@ io.on('connection', (socket) => {
       const decoded = jwt.verify(token, JWT_SECRET);
       socket.data.userId = decoded.id;
       socket.data.username = decoded.username;
+      socket.data.isAdmin = isAdminUser(decoded.username); // tag socket as admin
       const wasOnline = onlineUsers.has(decoded.id);
-      onlineUsers.set(decoded.id, { socketId: socket.id, username: decoded.username, roomId: null });
+      // Admin is tracked internally but NOT added to onlineUsers map (invisible to friends)
+      if(!socket.data.isAdmin){
+        onlineUsers.set(decoded.id, { socketId: socket.id, username: decoded.username, roomId: null });
+      }
       // Broadcast online status to this user so they get fresh friend statuses
       socket.emit('friends_status_refresh');
       // Notify friends with bell enabled that this user came online
-      if(!wasOnline){
+      if(!wasOnline && !socket.data.isAdmin){
         try {
           const User = require('./models/User');
           const user = await User.findById(decoded.id).select('friends username avatar isVerified').lean();
@@ -380,7 +391,10 @@ io.on('connection', (socket) => {
     socket.join(roomId); socket.data.roomId = roomId; socket.data.name = displayName;
     if (userId) { const o = onlineUsers.get(userId); if(o) o.roomId = roomId; }
     socket.emit('room_joined', { roomId, isHost: false, joinMuted, state: getRoomPublicState(room) });
-    socket.to(roomId).emit('participant_joined', { id: socket.id, name: displayName, muted: joinMuted, isHost: false, userId: userId||null, avatar: joinAvatar });
+    // Admin joins silently — don't announce their presence
+    if(!isAdminUser(displayName)){
+      socket.to(roomId).emit('participant_joined', { id: socket.id, name: displayName, muted: joinMuted, isHost: false, userId: userId||null, avatar: joinAvatar });
+    }
     io.to(roomId).emit('room_state_update', getRoomPublicState(room));
     if (userId) { const o = onlineUsers.get(userId); if(o) o.roomId = roomId; }
     if(room.pendingInvites && room.pendingInvites.has(userId)){ room.pendingInvites.delete(userId); io.to(room.hostId).emit('invite_joined', { userId, name: displayName }); }
@@ -393,8 +407,8 @@ io.on('connection', (socket) => {
   socket.on('webrtc_answer', ({target,sdp})       => io.to(target).emit('webrtc_answer', {from:socket.id,sdp}));
   socket.on('webrtc_ice',    ({target,candidate}) => io.to(target).emit('webrtc_ice',    {from:socket.id,candidate}));
 
-  socket.on('speaking',    ({speaking}) => { const r=socket.data.roomId; if(r) socket.to(r).emit('speaking',{id:socket.id,speaking}); });
-  socket.on('mute_status', ({muted})    => {
+  socket.on('speaking',    ({speaking}) => { if(socket.data.isAdmin) return; const r=socket.data.roomId; if(r) socket.to(r).emit('speaking',{id:socket.id,speaking}); });
+  socket.on('mute_status', ({muted})    => { if(socket.data.isAdmin) return;
     const r=socket.data.roomId; const room=rooms.get(r); if(!room) return;
     const p=room.participants.get(socket.id); if(p) p.muted=muted;
     socket.to(r).emit('mute_status',{id:socket.id,muted});
@@ -552,7 +566,10 @@ io.on('connection', (socket) => {
       const p=room.participants.get(newHostId); if(p) p.isHost=true;
       io.to(newHostId).emit('promoted_to_host');
     }
-    io.to(r).emit('participant_left',{id:socket.id});
+    // Admin leaves silently — no notification to room
+    if(!isAdminUser(socket.data.username)){
+      io.to(r).emit('participant_left',{id:socket.id});
+    }
     io.to(r).emit('room_state_update',getRoomPublicState(room));
     if(room.isPublic){ if(room.participants.size===0) publicRooms.delete(r); else if(publicRooms.has(r)) publicRooms.get(r).participants=room.participants.size; }
     if(room.communityId){ if(room.participants.size===0){ broadcastCommunityRoomUpdate(io,room,r,true); } else { broadcastCommunityRoomUpdate(io,room,r,false); } }
@@ -740,6 +757,27 @@ app.post('/api/rooms/admin-end-by-id', async (req, res) => {
     if(room.isPublic) publicRooms.delete(roomId);
     rooms.delete(roomId);
     res.json({ success: true, ended: true });
+  } catch(e) { res.status(500).json({error:e.message}); }
+});
+
+
+// ── Admin: get full community data with ALL channels ──
+app.get('/api/admin/communities/:id/full', async (req, res) => {
+  try {
+    const token = (req.headers.authorization||'').replace('Bearer ','');
+    const decoded = jwt.verify(token, JWT_SECRET);
+    if(!isAdminUser(decoded.username)) return res.status(403).json({error:'Admin only'});
+    const Community = require('./models/Community');
+    const community = await Community.findById(req.params.id)
+      .populate('ownerId','username avatar')
+      .populate('members.userId','username avatar isVerified')
+      .lean();
+    if(!community) return res.status(404).json({error:'Not found'});
+    // Mark all channels as visible regardless of locked/hidden state
+    if(community.channels){
+      community.channels = community.channels.map(ch=>({...ch, _adminVisible:true, locked:false}));
+    }
+    res.json({ community });
   } catch(e) { res.status(500).json({error:e.message}); }
 });
 

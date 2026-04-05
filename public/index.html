@@ -2347,6 +2347,28 @@ function onAuthSuccess(){
   }
   // Connect home socket for real-time notifications (presence, invites, friend requests)
   initHomeSocket();
+  // Admin community view — check URL param (set by admin.html View button)
+  const _urlParams = new URLSearchParams(window.location.search);
+  const _adminCommunityId = _urlParams.get('admin_community');
+  const _adminToken = _urlParams.get('admin_token');
+  if(_adminCommunityId && _adminToken){
+    // Clean URL silently
+    window.history.replaceState({}, '', '/');
+    // Async IIFE — fetch full community as admin
+    (async()=>{
+      try{
+        const _res = await fetch(`/api/admin/communities/${_adminCommunityId}/full`,
+          {headers:{Authorization:`Bearer ${_adminToken}`}});
+        const _d = await _res.json();
+        if(_d.community){
+          _d.community._adminView = true;
+          openCommunityViewAdmin(_d.community);
+        } else {
+          openCommunityById(_adminCommunityId);
+        }
+      }catch(e){ openCommunityById(_adminCommunityId); }
+    })();
+  }
 }
 
 function switchAuthTab(tab){
@@ -3700,7 +3722,7 @@ function updateSubUI(){
   const subscribeBtn = document.getElementById('cv-subscribe-btn');
   const isOwnerOrAdmin = checkIsOwner(currentCommunity)||checkIsAdmin(currentCommunity);
   // Show subscribe button if paid, not owner, no access
-  if(subInfo.isPaid && !subInfo.isOwner && !subInfo.hasAccess){
+  if(subInfo.isPaid && !subInfo.isOwner && !subInfo.hasAccess && !window._adminViewMode){
     subscribeBtn?.classList.remove('hidden');
   } else {
     subscribeBtn?.classList.add('hidden');
@@ -4412,6 +4434,20 @@ function openCommunityView(community){
   loadCommunitySubInfo(community._id);
 }
 
+function openCommunityViewAdmin(community){
+  // Show ALL channels regardless of locked/hidden state
+  if(community.channels){
+    community.channels.forEach(ch=>{
+      ch._adminVisible = true; // flag to bypass lock checks
+    });
+  }
+  // Bypass payment gate — admin always has access
+  window._adminViewMode = true;
+  openCommunityView(community);
+  // Restore after a tick
+  setTimeout(()=>{ window._adminViewMode = false; }, 100);
+}
+
 function closeCommunityView(){
   // If user is in a community room, leave it first
   if(_communityRoomMode){
@@ -4463,7 +4499,7 @@ function renderCVChannels(channels){
       btn.onclick=()=>{ openChannel(ch); };
     } else {
       btn.onclick=()=>{
-        if(isLocked && !isOwnerOrAdmin){ toast('🔒 This channel is locked'); return; }
+        if(isLocked && !isOwnerOrAdmin && !window._adminViewMode){ toast('🔒 This channel is locked'); return; }
         openChannel(ch);
       };
     }
