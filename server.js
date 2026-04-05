@@ -90,6 +90,14 @@ function broadcastCommunityRoomUpdate(io, room, roomId, ended=false){
     communityId: room.communityId, channelId: room.channelId,
     roomId, members, ended
   });
+  // Also notify via home sockets (for users not currently in community view)
+  if(!ended){
+    io.to(`community:${room.communityId}`).emit('community_room_live',{
+      communityId: room.communityId, channelId: room.channelId,
+      roomId, hostName: room.participants.values().next().value?.name || 'Someone',
+      roomName: room.name
+    });
+  }
 }
 function getRoomPublicState(room) {
   const participants = [];
@@ -546,7 +554,7 @@ app.post('/api/rooms/admin-end', async (req, res) => {
     const token = authHeader.replace('Bearer ','');
     if(!token) return res.status(401).json({error:'Unauthorized'});
     const jwt = require('jsonwebtoken');
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, JWT_SECRET || process.env.JWT_SECRET);
     const Community = require('./models/Community');
     const { communityId, channelId } = req.body;
     const community = await Community.findById(communityId);

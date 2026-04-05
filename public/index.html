@@ -1423,20 +1423,46 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
           </div>
           <div id="cv-room-member-list" style="font-size:.75rem;color:var(--muted);margin-bottom:1rem;"></div>
         </div>
-        <!-- LIVE state: user is in the room — inline room UI -->
+        <!-- LIVE state: user is in the room — full 3-panel layout -->
         <div id="cv-room-live" class="hidden" style="flex:1;display:flex;flex-direction:column;overflow:hidden;">
-          <!-- Participant tiles -->
-          <div id="cv-room-participants" style="flex:1;display:flex;flex-wrap:wrap;gap:.75rem;padding:1.25rem;overflow-y:auto;align-content:flex-start;"></div>
-          <!-- Inline room control bar -->
-          <div style="padding:.65rem 1rem;border-top:1px solid var(--border);background:var(--surface);display:flex;align-items:center;gap:.6rem;flex-shrink:0;flex-wrap:wrap;">
-            <span style="font-size:.65rem;color:var(--accent3);display:flex;align-items:center;gap:.3rem;font-weight:700;">
+          <!-- Main content: participants + video/screen -->
+          <div style="flex:1;display:flex;overflow:hidden;min-height:0;">
+            <!-- Left: voice participants + video -->
+            <div style="flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;">
+              <!-- Screen share area -->
+              <div id="cv-screen-area" class="hidden" style="flex:0 0 auto;max-height:45%;overflow:hidden;background:#000;position:relative;">
+                <div id="cv-screen-grid" style="display:flex;gap:.3rem;padding:.4rem;height:100%;overflow-x:auto;"></div>
+                <div style="position:absolute;top:.3rem;left:.5rem;font-size:.6rem;color:rgba(255,255,255,.7);background:rgba(0,0,0,.5);padding:.1rem .4rem;border-radius:4px;">🖥 Screen Share</div>
+              </div>
+              <!-- Camera video grid -->
+              <div id="cv-cam-area" class="hidden" style="flex:0 0 auto;max-height:35%;overflow:hidden;background:#111;position:relative;">
+                <div id="cv-cam-grid" style="display:flex;gap:.3rem;padding:.4rem;height:100%;overflow-x:auto;align-items:flex-end;"></div>
+                <div style="position:absolute;top:.3rem;left:.5rem;font-size:.6rem;color:rgba(255,255,255,.7);background:rgba(0,0,0,.5);padding:.1rem .4rem;border-radius:4px;">📷 Video</div>
+              </div>
+              <!-- Participant tiles -->
+              <div id="cv-room-participants" style="flex:1;display:flex;flex-wrap:wrap;gap:.65rem;padding:1rem;overflow-y:auto;align-content:flex-start;min-height:80px;"></div>
+            </div>
+            <!-- Right: room chat -->
+            <div id="cv-room-chat-panel" style="width:240px;min-width:200px;border-left:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;">
+              <div style="padding:.4rem .6rem;font-size:.65rem;font-weight:700;color:var(--muted);border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.08em;">💬 Room Chat</div>
+              <div id="cv-room-chat-messages" style="flex:1;overflow-y:auto;padding:.5rem .6rem;display:flex;flex-direction:column;gap:.35rem;font-size:.75rem;"></div>
+              <div style="padding:.4rem .5rem;border-top:1px solid var(--border);display:flex;gap:.3rem;">
+                <input id="cv-room-chat-input" placeholder="Say something…" style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:.35rem .5rem;color:var(--text);font-size:.72rem;outline:none;" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();cvSendRoomChat();}"/>
+                <button onclick="cvSendRoomChat()" style="width:26px;height:26px;border-radius:6px;border:none;background:var(--accent);color:#fff;cursor:pointer;font-size:.75rem;flex-shrink:0;">➤</button>
+              </div>
+            </div>
+          </div>
+          <!-- Control bar -->
+          <div style="padding:.55rem .8rem;border-top:1px solid var(--border);background:var(--surface);display:flex;align-items:center;gap:.5rem;flex-shrink:0;flex-wrap:wrap;">
+            <span style="font-size:.62rem;color:var(--accent3);display:flex;align-items:center;gap:.3rem;font-weight:700;flex-shrink:0;">
               <span style="width:6px;height:6px;border-radius:50%;background:var(--accent3);animation:pulse 1.5s infinite;display:inline-block;"></span>LIVE
             </span>
-            <button id="cv-mic-btn" onclick="cvToggleMute()" style="padding:.3rem .65rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:.72rem;cursor:pointer;display:flex;align-items:center;gap:.3rem;">🎙️ <span id="cv-mic-label">Mic On</span></button>
-            <button onclick="cvToggleCam()" id="cv-cam-btn" style="padding:.3rem .65rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:.72rem;cursor:pointer;">📷 Camera</button>
-            <button onclick="copyRoomURL()" style="padding:.3rem .65rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:.72rem;cursor:pointer;">🔗 Invite</button>
-            <span id="cv-room-p-count" style="font-size:.68rem;color:var(--muted);margin-left:auto;"></span>
-            <button onclick="cvLeaveRoom()" style="padding:.3rem .75rem;border-radius:7px;border:none;background:var(--danger);color:#fff;font-size:.72rem;cursor:pointer;font-weight:600;">📞 Leave</button>
+            <button id="cv-mic-btn" onclick="cvToggleMute()" style="padding:.28rem .6rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:.7rem;cursor:pointer;display:flex;align-items:center;gap:.25rem;">🎙️ <span id="cv-mic-label">Mic On</span></button>
+            <button id="cv-cam-btn" onclick="cvToggleCam()" style="padding:.28rem .6rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:.7rem;cursor:pointer;">📷 Camera</button>
+            <button id="cv-screen-btn" onclick="cvToggleScreen()" style="padding:.28rem .6rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:.7rem;cursor:pointer;">🖥 Screen</button>
+            <button onclick="copyRoomURL()" style="padding:.28rem .6rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:.7rem;cursor:pointer;">🔗 Invite</button>
+            <span id="cv-room-p-count" style="font-size:.65rem;color:var(--muted);margin-left:auto;flex-shrink:0;"></span>
+            <button onclick="cvLeaveRoom()" style="padding:.28rem .65rem;border-radius:7px;border:none;background:var(--danger);color:#fff;font-size:.7rem;cursor:pointer;font-weight:600;">📞 Leave</button>
           </div>
         </div>
       </div>
@@ -2755,6 +2781,14 @@ function initHomeSocket(){
     showBrowserNotification(title, body, rid);
   });
   // Community real-time messages
+  homeSocket.on('community_room_live', ({ communityId, channelId, roomId, hostName, roomName })=>{
+    // Don't notify if already in that room
+    if(_communityRoomMode && window._lastCommunityId === communityId) return;
+    addNotification({ icon:'🎙️', text:`🎙️ Live room in ${roomName||'a community'} — ${hostName} is hosting`, type:'room_invite', action:'open_community_room', actionLabel:'Join', actionData:{communityId,channelId,roomId} });
+    showBrowserNotification('🎙️ Room Live', `${hostName} started a room`);
+    toast('🎙️ '+hostName+' started a room — tap Join in notifications');
+  });
+
   homeSocket.on('community_message', ({ communityId, channelId, message })=>{
     if(currentCommunity?._id===communityId && currentChannelId===channelId){
       const el=document.getElementById('cv-messages');
@@ -3343,6 +3377,15 @@ function renderNotifications(){
     div.onclick=()=>{ markNotifRead(n.id); };
     const ago = timeAgo(new Date(n.time));
     let actionHtml='';
+    if(n.action==='open_community_room' && n.actionData){
+      const {communityId,channelId,roomId}=n.actionData;
+      openCommunityById(communityId).then?.(()=>{}).catch?.(()=>{});
+      openCommunityById(communityId);
+      setTimeout(()=>{
+        if(roomId) joinCommunityRoom(roomId);
+      }, 600);
+      return;
+    }
     if(n.action==='join_room' && n.actionData){
       actionHtml=`<div class="notif-action">
         <button class="notif-action-btn primary" onclick="event.stopPropagation();notifJoinRoom('${n.actionData}')">Join Room</button>
@@ -4199,6 +4242,11 @@ function openCommunityView(community){
 }
 
 function closeCommunityView(){
+  // If user is in a community room, leave it first
+  if(_communityRoomMode){
+    _communityRoomMode = false;
+    leaveRoom();
+  }
   if(currentCommunity){
     const sock = homeSocket||socket;
     if(sock) sock.emit('community_leave',{communityId:currentCommunity._id});
@@ -5429,6 +5477,11 @@ function connectSocket(){
     renderParticipants();
   });
   socket.on('chat_message',({type,from,name,text,image,isHost:ih,msgId})=>{
+    if(_communityRoomMode){
+      // Show in community inline chat panel
+      if(type!=='system' && from!==socket.id) cvAddRoomChat('other', name, text);
+      return;
+    }
     if(type==='system'){addChat('system','',text);return;}
     if(from===socket.id)return;
     addChat(ih?'host-chat':'other',name,text,ih,image,msgId,from);
@@ -5821,6 +5874,16 @@ document.addEventListener('click', ()=>{
 });
 
 function refreshCamPanel(){
+  if(_communityRoomMode){
+    // Mirror to community inline cam area
+    const cvArea = document.getElementById('cv-cam-area');
+    const cvGrid = document.getElementById('cv-cam-grid');
+    if(cvArea && cvGrid){
+      if(camStreams.size === 0){ cvArea.classList.add('hidden'); }
+      else { cvArea.classList.remove('hidden'); cvGrid.innerHTML=''; mirrorCamTilesToCv(cvGrid); }
+    }
+    return;
+  }
   const grid = document.getElementById('cam-grid');
   const area = document.getElementById('cam-area');
   const countEl = document.getElementById('cam-count');
@@ -5978,6 +6041,16 @@ function removeScreenStream(peerId){
 }
 
 function refreshScreenPanel(){
+  // Mirror to community inline screen area when in community mode
+  if(_communityRoomMode){
+    const cvArea=document.getElementById('cv-screen-area');
+    const cvGrid=document.getElementById('cv-screen-grid');
+    if(cvArea && cvGrid){
+      if(screenStreams.size===0){ cvArea.classList.add('hidden'); }
+      else{ cvArea.classList.remove('hidden'); cvGrid.innerHTML=''; mirrorScreenTilesToCv(cvGrid); }
+    }
+    return;
+  }
   const area = document.getElementById('screen-area');
   const grid = document.getElementById('screen-grid');
   const countEl = document.getElementById('screen-count');
@@ -7409,6 +7482,75 @@ async function adminEndRoom(){
       toast('⚠️ '+(d.error||'Could not end room'));
     }
   }catch(e){ toast('⚠️ Error: '+e.message); }
+}
+
+
+function mirrorCamTilesToCv(grid){
+  camStreams.forEach(({stream,label},peerId)=>{
+    const tile=document.createElement('div');
+    tile.style.cssText='position:relative;border-radius:8px;overflow:hidden;background:#000;height:100%;min-width:100px;flex-shrink:0;';
+    const vid=document.createElement('video');
+    vid.srcObject=stream; vid.autoplay=true; vid.playsInline=true; vid.muted=true;
+    vid.style.cssText='width:100%;height:100%;object-fit:cover;';
+    const lbl=document.createElement('div');
+    lbl.style.cssText='position:absolute;bottom:3px;left:4px;font-size:.58rem;color:#fff;background:rgba(0,0,0,.5);border-radius:3px;padding:0 3px;';
+    lbl.textContent=label||'';
+    tile.appendChild(vid); tile.appendChild(lbl);
+    grid.appendChild(tile);
+  });
+}
+
+function mirrorScreenTilesToCv(grid){
+  screenStreams.forEach((stream,peerId)=>{
+    const tile=document.createElement('div');
+    tile.style.cssText='border-radius:8px;overflow:hidden;background:#000;height:100%;min-width:160px;flex-shrink:0;';
+    const vid=document.createElement('video');
+    vid.srcObject=stream; vid.autoplay=true; vid.playsInline=true; vid.muted=true;
+    vid.style.cssText='width:100%;height:100%;object-fit:contain;';
+    tile.appendChild(vid);
+    grid.appendChild(tile);
+  });
+}
+
+function refreshCvScreenArea(){
+  if(!_communityRoomMode) return;
+  const area=document.getElementById('cv-screen-area');
+  const grid=document.getElementById('cv-screen-grid');
+  if(!area||!grid) return;
+  if(!screenStreams||screenStreams.size===0){ area.classList.add('hidden'); return; }
+  area.classList.remove('hidden');
+  grid.innerHTML='';
+  mirrorScreenTilesToCv(grid);
+}
+
+function cvToggleScreen(){
+  if(!_communityRoomMode){ toggleScreenShare?.(); return; }
+  startScreenShare?.();
+}
+
+
+function cvSendRoomChat(){
+  const inp = document.getElementById('cv-room-chat-input');
+  if(!inp) return;
+  const text = inp.value.trim();
+  if(!text || !socket) return;
+  inp.value = '';
+  socket.emit('chat_message', { text, name: currentUser?.username || myName });
+  // Show in local cv chat immediately
+  cvAddRoomChat('me', currentUser?.username || myName, text);
+}
+
+function cvAddRoomChat(type, name, text){
+  const el = document.getElementById('cv-room-chat-messages');
+  if(!el) return;
+  const div = document.createElement('div');
+  div.style.cssText = 'display:flex;flex-direction:column;gap:.1rem;';
+  const isMe = type === 'me';
+  div.innerHTML =
+    '<span style="font-size:.6rem;color:var(--muted);">'+esc(name)+'</span>'+
+    '<div style="background:'+(isMe?'var(--accent)':'var(--surface2)')+';color:'+(isMe?'#fff':'var(--text)')+';border-radius:8px;padding:.3rem .5rem;font-size:.75rem;max-width:95%;'+(isMe?'margin-left:auto;':'')+'">'+esc(text)+'</div>';
+  el.appendChild(div);
+  el.scrollTop = el.scrollHeight;
 }
 
 </script>
