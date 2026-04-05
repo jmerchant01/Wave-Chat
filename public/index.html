@@ -3038,11 +3038,16 @@ function updateRoomChannelUI(channel){
   const endBtn = document.getElementById('cv-end-room-btn');
   if(activeRoomId){
     // Room is active
-    idleEl.classList.add('hidden');
-    activeEl.classList.remove('hidden');
-    joinBtn.classList.remove('hidden');
+    // If user is already IN the room, don't touch idle/active panels — cv-room-live owns the space
+    if(!_communityRoomMode){
+      idleEl.classList.add('hidden');
+      activeEl.classList.remove('hidden');
+      activeEl.style.display='flex';
+    }
+    joinBtn.classList.toggle('hidden', _communityRoomMode);
+    // Hide "New Room" button — only one room per channel at a time
+    createBtn.style.display='none';
     if(endBtn) endBtn.classList.toggle('hidden', !isOwnerOrAdmin);
-    createBtn.textContent='🎙️ New Room';
     roomStatus.innerHTML=`<span style="width:8px;height:8px;border-radius:50%;background:var(--accent3);animation:pulse 1.5s infinite;display:inline-block;"></span> <span style="color:var(--accent3);">Live</span>`;
     memberList.textContent = members.length ? `${members.length} member${members.length!==1?'s':''} in room: ${members.slice(0,5).join(', ')}${members.length>5?` +${members.length-5} more`:''}` : 'Room is active';
     document.getElementById('cv-join-room-btn').onclick = ()=>joinCommunityRoom(activeRoomId);
@@ -6986,7 +6991,7 @@ function showCommunityInlineRoom(name){
   const activeEl = document.getElementById('cv-room-active-info');
   const liveEl = document.getElementById('cv-room-live');
   if(idleEl) idleEl.style.display='none';
-  if(activeEl) activeEl.classList.add('hidden');
+  if(activeEl){ activeEl.classList.add('hidden'); activeEl.style.display='none'; }
   if(liveEl){ liveEl.classList.remove('hidden'); liveEl.style.display='flex'; }
   const joinBtn=document.getElementById('cv-join-room-btn');
   const createBtn=document.getElementById('cv-create-room-btn');
@@ -7079,6 +7084,9 @@ function cvToggleCam(){
 function cvLeaveRoom(){
   _communityRoomMode = false;
   leaveRoom();
+  // Restore create room button
+  const cb=document.getElementById('cv-create-room-btn');
+  if(cb){ cb.style.display=''; cb.textContent='🎙️ Create Room'; }
   // Return to community channel view after leaving
   if(window._lastCommunityId){
     setTimeout(()=>{
