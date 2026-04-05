@@ -385,6 +385,7 @@ async function loadUsers(page=1){
         <td><span class="report-count ${u.reportCount===0?'zero':''}">${u.reportCount} report${u.reportCount!==1?'s':''}</span></td>
         <td>
           <button class="action-btn" onclick="viewUserReports('${u.id}','${esc(u.username)}')">🚩 Reports</button>
+          <button class="action-btn" style="border-color:var(--accent);color:var(--accent);" onclick="loadDMs('${u.id}','${esc(u.username)}')">💬 DMs</button>
           <button class="action-btn danger" onclick="deleteUser('${u.id}','${esc(u.username)}')">🗑 Delete</button>
         </td>`;
       tbody.appendChild(tr);
