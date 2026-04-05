@@ -88,6 +88,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;min-
       <button class="nav-btn active" onclick="showTab('users')" id="tab-users">👥 Users</button>
       <button class="nav-btn" onclick="showTab('reports')" id="tab-reports">🚩 Reports <span id="pending-badge" style="background:var(--danger);color:#fff;border-radius:10px;padding:0 5px;font-size:.6rem;"></span></button>
       <button class="nav-btn" onclick="showTab('communities')" id="tab-communities">🏘️ Communities</button>
+      <button class="nav-btn" onclick="showTab('live-rooms')" id="tab-live-rooms">📡 Live Rooms</button>
       <button class="nav-btn" onclick="showTab('messages')" id="tab-messages">💬 DMs</button>
       <button class="nav-btn" onclick="showTab('subscriptions')" id="tab-subscriptions">💳 Subscriptions</button>
       <button class="nav-btn" onclick="showTab('fees')" id="tab-fees">⚙️ Fees</button>
@@ -167,6 +168,19 @@ body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;min-
       <div id="dm-user-results" style="margin-bottom:.75rem;"></div>
       <div id="dm-messages-list" style="display:flex;flex-direction:column;gap:.4rem;"></div>
       <div class="pagination" id="dm-pages"></div>
+    </div>
+
+    <!-- Live Rooms tab -->
+    <div id="tab-live-rooms-body" class="hidden">
+      <div class="section-title" style="display:flex;align-items:center;justify-content:space-between;">
+        <span>📡 Live Voice Rooms</span>
+        <button class="filter-btn" onclick="loadLiveRooms()">↺ Refresh</button>
+      </div>
+      <div id="live-rooms-list" style="display:flex;flex-direction:column;gap:.6rem;margin-bottom:1.5rem;"></div>
+      <div class="section-title" style="display:flex;align-items:center;justify-content:space-between;margin-top:1rem;">
+        <span>🏘️ Live Community Rooms</span>
+      </div>
+      <div id="live-community-rooms-list" style="display:flex;flex-direction:column;gap:.6rem;"></div>
     </div>
 
   </div>
@@ -321,7 +335,7 @@ async function showAdminApp(){
 }
 
 function showTab(tab){
-  ['users','reports','communities','community-msgs','messages','subscriptions','fees'].forEach(t=>{
+  ['users','reports','communities','community-msgs','messages','live-rooms','subscriptions','fees'].forEach(t=>{
     const panel = document.getElementById(`tab-${t}-body`);
     const btn   = document.getElementById(`tab-${t}`);
     if(panel) panel.classList.toggle('hidden', t!==tab);
@@ -332,6 +346,7 @@ function showTab(tab){
   if(tab==='messages') { document.getElementById('dm-messages-list').innerHTML=''; document.getElementById('dm-user-results').innerHTML=''; }
   if(tab==='subscriptions') loadSubscriptions();
   if(tab==='fees'){ loadFees(); loadStripeStatus(); }
+  if(tab==='live-rooms') loadLiveRooms();
 }
 
 async function apiFetch(path, opts={}){
@@ -372,6 +387,7 @@ async function loadUsers(page=1){
         <td><span class="report-count ${u.reportCount===0?'zero':''}">${u.reportCount} report${u.reportCount!==1?'s':''}</span></td>
         <td>
           <button class="action-btn" onclick="viewUserReports('${u.id}','${esc(u.username)}')">🚩 Reports</button>
+          <button class="action-btn" onclick="viewUserDMs('${u.id}','${esc(u.username)}')" style="border-color:var(--accent);color:var(--accent);">💬 DMs</button>
           <button class="action-btn danger" onclick="deleteUser('${u.id}','${esc(u.username)}')">🗑 Delete</button>
         </td>`;
       tbody.appendChild(tr);
@@ -579,6 +595,89 @@ async function deleteCommMsg(communityId, msgId, btn){
     const res=await apiFetch(`/api/admin/communities/${communityId}/messages/${msgId}`,{method:'DELETE'});
     if((await res.json()).success) btn.closest('div[style]').remove();
   }catch(e){}
+}
+
+
+// ── Live Rooms ──
+async function loadLiveRooms(){
+  const voiceEl = document.getElementById('live-rooms-list');
+  const commEl  = document.getElementById('live-community-rooms-list');
+  if(!voiceEl) return;
+  voiceEl.innerHTML = '<div style="color:var(--muted);font-size:.73rem;">Loading…</div>';
+  commEl.innerHTML  = '<div style="color:var(--muted);font-size:.73rem;">Loading…</div>';
+
+  try{
+    const [vRes, cRes] = await Promise.all([
+      apiFetch('/api/admin/live-rooms'),
+      apiFetch('/api/admin/live-community-rooms')
+    ]);
+    const vd = await vRes.json();
+    const cd = await cRes.json();
+
+    // Voice rooms
+    voiceEl.innerHTML = '';
+    if(!vd.rooms?.length){
+      voiceEl.innerHTML = '<div style="color:var(--muted);font-size:.73rem;padding:.5rem 0;">No live voice rooms right now.</div>';
+    } else {
+      vd.rooms.forEach(r=>{
+        const card = document.createElement('div');
+        card.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:.75rem 1rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;';
+        card.innerHTML = `
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:.82rem;font-weight:700;">${esc(r.name)}</div>
+            <div style="font-size:.65rem;color:var(--muted);margin-top:.15rem;">ID: ${esc(r.roomId)} &bull; ${r.participantCount} participant(s)</div>
+            <div style="font-size:.65rem;color:var(--muted);margin-top:.1rem;">${r.participants.map(p=>`<span style="color:var(--text);">${esc(p.name)}</span>${p.isHost?' 👑':''}`).join(', ')}</div>
+          </div>
+          <button class="action-btn danger" onclick="adminForceEndRoom('${esc(r.roomId)}')">⛔ End Room</button>`;
+        voiceEl.appendChild(card);
+      });
+    }
+
+    // Community rooms
+    commEl.innerHTML = '';
+    if(!cd.rooms?.length){
+      commEl.innerHTML = '<div style="color:var(--muted);font-size:.73rem;padding:.5rem 0;">No live community rooms right now.</div>';
+    } else {
+      cd.rooms.forEach(r=>{
+        const card = document.createElement('div');
+        card.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:.75rem 1rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;';
+        card.innerHTML = `
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:.82rem;font-weight:700;">${esc(r.roomName)} <span style="font-size:.7rem;color:var(--muted);font-weight:400;">in ${esc(r.communityName)}</span></div>
+            <div style="font-size:.65rem;color:var(--muted);margin-top:.15rem;">${r.participantCount} participant(s): ${r.participants.map(p=>`<span style="color:var(--text);">${esc(p.name)}</span>${p.isHost?' 👑':''}`).join(', ')||'—'}</div>
+          </div>
+          <button class="action-btn danger" onclick="adminForceEndCommunityRoom('${esc(r.communityId)}','${esc(r.channelId)}')">⛔ End</button>`;
+        commEl.appendChild(card);
+      });
+    }
+  }catch(e){
+    voiceEl.innerHTML = `<div style="color:var(--danger);font-size:.73rem;">Error: ${esc(e.message)}</div>`;
+  }
+}
+
+async function adminForceEndRoom(roomId){
+  if(!confirm('Force end room ' + roomId + '?')) return;
+  try{
+    await apiFetch('/api/rooms/admin-end-by-id', { method:'POST', body: JSON.stringify({roomId}) });
+    loadLiveRooms();
+  }catch(e){ alert('Error: ' + e.message); }
+}
+
+async function adminForceEndCommunityRoom(communityId, channelId){
+  if(!confirm('Force end this community room?')) return;
+  try{
+    await apiFetch('/api/rooms/admin-end', { method:'POST', body: JSON.stringify({communityId, channelId}) });
+    loadLiveRooms();
+  }catch(e){ alert('Error: ' + e.message); }
+}
+
+// ── View user DMs directly from Users tab ──
+function viewUserDMs(userId, username){
+  showTab('messages');
+  // Pre-fill the search and trigger the search
+  const inp = document.getElementById('dm-user-search');
+  if(inp) inp.value = username;
+  loadDMs(userId, username, 1);
 }
 
 // ── DMs ──
