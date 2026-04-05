@@ -5566,6 +5566,10 @@ function connectSocket(){
   socket.on('friend_invite_offline', ()=>{ toast('⚠️ That friend is not online right now'); });
 
   socket.on('room_joined',({roomId:rid,isHost:ih,state,joinMuted})=>{
+    // Clear room avatar after joining
+    _roomAvatarBase64=null;
+    const rav=document.getElementById('room-avatar-preview');
+    if(rav){ rav.innerHTML='🎙️'; }
     roomId=rid; isHost=ih;
     participants.clear();
     state.participants.forEach(p=>participants.set(p.id,{name:p.name,muted:p.muted,isHost:p.isHost,speaking:false,userId:p.userId||null}));
@@ -7333,20 +7337,22 @@ function hostKick(id){
   socket.emit('host_kick',{target:id});
 }
 function toggleMuteAll(){
-  if(isAllMuted){ // unmute
-    socket.emit('host_unmute',{target:'all'}); isAllMuted=false;
+  if(isAllMuted){ // currently muted → unmute
+    isAllMuted=false;
+    socket.emit('host_unmute',{target:'all'});
     participants.forEach((p,id)=>{if(id!==socket.id)p.muted=false;});
     renderParticipants(); toast('🔊 Unmuted everyone'); updateBadges();
     document.querySelectorAll('#mute-all-btn').forEach(b=>{b.textContent='🔇 Mute All';});
-  } else { // mute
-    socket.emit('host_mute',{target:'all'}); isAllMuted=true;
+  } else { // currently unmuted → mute
+    isAllMuted=true;
+    socket.emit('host_mute',{target:'all'});
     participants.forEach((p,id)=>{if(id!==socket.id)p.muted=true;});
-    renderParticipants(); toast('🔇 Muted everyone — they cannot unmute'); updateBadges();
+    renderParticipants(); toast('🔇 Muted everyone'); updateBadges();
     document.querySelectorAll('#mute-all-btn').forEach(b=>{b.textContent='🔊 Unmute All';});
   }
 }
-function hostMuteAll(){ isAllMuted=false; toggleMuteAll(); } // compat alias
-function hostUnmuteAll(){ isAllMuted=true; toggleMuteAll(); } // compat alias
+function hostMuteAll(){ if(!isAllMuted) toggleMuteAll(); }
+function hostUnmuteAll(){ if(isAllMuted) toggleMuteAll(); }
 function toggleChatLock(){
   isChatLocked=!isChatLocked; socket.emit('host_chat_lock',{locked:isChatLocked});
   document.querySelectorAll('#chat-lock-btn').forEach(b=>{b.textContent=isChatLocked?'💬 Unlock Chat':'💬 Lock Chat';});

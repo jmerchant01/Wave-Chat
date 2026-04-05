@@ -435,12 +435,26 @@ io.on('connection', (socket) => {
     const r=socket.data.roomId; if(r) io.to(r).emit('message_deleted',{msgId});
   });
 
-  socket.on('host_mute',      ({targetId}) => {
+  socket.on('host_mute',      ({targetId, target}) => {
+    if(target==='all'){
+      const r2=socket.data.roomId; const rm=rooms.get(r2); if(!rm||rm.hostId!==socket.id) return;
+      rm.allMuted=true;
+      rm.participants.forEach((p,id)=>{ if(id!==socket.id) io.to(id).emit('force_mute',{locked:true}); });
+      io.to(r2).emit('room_state_update',getRoomPublicState(rm));
+      return;
+    }
     const r=socket.data.roomId; const room=rooms.get(r); if(!room||room.hostId!==socket.id) return;
     const p=room.participants.get(targetId); if(p) p.muted=true;
     io.to(targetId).emit('force_mute',{locked:false}); io.to(r).emit('room_state_update',getRoomPublicState(room));
   });
-  socket.on('host_unmute',    ({targetId}) => {
+  socket.on('host_unmute',    ({targetId, target}) => {
+    if(target==='all'){
+      const r3=socket.data.roomId; const rm2=rooms.get(r3); if(!rm2||rm2.hostId!==socket.id) return;
+      rm2.allMuted=false;
+      rm2.participants.forEach((p,id)=>{ if(id!==socket.id) io.to(id).emit('force_unmute'); });
+      io.to(r3).emit('room_state_update',getRoomPublicState(rm2));
+      return;
+    }
     const r=socket.data.roomId; const room=rooms.get(r); if(!room||room.hostId!==socket.id) return;
     const p=room.participants.get(targetId); if(p) p.muted=false;
     io.to(targetId).emit('force_unmute'); io.to(r).emit('room_state_update',getRoomPublicState(room));
