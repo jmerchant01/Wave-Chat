@@ -101,7 +101,7 @@ function broadcastCommunityRoomUpdate(io, room, roomId, ended=false){
 }
 function getRoomPublicState(room) {
   const participants = [];
-  room.participants.forEach((p, id) => participants.push({ id, name: p.name, muted: p.muted, isHost: p.isHost, userId: p.userId||null }));
+  room.participants.forEach((p, id) => participants.push({ id, name: p.name, muted: p.muted, isHost: p.isHost, userId: p.userId||null, avatar: p.avatar||null }));
   return { name: room.name, hostId: room.hostId, locked: room.locked, chatLocked: room.chatLocked, allMuted: room.allMuted, participants };
 }
 
@@ -292,13 +292,15 @@ io.on('connection', (socket) => {
     const roomId = Math.random().toString(36).substr(2, 8).toUpperCase();
     const displayName = name || 'Host';
     const rName = roomName || 'Voice Room';
+    let hostAvatar = null;
+    if(userId){ try{ const User=require('./models/User'); const u=await User.findById(userId).select('avatar').lean(); hostAvatar=u?.avatar||null; }catch(e){} }
     rooms.set(roomId, {
       name: rName, hostId: socket.id,
       avatar: avatar||null,
       locked: false, chatLocked: false, allMuted: false,
       activeScreenShareId: null, screenRequestsEnabled: true,
-      pendingInvites: new Map(), // userId -> { username, sentAt }
-      participants: new Map([[socket.id, { name: displayName, muted: false, isHost: true, userId: userId||null }]])
+      pendingInvites: new Map(),
+      participants: new Map([[socket.id, { name: displayName, muted: false, isHost: true, userId: userId||null, avatar: hostAvatar }]])
     });
     socket.join(roomId); socket.data.roomId = roomId; socket.data.name = displayName;
     if (userId) { const o = onlineUsers.get(userId); if(o) o.roomId = roomId; }
@@ -365,18 +367,20 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('join_room', ({ roomId, name, userId }) => {
+  socket.on('join_room', async ({ roomId, name, userId }) => {
     const room = rooms.get(roomId); const displayName = name || 'Guest';
     if (!room) return socket.emit('room_error', { message: 'Room not found' });
     if (room.locked) return socket.emit('room_error', { message: 'Room is locked' });
     const nameTaken = Array.from(room.participants.values()).some(p => p.name.toLowerCase() === displayName.toLowerCase());
     if (nameTaken) return socket.emit('room_error', { message: 'Name already taken in this room' });
     const joinMuted = room.allMuted;
-    room.participants.set(socket.id, { name: displayName, muted: joinMuted, isHost: false, userId: userId||null });
+    let joinAvatar = null;
+    if(userId){ try{ const User=require('./models/User'); const u=await User.findById(userId).select('avatar').lean(); joinAvatar=u?.avatar||null; }catch(e){} }
+    room.participants.set(socket.id, { name: displayName, muted: joinMuted, isHost: false, userId: userId||null, avatar: joinAvatar });
     socket.join(roomId); socket.data.roomId = roomId; socket.data.name = displayName;
     if (userId) { const o = onlineUsers.get(userId); if(o) o.roomId = roomId; }
     socket.emit('room_joined', { roomId, isHost: false, joinMuted, state: getRoomPublicState(room) });
-    socket.to(roomId).emit('participant_joined', { id: socket.id, name: displayName, muted: joinMuted, isHost: false, userId: userId||null });
+    socket.to(roomId).emit('participant_joined', { id: socket.id, name: displayName, muted: joinMuted, isHost: false, userId: userId||null, avatar: joinAvatar });
     io.to(roomId).emit('room_state_update', getRoomPublicState(room));
     if (userId) { const o = onlineUsers.get(userId); if(o) o.roomId = roomId; }
     if(room.pendingInvites && room.pendingInvites.has(userId)){ room.pendingInvites.delete(userId); io.to(room.hostId).emit('invite_joined', { userId, name: displayName }); }
