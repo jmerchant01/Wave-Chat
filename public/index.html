@@ -1281,13 +1281,25 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
           <div style="font-family:'Syne',sans-serif;font-size:1rem;font-weight:700;margin-bottom:.4rem;" id="cv-room-idle-title">No active room</div>
           <div style="font-size:.75rem;color:var(--muted);max-width:260px;line-height:1.6;" id="cv-room-idle-sub">Create a room to start a voice session with community members.</div>
         </div>
-        <!-- Active state: room exists but user hasn't joined -->
-        <div id="cv-room-active-info" class="hidden" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem;padding:2rem;text-align:center;">
-          <div style="display:flex;align-items:center;justify-content:center;gap:.5rem;margin-bottom:.5rem;">
-            <div style="width:10px;height:10px;border-radius:8px;background:var(--accent3);animation:pulse 1.5s infinite;"></div>
-            <span style="font-family:'Syne',sans-serif;font-size:1rem;font-weight:700;color:var(--accent3);">Room Active</span>
+        <!-- Active state: room exists but user hasn't joined — shows join prompt over room layout -->
+        <div id="cv-room-active-info" class="hidden" style="flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative;">
+          <!-- Dimmed room layout preview -->
+          <div style="flex:1;display:flex;overflow:hidden;opacity:.35;pointer-events:none;min-height:0;">
+            <div style="flex:1;background:var(--bg);border-right:1px solid var(--border);"></div>
+            <div style="flex:2;background:#0a0a12;display:flex;align-items:center;justify-content:center;">
+              <div style="width:80px;height:80px;border-radius:12px;background:rgba(108,99,255,.15);display:flex;align-items:center;justify-content:center;font-size:2.5rem;">🎙️</div>
+            </div>
+            <div style="flex:1;background:var(--surface);border-left:1px solid var(--border);"></div>
           </div>
-          <div id="cv-room-member-list" style="font-size:.75rem;color:var(--muted);margin-bottom:1rem;"></div>
+          <!-- Join overlay -->
+          <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.9rem;background:rgba(5,5,8,.65);backdrop-filter:blur(6px);">
+            <div style="display:flex;align-items:center;gap:.5rem;">
+              <span style="width:10px;height:10px;border-radius:50%;background:var(--accent3);animation:pulse 1.5s infinite;display:inline-block;"></span>
+              <span style="font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:700;color:var(--accent3);">Room Active</span>
+            </div>
+            <div id="cv-room-member-list" style="font-size:.75rem;color:rgba(255,255,255,.6);text-align:center;max-width:280px;"></div>
+            <button onclick="joinActiveCommunityRoom()" style="padding:.55rem 1.5rem;border-radius:10px;border:none;background:var(--accent3);color:#000;font-family:'Syne',sans-serif;font-weight:700;font-size:.9rem;cursor:pointer;letter-spacing:.03em;">🔊 Join Room</button>
+          </div>
         </div>
         <!-- LIVE state: full room UI inside community channel -->
         <div id="cv-room-live" class="hidden" style="flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative;">
@@ -3076,6 +3088,10 @@ function initCommunityRoomListeners(sock){
         const ch=currentCommunity.channels?.find(c=>c._id===channelId||c._id?.toString()===channelId);
         if(ch){ ch.activeRoomId=null; }
       }
+      // Also clear any other channels that reference this roomId (defensive cleanup)
+      currentCommunity?.channels?.forEach(ch=>{
+        if(ch.activeRoomId===roomId) ch.activeRoomId=null;
+      });
     } else {
       communityRoomMembers[roomId] = members||[];
       // Set activeRoomId in local community data
@@ -4400,7 +4416,7 @@ async function openCommunityById(id){
 }
 
 // ── Open community view ──
-function openCommunityView(community){
+async function openCommunityView(community){
   currentCommunity = community;
   // Connect socket room
   const sock = homeSocket||socket;
@@ -4420,6 +4436,8 @@ function openCommunityView(community){
   document.getElementById('cv-dashboard-btn').classList.toggle('hidden',!checkIsOwner(currentCommunity));
   document.getElementById('cv-add-channel-btn').classList.toggle('hidden',!isOwnerOrAdmin);
 
+  // Verify all room channel activeRoomIds before rendering (clear ghost states)
+  await verifyRoomChannelStates(community.channels||[]);
   // Render channels
   renderCVChannels(community.channels||[]);
 
@@ -4757,6 +4775,22 @@ function renderCVMembers(members){
     more.textContent='+'+(active.length-20)+' more';
     el.appendChild(more);
   }
+}
+
+
+// Verify all room channels against server to remove ghost activeRoomIds
+async function verifyRoomChannelStates(channels){
+  const roomChannels = channels.filter(ch=>(ch.type==='room'||ch.type==='voice') && ch.activeRoomId);
+  await Promise.all(roomChannels.map(async ch=>{
+    try{
+      const r = await fetch('/api/rooms/'+ch.activeRoomId+'/check');
+      const d = await r.json();
+      if(!d.exists){
+        delete communityRoomMembers[ch.activeRoomId];
+        ch.activeRoomId = null;
+      }
+    }catch(e){}
+  }));
 }
 
 async function openChannel(channel){
