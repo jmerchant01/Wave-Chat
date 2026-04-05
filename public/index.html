@@ -1433,6 +1433,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
             <span id="chat-lock-badge" style="display:none;font-size:.6rem;color:var(--danger);">💬 LOCKED</span>
             <span id="mute-all-badge" style="display:none;font-size:.6rem;color:var(--danger);">🔇 MUTED</span>
             <span id="rec-badge" style="display:none;font-size:.6rem;color:var(--danger);animation:blink 1s infinite;">⏺ REC</span>
+            <span id="screen-block-badge" style="display:none;font-size:.6rem;color:var(--danger);">🖥️🚫 SCREEN</span>
             <span style="flex:1;"></span>
             <button onclick="cvLeaveRoom()" style="padding:.25rem .65rem;border-radius:7px;border:none;background:var(--danger);color:#fff;font-size:.7rem;cursor:pointer;font-weight:600;">📞 Leave</button>
           </div>
@@ -1466,6 +1467,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
         <span id="fs-chat-lock-badge" style="display:none;color:var(--danger);">💬 LOCKED</span>
         <span id="fs-mute-all-badge" style="display:none;color:var(--danger);">🔇 MUTED</span>
         <span id="fs-rec-badge" style="display:none;color:var(--danger);animation:blink 1s infinite;">⏺ REC</span>
+        <span id="fs-screen-block-badge" style="display:none;color:var(--danger);">🖥️🚫 SCREEN</span>
       </div>
       </div>
     </div>
@@ -5683,8 +5685,8 @@ function connectSocket(){
 
   socket.on('screen_requests_toggle',({enabled})=>{
     screenRequestsEnabled=enabled;
+    updateBadges();
     if(!isHost){
-      // Only non-hosts lose screen share ability
       document.querySelectorAll('#screen-btn,#fs-screen-btn').forEach(b=>b.classList.toggle('hidden',!enabled));
       if(!enabled){
         btn.textContent='🖥️ Screen';
@@ -5933,8 +5935,8 @@ function toggleScreenRequests(){
   screenRequestsEnabled=!screenRequestsEnabled;
   socket.emit('host_screen_requests_toggle',{enabled:screenRequestsEnabled});
   document.querySelectorAll('#screen-requests-btn').forEach(b=>{b.textContent=screenRequestsEnabled?'🖥 Block Screen':'🖥 Allow Screen';});
-  // Only stop non-host screen shares when blocking (host can always share)
   toast(screenRequestsEnabled?'🖥️ Screen sharing allowed':'🖥️ Screen sharing blocked for participants');
+  updateBadges();
 }
 
 async function startScreenShare(){
@@ -6998,8 +7000,15 @@ function updateInvite(){
 }
 function updateConnDot(s){const d=roomEl('conn-dot');if(d)d.className=`conn-dot ${s}`;}
 function updateBadges(){
-  roomEl('mute-all-badge').style.display=isAllMuted?'inline':'none';
-  roomEl('chat-lock-badge').style.display=isChatLocked?'inline':'none';
+  const _s=(id,v)=>{const e=roomEl(id);if(e)e.style.display=v?'inline':'none';};
+  _s('mute-all-badge',isAllMuted);
+  _s('chat-lock-badge',isChatLocked);
+  // fs- prefixed standalone room badges
+  const _fs=(id,v)=>{const e=document.getElementById(id);if(e)e.style.display=v?'inline':'none';};
+  _fs('fs-mute-all-badge',isAllMuted);
+  _fs('fs-chat-lock-badge',isChatLocked);
+  _fs('fs-screen-block-badge',!screenRequestsEnabled);
+  _s('screen-block-badge',!screenRequestsEnabled);
 }
 
 // ── Local mutes (client-side only, hides audio from specific peers) ──
@@ -7155,7 +7164,7 @@ function buildR2Tile(peerId, p, isFocused, isSpotlight){
   const color=colorFor(peerId);
   const tile=document.createElement('div');
   tile.className='r2-tile'+(p.speaking?' speaking':'')+(spotlightPeers.has(peerId)?' pinned':'')+(isFocused?' focused':'');
-  tile.onclick=()=>focusTile(peerId);
+  // No whole-tile click — use dedicated expand button instead
 
   if(cam && cam.stream){
     const vid=document.createElement('video');
@@ -7203,6 +7212,23 @@ function buildR2Tile(peerId, p, isFocused, isSpotlight){
   pin.textContent=spotlightPeers.has(peerId)?'⭐':'☆';
   pin.onclick=e=>{e.stopPropagation();toggleSpotlight(peerId);};
   tile.appendChild(pin);
+
+  if(isFocused){
+    // Exit fullscreen button — always visible when focused
+    const exitBtn=document.createElement('button');
+    exitBtn.style.cssText='position:absolute;top:10px;right:10px;z-index:10;padding:.3rem .7rem;border-radius:7px;border:none;background:rgba(0,0,0,.72);color:#fff;font-size:.75rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:.3rem;';
+    exitBtn.innerHTML='✕ Exit Fullscreen';
+    exitBtn.onclick=e=>{e.stopPropagation();focusTile(peerId);};
+    tile.appendChild(exitBtn);
+  } else {
+    // Expand button — top-right, always visible (small window icon)
+    const expBtn=document.createElement('button');
+    expBtn.title='Expand to fullscreen';
+    expBtn.style.cssText='position:absolute;top:5px;right:5px;z-index:10;width:22px;height:22px;border-radius:5px;border:none;background:rgba(0,0,0,.6);color:#fff;font-size:.72rem;cursor:pointer;display:flex;align-items:center;justify-content:center;';
+    expBtn.textContent='⛶';
+    expBtn.onclick=e=>{e.stopPropagation();focusTile(peerId);};
+    tile.appendChild(expBtn);
+  }
 
   return tile;
 }
@@ -8092,15 +8118,19 @@ function initR2ScreenResize(){
       screenStreams.forEach(({stream,visible,name},peerId)=>{
         if(visible===false) return;
         const wrap=document.createElement('div');
-        wrap.style.cssText='position:relative;border-radius:8px;overflow:hidden;background:#000;height:100%;min-width:200px;flex:1;cursor:zoom-in;';
-        wrap.title='Click to enlarge'; wrap.onclick=()=>focusScreen(peerId);
+        wrap.style.cssText='position:relative;border-radius:8px;overflow:hidden;background:#000;height:100%;min-width:200px;flex:1;';
         const vid=document.createElement('video');
         vid.srcObject=stream; vid.autoplay=true; vid.playsInline=true; vid.muted=true;
         vid.style.cssText='width:100%;height:100%;object-fit:contain;';
         const lbl=document.createElement('div');
         lbl.style.cssText='position:absolute;bottom:4px;left:6px;font-size:.6rem;color:#fff;background:rgba(0,0,0,.5);border-radius:3px;padding:.1rem .3rem;';
         lbl.textContent=(name||'?')+' — screen';
-        wrap.appendChild(vid); wrap.appendChild(lbl);
+        // ⛶ expand button — top-right corner
+        const expBtn=document.createElement('button');
+        expBtn.title='Fullscreen'; expBtn.textContent='⛶';
+        expBtn.style.cssText='position:absolute;top:6px;right:6px;z-index:10;width:24px;height:24px;border-radius:5px;border:none;background:rgba(0,0,0,.65);color:#fff;font-size:.8rem;cursor:pointer;display:flex;align-items:center;justify-content:center;';
+        expBtn.onclick=()=>focusScreen(peerId);
+        wrap.appendChild(vid); wrap.appendChild(lbl); wrap.appendChild(expBtn);
         grid.appendChild(wrap);
       });
     }
