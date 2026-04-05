@@ -1381,8 +1381,8 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
                 <div class="volume-bar"><div class="volume-fill" id="vol-fill"></div></div>
                 <div style="font-size:.57rem;color:var(--muted);margin-top:.2rem;text-align:center;">Voice activity</div>
                 <div class="media-controls">
-                  <button class="media-btn" id="cam-btn" onclick="toggleCamera()">📷 Camera</button>
-                  <button class="media-btn" id="screen-btn" onclick="requestOrToggleScreen()">🖥️ Screen</button>
+                  <button class="media-btn" id="cam-btn" onclick="toggleCamera()">📷 Camera Off</button>
+                  <button class="media-btn" id="screen-btn" onclick="requestOrToggleScreen()">🖥️ Share Screen</button>
                 </div>
               </div>
 
@@ -1562,8 +1562,8 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
         <div class="volume-bar"><div class="volume-fill" id="fs-vol-fill"></div></div>
         <div style="font-size:.56rem;color:var(--muted);text-align:center;margin-top:.2rem;">Voice activity</div>
         <div class="media-controls" style="margin-top:.5rem;">
-          <button class="media-btn" id="fs-cam-btn" onclick="toggleCamera()">📷 Camera</button>
-          <button class="media-btn" id="fs-screen-btn" onclick="requestOrToggleScreen()">🖥️ Screen</button>
+          <button class="media-btn" id="fs-cam-btn" onclick="toggleCamera()">📷 Camera Off</button>
+          <button class="media-btn" id="fs-screen-btn" onclick="requestOrToggleScreen()">🖥️ Share Screen</button>
         </div>
       </div>
 
@@ -5566,10 +5566,6 @@ function connectSocket(){
   socket.on('friend_invite_offline', ()=>{ toast('⚠️ That friend is not online right now'); });
 
   socket.on('room_joined',({roomId:rid,isHost:ih,state,joinMuted})=>{
-    // Clear room avatar after joining
-    _roomAvatarBase64=null;
-    const rav=document.getElementById('room-avatar-preview');
-    if(rav){ rav.innerHTML='🎙️'; }
     roomId=rid; isHost=ih;
     participants.clear();
     state.participants.forEach(p=>participants.set(p.id,{name:p.name,muted:p.muted,isHost:p.isHost,speaking:false,userId:p.userId||null}));
@@ -5683,8 +5679,8 @@ function connectSocket(){
   socket.on('screen_requests_toggle',({enabled})=>{
     screenRequestsEnabled=enabled;
     if(!isHost){
-      const btn=document.getElementById('screen-btn');
-      btn.classList.toggle('hidden',!enabled);
+      // Only non-hosts lose screen share ability
+      document.querySelectorAll('#screen-btn,#fs-screen-btn').forEach(b=>b.classList.toggle('hidden',!enabled));
       if(!enabled){
         btn.textContent='🖥️ Screen';
         btn.disabled=false;
@@ -5864,15 +5860,15 @@ function toggleMic(){
 function applyMute(){
   if(localStream)localStream.getAudioTracks().forEach(t=>t.enabled=!isMuted);
   // Update ALL mic buttons (standalone uses 'mic-btn' via roomEl, community uses same)
-  ['mic-btn','cv-mic-btn'].forEach(id=>{
+  ['mic-btn','fs-mic-btn','cv-mic-btn'].forEach(id=>{
     const btn=document.getElementById(id); if(!btn) return;
     btn.classList.toggle('muted',isMuted&&!micHostLocked);
     btn.classList.toggle('host-locked',micHostLocked);
   });
-  ['mic-icon'].forEach(id=>{
+  ['mic-icon','fs-mic-icon'].forEach(id=>{
     const el=document.getElementById(id); if(el) el.textContent=isMuted?'🔇':'🎙️';
   });
-  ['mic-label','cv-mic-label'].forEach(id=>{
+  ['mic-label','fs-mic-label','cv-mic-label'].forEach(id=>{
     const el=document.getElementById(id);
     if(el) el.textContent=micHostLocked?'MUTED BY HOST':isMuted?'MIC OFF':'MIC ON';
   });
@@ -5891,8 +5887,7 @@ async function toggleCamera(){
       if(peer.camSender){try{peer.pc.removeTrack(peer.camSender);}catch(e){}peer.camSender=null;}
     });
     isCameraOn=false;
-    document.getElementById('cam-btn').classList.remove('active');
-    document.getElementById('cam-btn').textContent='📷 Camera';
+    document.querySelectorAll('#cam-btn,#fs-cam-btn').forEach(b=>{b.classList.remove('active');b.textContent='📷 Camera Off';});
     toast('📷 Camera off');
     if(socket) socket.emit('cam_active', {active: false, streamId: null});
   } else {
@@ -5905,8 +5900,7 @@ async function toggleCamera(){
         const track=localVideoStream.getVideoTracks()[0];
         if(track){try{peer.camSender=peer.pc.addTrack(track,localVideoStream);}catch(e){}}
       });
-      document.getElementById('cam-btn').classList.add('active');
-      document.getElementById('cam-btn').textContent='📷 Camera ON';
+      document.querySelectorAll('#cam-btn,#fs-cam-btn').forEach(b=>{b.classList.add('active');b.textContent='📷 Camera On';});
       toast('📷 Camera on — others can see you');
       // Tell all peers to expect a video track (triggers renegotiation on their end too)
       if(socket) socket.emit('cam_active', {active: true, streamId: localVideoStream.id});
@@ -5925,8 +5919,7 @@ function requestOrToggleScreen(){
   } else {
     if(!screenRequestsEnabled){toast('🖥️ Host has disabled screen share requests');return;}
     socket.emit('screenshare_request');
-    document.getElementById('screen-btn').textContent='🖥️ Waiting...';
-    document.getElementById('screen-btn').disabled=true;
+    document.querySelectorAll('#screen-btn,#fs-screen-btn').forEach(b=>{b.textContent='🖥️ Waiting...';b.disabled=true;});
     toast('🖥️ Screen share request sent to host');
   }
 }
@@ -5935,16 +5928,14 @@ function toggleScreenRequests(){
   screenRequestsEnabled=!screenRequestsEnabled;
   socket.emit('host_screen_requests_toggle',{enabled:screenRequestsEnabled});
   document.querySelectorAll('#screen-requests-btn').forEach(b=>{b.textContent=screenRequestsEnabled?'🖥 Block Screen':'🖥 Allow Screen';});
-  // If blocking, stop own screen share too
-  if(!screenRequestsEnabled && isScreenSharing) stopScreenShare();
-  toast(screenRequestsEnabled?'🖥️ Screen sharing allowed':'🖥️ Screen sharing blocked for everyone');
+  // Only stop non-host screen shares when blocking (host can always share)
+  toast(screenRequestsEnabled?'🖥️ Screen sharing allowed':'🖥️ Screen sharing blocked for participants');
 }
 
 async function startScreenShare(){
   if(!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia){
     toast('🖥️ Screen share not supported in this browser.');
-    document.getElementById('screen-btn').textContent='🖥️ Screen';
-    document.getElementById('screen-btn').disabled=false;
+    document.querySelectorAll('#screen-btn,#fs-screen-btn').forEach(b=>{b.textContent='🖥️ Share Screen';b.disabled=false;});
     return;
   }
   try{
@@ -5960,15 +5951,12 @@ async function startScreenShare(){
       const track=localScreenStream.getVideoTracks()[0];
       if(track){try{peer.screenSender=peer.pc.addTrack(track,localScreenStream);}catch(e){}}
     });
-    document.getElementById('screen-btn').classList.add('screenshare-active');
-    document.getElementById('screen-btn').textContent='🖥️ Stop Share';
-    document.getElementById('screen-btn').disabled=false;
+    document.querySelectorAll('#screen-btn,#fs-screen-btn').forEach(b=>{b.classList.add('screenshare-active');b.textContent='🖥️ Stop Sharing';b.disabled=false;});
     toast('🖥️ Screen sharing started');
     if(socket)socket.emit('screenshare_start', {streamId: localScreenStream.id});
     localScreenStream.getVideoTracks()[0].onended=()=>stopScreenShare();
   }catch(e){
-    document.getElementById('screen-btn').textContent='🖥️ Screen';
-    document.getElementById('screen-btn').disabled=false;
+    document.querySelectorAll('#screen-btn,#fs-screen-btn').forEach(b=>{b.textContent='🖥️ Share Screen';b.disabled=false;});
     if(e.name==='NotAllowedError') toast('🖥️ Screen share permission denied');
     else if(e.name==='NotSupportedError') toast('🖥️ Screen share not supported on this device');
     else if(e.name!=='AbortError') toast('⚠️ Screen share failed: '+e.message);
@@ -5982,9 +5970,7 @@ function stopScreenShare(){
     if(peer.screenSender){try{peer.pc.removeTrack(peer.screenSender);}catch(e){}peer.screenSender=null;}
   });
   isScreenSharing=false;
-  document.getElementById('screen-btn').classList.remove('screenshare-active');
-  document.getElementById('screen-btn').textContent='🖥️ Screen';
-  document.getElementById('screen-btn').disabled=false;
+  document.querySelectorAll('#screen-btn,#fs-screen-btn').forEach(b=>{b.classList.remove('screenshare-active');b.textContent='🖥️ Share Screen';b.disabled=false;});
   if(socket)socket.emit('screenshare_stop');
   toast('🖥️ Screen share ended');
 }
@@ -6212,7 +6198,7 @@ function addScreenStream(peerId, stream, sharerName){
 
 function removeScreenStream(peerId){
   screenStreams.delete(peerId);
-  if(focusedScreen===peerId) focusedScreen=null;
+  if(focusedScreen===peerId){ exitScreenFullscreen(); }
   refreshScreenPanel();
 }
 
@@ -7381,6 +7367,8 @@ function leaveRoom(forced=false){
   participants.clear(); videoTiles.clear(); camStreams.clear(); screenStreams.clear(); localMutes.clear(); spotlightPeers.clear(); focusedPeer=null;
   isMuted=false;isSpeaking=false;isLocked=false;isChatLocked=false;isHost=false;
   roomId='';micHostLocked=false;isAllMuted=false;isCameraOn=false;isScreenSharing=false;screenShareAllowed=false;screenRequestsEnabled=true;
+  _roomAvatarBase64=null;
+  const _rav=document.getElementById('room-avatar-preview'); if(_rav) _rav.innerHTML='🎙️';
   if(!_communityRoomMode){
     document.getElementById('room').style.display='none';
     document.getElementById('landing').style.display='flex';
@@ -7404,12 +7392,10 @@ function leaveRoom(forced=false){
   _fs('share-request-banner').classList.remove('visible');
   const btn=document.getElementById('mic-btn');
   btn.classList.remove('muted','speaking-active','host-locked');
-  ['mic-icon'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent='🎙️';});
-  ['mic-label','cv-mic-label'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent='MIC ON';});
-  document.getElementById('cam-btn').classList.remove('active');
-  document.getElementById('cam-btn').textContent='📷 Camera';
-  document.getElementById('screen-btn').classList.remove('screenshare-active');
-  document.getElementById('screen-btn').textContent='🖥️ Screen';
+  ['mic-icon','fs-mic-icon'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent='🎙️';});
+  ['mic-label','fs-mic-label','cv-mic-label'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent='MIC ON';});
+  document.querySelectorAll('#cam-btn,#fs-cam-btn').forEach(b=>{b.classList.remove('active');b.textContent='📷 Camera Off';});
+  document.querySelectorAll('#screen-btn,#fs-screen-btn').forEach(b=>{b.classList.remove('screenshare-active');b.textContent='🖥️ Share Screen';});
   enableForms();
   history.replaceState(null,'',location.pathname);
   // Re-register as online on home screen
@@ -8075,30 +8061,17 @@ function initR2ScreenResize(){
       return;
     }
     sp.classList.add('visible');
-    // Auto-size: if focused screen, give it 70%; else 55%
+    // Auto-size: screen gets 55%, video gets 45%
     const midH=sp.parentElement?.offsetHeight||600;
-    const screenFrac = focusedScreen ? 0.72 : 0.55;
+    const screenFrac = 0.55;
     sp.style.height=Math.round(midH*screenFrac)+'px';
     const vp=document.getElementById('r2-video-panel');
     if(vp){ vp.style.flex='none'; vp.style.height=Math.round(midH*(1-screenFrac))+'px'; }
     const sc=document.getElementById('screen-count'); if(sc) sc.textContent=screenStreams.size;
     // Render screen tiles into r2-screen-grid — click to enlarge
     grid.innerHTML='';
-    if(focusedScreen && screenStreams.has(focusedScreen)){
-      // Full-panel focused screen
-      const {stream,name} = screenStreams.get(focusedScreen);
-      const wrap=document.createElement('div');
-      wrap.style.cssText='position:relative;border-radius:8px;overflow:hidden;background:#000;width:100%;flex:1;cursor:zoom-out;';
-      wrap.title='Click to collapse'; wrap.onclick=()=>focusScreen(focusedScreen);
-      const vid=document.createElement('video');
-      vid.srcObject=stream; vid.autoplay=true; vid.playsInline=true; vid.muted=true;
-      vid.style.cssText='width:100%;height:100%;object-fit:contain;';
-      const lbl=document.createElement('div');
-      lbl.style.cssText='position:absolute;bottom:6px;left:8px;font-size:.62rem;color:#fff;background:rgba(0,0,0,.55);border-radius:4px;padding:.1rem .35rem;';
-      lbl.textContent=(name||'?')+' — screen';
-      wrap.appendChild(vid); wrap.appendChild(lbl);
-      grid.appendChild(wrap);
-    } else {
+    // All screen tiles are thumbnails — click opens fullscreen overlay
+    {
       screenStreams.forEach(({stream,visible,name},peerId)=>{
         if(visible===false) return;
         const wrap=document.createElement('div');
@@ -8130,12 +8103,43 @@ function initR2ScreenResize(){
 // ── addChat with per-message block/report ──
 
 
-// ── Screen share enlarge ──
-let focusedScreen = null; // peerId whose screen is enlarged
+// ── Screen share fullscreen overlay ──
+let focusedScreen = null;
 
 function focusScreen(peerId){
-  focusedScreen = focusedScreen === peerId ? null : peerId;
-  refreshScreenPanel();
+  if(focusedScreen===peerId){ exitScreenFullscreen(); return; }
+  focusedScreen=peerId;
+  // Build fullscreen overlay
+  let overlay=document.getElementById('screen-fs-overlay');
+  if(!overlay){
+    overlay=document.createElement('div');
+    overlay.id='screen-fs-overlay';
+    overlay.style.cssText='position:fixed;inset:0;background:#000;z-index:9999;display:flex;flex-direction:column;';
+    const exitBtn=document.createElement('button');
+    exitBtn.id='screen-fs-exit';
+    exitBtn.textContent='✕ Exit Fullscreen';
+    exitBtn.style.cssText='position:absolute;top:12px;right:16px;z-index:10000;padding:.4rem .9rem;border-radius:8px;border:none;background:rgba(0,0,0,.7);color:#fff;font-size:.82rem;cursor:pointer;font-family:Inter,sans-serif;font-weight:600;';
+    exitBtn.onclick=()=>exitScreenFullscreen();
+    overlay.appendChild(exitBtn);
+    const vid=document.createElement('video');
+    vid.id='screen-fs-video';
+    vid.autoplay=true; vid.playsInline=true; vid.muted=true;
+    vid.style.cssText='width:100%;height:100%;object-fit:contain;';
+    overlay.appendChild(vid);
+    document.body.appendChild(overlay);
+  }
+  // Set video source
+  const s=screenStreams.get(peerId);
+  if(s&&s.stream){
+    document.getElementById('screen-fs-video').srcObject=s.stream;
+  }
+  overlay.style.display='flex';
+}
+
+function exitScreenFullscreen(){
+  focusedScreen=null;
+  const overlay=document.getElementById('screen-fs-overlay');
+  if(overlay) overlay.style.display='none';
 }
 
 
