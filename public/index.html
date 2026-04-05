@@ -1130,237 +1130,6 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 </div>
 
 <!-- ROOM -->
-<div id="room">
-  <div class="room-header">
-    <div class="room-info">
-      <h2 id="room-title">Room</h2>
-      <div class="room-meta">
-        <span class="conn-dot connected" id="conn-dot"></span>
-        LIVE &bull; <span id="p-count-header">0</span> participant(s)
-        <span id="chat-lock-badge" style="display:none;margin-left:.5rem;color:var(--danger);font-size:.63rem;">💬 CHAT LOCKED</span>
-        <span id="mute-all-badge" style="display:none;margin-left:.5rem;color:var(--danger);font-size:.63rem;">🔇 ALL MUTED</span>
-        <span id="rec-badge" style="display:none;margin-left:.5rem;color:var(--danger);font-size:.63rem;animation:blink 1s infinite;">⏺ REC</span>
-      </div>
-    </div>
-    <div style="display:flex;align-items:center;gap:.65rem;flex-wrap:wrap;">
-      <button class="theme-toggle" onclick="toggleTheme()" id="theme-btn-room" title="Toggle light/dark mode">🌙</button>
-      <button class="profile-btn" onclick="openFriendsPanel()" id="friends-header-btn">
-        <div class="profile-avatar-sm" id="header-avatar">👤</div>
-        <span id="header-username">—</span>
-        <span id="header-req-badge" class="friend-badge hidden">0</span>
-      </button>
-      <div class="room-id-badge" onclick="copyRoomURL()">🔗 Copy URL</div>
-      <button class="btn btn-sm btn-ghost" onclick="leaveRoom()">Leave →</button>
-    </div>
-  </div>
-
-  <!-- Host approval popup: shown to HOST when a participant requests screen share -->
-  <div class="share-request-banner" id="share-request-banner">
-    <span id="share-request-text">🖥️ wants to share their screen</span>
-    <div class="share-req-btns">
-      <button class="share-req-btn accept" onclick="hostApproveScreen()">Approve</button>
-      <button class="share-req-btn deny" onclick="hostDenyScreen()">Deny</button>
-    </div>
-  </div>
-
-  <div class="room-body">
-
-    <!-- LEFT COL: Chat -->
-    <div class="col-left">
-      <div class="chat-col-panel" id="chat-panel-el">
-        <div class="panel-header" style="cursor:default;">
-          💬 Chat
-          <span style="font-size:.58rem;color:var(--muted);">paste/drag up to 10MB</span>
-        </div>
-        <div class="chat-messages" id="chat-messages"></div>
-        <div id="img-preview-area" style="padding:0 .55rem .4rem;display:none;">
-          <div class="img-preview-wrap">
-            <img id="img-preview-thumb" src="" alt="preview"/>
-            <button class="remove-img" onclick="clearImage()">✕</button>
-          </div>
-        </div>
-        <div class="chat-locked-notice" id="chat-locked-notice">🔒 Chat locked by host</div>
-        <div class="chat-input-wrap" id="chat-input-wrap">
-          <input type="file" id="img-file-input" accept="image/*,video/*,.pdf,.zip,.doc,.docx" style="display:none" onchange="handleFileSelect(event)"/>
-          <button class="img-attach-btn" onclick="document.getElementById('img-file-input').click()" title="Attach file">📎</button>
-          <input class="chat-input" id="chat-in" placeholder="Type a message…"
-            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat();}"/>
-          <button class="send-btn" onclick="sendChat()">
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- CHAT ↔ VIDEO horizontal resize handle -->
-    <div class="col-resize-handle" id="chat-col-resize" title="Drag to resize chat"></div>
-
-    <!-- MIDDLE COL: Video (top) + Screen Share (bottom) -->
-    <div class="col-mid">
-
-      <!-- CAMERA PANEL -->
-      <div class="video-area hidden" id="cam-area">
-        <div class="video-area-header" onclick="togglePanel('cam-area')">
-          <span>📷 Video</span>
-          <div style="display:flex;align-items:center;gap:.65rem;">
-            <span id="cam-count" style="font-size:.63rem;color:var(--accent);">0 cameras</span>
-            <!-- Dropdown to pick which cameras to show — visible whenever 2+ cams -->
-            <div id="cam-selector-wrap" style="display:none;position:relative;">
-              <button id="cam-dropdown-btn" onclick="event.stopPropagation();toggleCamDropdown()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:.63rem;border-radius:5px;padding:.18rem .5rem;cursor:pointer;display:flex;align-items:center;gap:.3rem;">
-                <span id="cam-dropdown-label">All</span> ▾
-              </button>
-              <div id="cam-dropdown-menu" style="display:none;position:absolute;right:0;top:110%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:.4rem;z-index:50;min-width:140px;box-shadow:0 8px 24px rgba(0,0,0,.4);" onclick="event.stopPropagation()">
-                <div id="cam-checkbox-list" style="display:flex;flex-direction:column;gap:.25rem;"></div>
-              </div>
-            </div>
-            <span class="collapse-btn" id="cam-collapse-icon">▾</span>
-          </div>
-        </div>
-        <div class="video-area-body" id="cam-body">
-          <div class="video-grid" id="cam-grid"></div>
-        </div>
-        <div class="resize-handle" id="cam-resize" title="Drag to resize"></div>
-      </div>
-
-      <!-- SCREEN SHARE PANEL -->
-      <div class="video-area hidden" id="screen-area">
-        <div class="video-area-header" onclick="togglePanel('screen-area')">
-          <span>🖥️ Screen Share</span>
-          <div style="display:flex;align-items:center;gap:.65rem;">
-            <span id="screen-count" style="font-size:.63rem;color:var(--accent2);">0 sharing</span>
-            <div id="screen-selector-wrap" style="display:none;align-items:center;gap:.4rem;font-size:.63rem;color:var(--muted);">
-              View: <div id="screen-checkboxes" style="display:flex;gap:.35rem;flex-wrap:wrap;"></div>
-            </div>
-            <span class="collapse-btn" id="screen-collapse-icon">▾</span>
-          </div>
-        </div>
-        <div id="screen-body" style="height:200px;min-height:80px;box-sizing:border-box;">
-          <div class="screen-grid" id="screen-grid"></div>
-        </div>
-        <div class="resize-handle" id="screen-resize" title="Drag to resize"></div>
-      </div>
-
-    </div>
-
-    <!-- RIGHT COL: Controls -->
-    <div class="col-right">
-
-      <!-- My Controls -->
-      <div class="my-controls">
-        <div class="section-title">🎤 My Controls</div>
-        <button class="mic-btn" id="mic-btn" onclick="toggleMic()">
-          <div class="pulse-ring"></div>
-          <span id="mic-icon">🎙️</span>
-          <span id="mic-label">MIC ON</span>
-        </button>
-        <div class="volume-bar"><div class="volume-fill" id="vol-fill"></div></div>
-        <div style="font-size:.58rem;color:var(--muted);margin-top:.28rem;text-align:center;">Voice activity</div>
-        <div class="media-controls">
-          <button class="media-btn" id="cam-btn" onclick="toggleCamera()">📷 Camera</button>
-          <button class="media-btn" id="screen-btn" onclick="requestOrToggleScreen()">🖥️ Screen</button>
-        </div>
-      </div>
-
-      <!-- Participants -->
-      <div class="participants-panel">
-        <div class="panel-header">
-          <span>Participants</span>
-          <span class="participant-count" id="p-count">0</span>
-        </div>
-        <div class="participants-list" id="p-list"></div>
-      </div>
-
-      <!-- Pending invites (host only) -->
-      <div id="pending-invites-box" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;">
-        <div class="panel-header" style="border-bottom:1px solid var(--border);">
-          <span>⏳ Waiting to Join</span>
-          <span class="participant-count" id="pending-invites-count">0</span>
-        </div>
-        <div id="pending-invites-list" style="padding:.4rem .6rem;"></div>
-      </div>
-
-      <!-- Host Controls -->
-      <div class="host-panel hidden" id="host-panel">
-        <div class="host-title">👑 Host Controls</div>
-        <div class="host-actions">
-          <button class="host-btn" id="mute-all-btn" onclick="hostMuteAll()">🔇 Mute All</button>
-          <button class="host-btn" onclick="hostUnmuteAll()">🔊 Unmute All</button>
-          <button class="host-btn" id="screen-requests-btn" onclick="toggleScreenRequests()">🖥️ Block Screen Sharing</button>
-          <button class="host-btn" id="chat-lock-btn" onclick="toggleChatLock()">💬 Lock Chat</button>
-          <button class="host-btn" id="room-lock-btn" onclick="toggleLock()">🔒 Lock Room</button>
-          <button class="host-btn" id="record-btn" onclick="toggleRecording()" style="border-color:var(--danger);color:var(--danger);">⏺ Start Recording</button>
-          <button class="host-btn danger" onclick="endRoom()">⛔ End Room</button>
-        </div>
-        <div class="invite-box">
-          <p>📨 Share invite:</p>
-          <div class="invite-url" id="invite-url" onclick="copyRoomURL()">—</div>
-          <div style="display:flex;gap:.4rem;margin-top:.5rem;flex-wrap:wrap;">
-            <button class="host-btn" style="flex:1;border-color:var(--accent);color:var(--accent);" onclick="copyRoomURL()">🔗 Copy URL</button>
-            <button class="host-btn" style="flex:1;border-color:var(--accent3);color:var(--accent3);" onclick="openFriendInvitePanel()">👥 Invite Friends</button>
-          </div>
-        </div>
-      </div>
-
-    </div>
-  </div>
-</div>
-
-<!-- JOIN REQUEST BANNER (shown to host) -->
-<div class="join-request-banner" id="join-request-banner">
-  <span id="join-request-text">wants to join your room</span>
-  <div class="join-req-btns">
-    <button class="share-req-btn accept" onclick="hostApproveJoin()">Let In</button>
-    <button class="share-req-btn deny" onclick="hostDenyJoin()">Deny</button>
-  </div>
-</div>
-
-<!-- CREATE COMMUNITY MODAL -->
-<div id="create-community-overlay" class="save-modal-overlay hidden">
-  <div class="save-modal" style="max-width:480px;">
-    <h3>🏘️ Create Community</h3><button class="modal-close-x" onclick="closeCreateCommunity()" title="Close">✕</button>
-    <div class="auth-field">
-      <label>Community Name</label>
-      <input id="cc-name" type="text" placeholder="My Awesome Community" maxlength="64" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.55rem .75rem;color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:.78rem;outline:none;box-sizing:border-box;"/>
-    </div>
-    <div class="auth-field" style="margin-top:.65rem;">
-      <label>Description</label>
-      <textarea id="cc-desc" placeholder="What is this community about?" maxlength="500" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.55rem .75rem;color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:.75rem;outline:none;resize:vertical;min-height:70px;box-sizing:border-box;"></textarea>
-    </div>
-    <div class="auth-field" style="margin-top:.65rem;">
-      <label>Tags (up to 10, space-separated)</label>
-      <input id="cc-tags" type="text" placeholder="#gaming #music #tech" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.55rem .75rem;color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:.78rem;outline:none;box-sizing:border-box;"/>
-    </div>
-    <label style="display:flex;align-items:center;gap:.5rem;font-size:.72rem;color:var(--muted);cursor:pointer;margin-top:.65rem;user-select:none;">
-      <input type="checkbox" id="cc-public" checked style="accent-color:var(--accent);cursor:pointer;"/>
-      Public community (searchable by anyone)
-    </label>
-    <label style="display:flex;align-items:center;gap:.5rem;font-size:.72rem;color:var(--muted);cursor:pointer;margin-top:.5rem;user-select:none;">
-      <input type="checkbox" id="cc-paid" style="accent-color:var(--accent3);cursor:pointer;" onchange="document.getElementById('cc-pricing-section').classList.toggle('hidden',!this.checked)"/>
-      💰 Paid community (charge for access)
-    </label>
-    <!-- Pricing section (shown when paid is checked) -->
-    <div id="cc-pricing-section" class="hidden" style="margin-top:.75rem;background:rgba(67,233,123,.05);border:1px solid rgba(67,233,123,.2);border-radius:10px;padding:.85rem;">
-      <div style="font-size:.68rem;color:var(--accent3);font-weight:600;margin-bottom:.6rem;text-transform:uppercase;letter-spacing:.05em;">Subscription Prices (leave blank to disable a plan)</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;">
-        <div><label style="font-size:.6rem;color:var(--muted);display:block;margin-bottom:.2rem;">Weekly ($)</label>
-          <input id="cc-price-weekly" type="number" min="0" step="0.01" placeholder="e.g. 1.99" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:.4rem .6rem;color:var(--text);font-size:.75rem;outline:none;box-sizing:border-box;"/></div>
-        <div><label style="font-size:.6rem;color:var(--muted);display:block;margin-bottom:.2rem;">Monthly ($)</label>
-          <input id="cc-price-monthly" type="number" min="0" step="0.01" placeholder="e.g. 4.99" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:.4rem .6rem;color:var(--text);font-size:.75rem;outline:none;box-sizing:border-box;"/></div>
-        <div><label style="font-size:.6rem;color:var(--muted);display:block;margin-bottom:.2rem;">Yearly ($)</label>
-          <input id="cc-price-yearly" type="number" min="0" step="0.01" placeholder="e.g. 39.99" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:.4rem .6rem;color:var(--text);font-size:.75rem;outline:none;box-sizing:border-box;"/></div>
-        <div><label style="font-size:.6rem;color:var(--muted);display:block;margin-bottom:.2rem;">Lifetime ($)</label>
-          <input id="cc-price-lifetime" type="number" min="0" step="0.01" placeholder="e.g. 99.99" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:.4rem .6rem;color:var(--text);font-size:.75rem;outline:none;box-sizing:border-box;"/></div>
-      </div>
-      <div style="font-size:.62rem;color:var(--muted);margin-top:.5rem;">⚠️ You'll need to connect a Stripe account after creating to receive payments.</div>
-    </div>
-    <div id="cc-error" style="color:var(--danger);font-size:.7rem;margin-top:.5rem;min-height:1rem;"></div>
-    <div style="display:flex;gap:.5rem;margin-top:.75rem;">
-      <button class="save-modal-cancel" style="flex:1;margin-top:0;padding:.6rem;" onclick="closeCreateCommunity()">Cancel</button>
-      <button class="auth-btn" style="flex:1;margin-top:0;" id="cc-submit-btn" onclick="submitCreateCommunity()">Create Community</button>
-    </div>
-  </div>
-</div>
-
 <!-- COMMUNITY VIEW (full screen overlay) -->
 <div id="community-view" class="hidden" style="position:fixed;inset:0;background:var(--bg);z-index:300;display:flex;flex-direction:column;">
   <div class="home-nav" style="flex-shrink:0;">
@@ -1423,46 +1192,172 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
           </div>
           <div id="cv-room-member-list" style="font-size:.75rem;color:var(--muted);margin-bottom:1rem;"></div>
         </div>
-        <!-- LIVE state: user is in the room — full 3-panel layout -->
+        <!-- LIVE state: identical to full voice room — chat left, video mid, controls right -->
         <div id="cv-room-live" class="hidden" style="flex:1;display:flex;flex-direction:column;overflow:hidden;">
-          <!-- Main content: participants + video/screen -->
-          <div style="flex:1;display:flex;overflow:hidden;min-height:0;">
-            <!-- Left: voice participants + video -->
-            <div style="flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;">
-              <!-- Screen share area -->
-              <div id="cv-screen-area" class="hidden" style="flex:0 0 auto;max-height:45%;overflow:hidden;background:#000;position:relative;">
-                <div id="cv-screen-grid" style="display:flex;gap:.3rem;padding:.4rem;height:100%;overflow-x:auto;"></div>
-                <div style="position:absolute;top:.3rem;left:.5rem;font-size:.6rem;color:rgba(255,255,255,.7);background:rgba(0,0,0,.5);padding:.1rem .4rem;border-radius:4px;">🖥 Screen Share</div>
-              </div>
-              <!-- Camera video grid -->
-              <div id="cv-cam-area" class="hidden" style="flex:0 0 auto;max-height:35%;overflow:hidden;background:#111;position:relative;">
-                <div id="cv-cam-grid" style="display:flex;gap:.3rem;padding:.4rem;height:100%;overflow-x:auto;align-items:flex-end;"></div>
-                <div style="position:absolute;top:.3rem;left:.5rem;font-size:.6rem;color:rgba(255,255,255,.7);background:rgba(0,0,0,.5);padding:.1rem .4rem;border-radius:4px;">📷 Video</div>
-              </div>
-              <!-- Participant tiles -->
-              <div id="cv-room-participants" style="flex:1;display:flex;flex-wrap:wrap;gap:.65rem;padding:1rem;overflow-y:auto;align-content:flex-start;min-height:80px;"></div>
-            </div>
-            <!-- Right: room chat -->
-            <div id="cv-room-chat-panel" style="width:240px;min-width:200px;border-left:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;">
-              <div style="padding:.4rem .6rem;font-size:.65rem;font-weight:700;color:var(--muted);border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.08em;">💬 Room Chat</div>
-              <div id="cv-room-chat-messages" style="flex:1;overflow-y:auto;padding:.5rem .6rem;display:flex;flex-direction:column;gap:.35rem;font-size:.75rem;"></div>
-              <div style="padding:.4rem .5rem;border-top:1px solid var(--border);display:flex;gap:.3rem;">
-                <input id="cv-room-chat-input" placeholder="Say something…" style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:.35rem .5rem;color:var(--text);font-size:.72rem;outline:none;" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();cvSendRoomChat();}"/>
-                <button onclick="cvSendRoomChat()" style="width:26px;height:26px;border-radius:6px;border:none;background:var(--accent);color:#fff;cursor:pointer;font-size:.75rem;flex-shrink:0;">➤</button>
-              </div>
+
+          <!-- Share-request banner (host only) -->
+          <div class="share-request-banner" id="cv-share-request-banner" style="display:none;position:absolute;top:0;left:0;right:0;z-index:50;">
+            <span id="cv-share-request-text">🖥️ wants to share their screen</span>
+            <div class="share-req-btns">
+              <button class="share-req-btn accept" onclick="hostApproveScreen()">Approve</button>
+              <button class="share-req-btn deny" onclick="hostDenyScreen()">Deny</button>
             </div>
           </div>
-          <!-- Control bar -->
-          <div style="padding:.55rem .8rem;border-top:1px solid var(--border);background:var(--surface);display:flex;align-items:center;gap:.5rem;flex-shrink:0;flex-wrap:wrap;">
-            <span style="font-size:.62rem;color:var(--accent3);display:flex;align-items:center;gap:.3rem;font-weight:700;flex-shrink:0;">
-              <span style="width:6px;height:6px;border-radius:50%;background:var(--accent3);animation:pulse 1.5s infinite;display:inline-block;"></span>LIVE
+
+          <!-- Three-column room body -->
+          <div class="cv-room-body" style="flex:1;display:grid;grid-template-columns:220px 5px 1fr 5px 220px;overflow:hidden;min-height:0;">
+
+            <!-- LEFT: Chat -->
+            <div class="col-left" style="padding:.5rem .4rem .5rem .5rem;">
+              <div class="chat-col-panel" id="cv-chat-panel-el">
+                <div class="panel-header" style="cursor:default;">💬 Chat
+                  <span style="font-size:.55rem;color:var(--muted);">paste/drag up to 10MB</span>
+                </div>
+                <div class="chat-messages" id="cv-chat-messages"></div>
+                <div id="cv-img-preview-area" style="padding:0 .55rem .4rem;display:none;">
+                  <div class="img-preview-wrap">
+                    <img id="cv-img-preview-thumb" src="" alt="preview"/>
+                    <button class="remove-img" onclick="cvClearImage()">✕</button>
+                  </div>
+                </div>
+                <div class="chat-locked-notice" id="cv-chat-locked-notice">🔒 Chat locked by host</div>
+                <div class="chat-input-wrap" id="cv-chat-input-wrap">
+                  <input type="file" id="cv-img-file-input" accept="image/*,video/*,.pdf,.zip,.doc,.docx" style="display:none" onchange="cvHandleFileSelect(event)"/>
+                  <button class="img-attach-btn" onclick="document.getElementById('cv-img-file-input').click()" title="Attach">📎</button>
+                  <input class="chat-input" id="cv-chat-in" placeholder="Type a message…"
+                    onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();cvSendRoomChat();}"/>
+                  <button class="send-btn" onclick="cvSendRoomChat()">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- RESIZE: chat↔mid -->
+            <div class="col-resize-handle" id="cv-chat-col-resize" title="Drag to resize"></div>
+
+            <!-- MIDDLE: Video + Screen + Participants -->
+            <div class="col-mid" style="display:flex;flex-direction:column;gap:.5rem;padding:.5rem 0;overflow-y:auto;">
+
+              <!-- Camera panel — reuses existing cam-area / cam-grid -->
+              <div class="video-area hidden" id="cam-area">
+                <div class="video-area-header" onclick="togglePanel('cam-area')">
+                  <span>📷 Video</span>
+                  <div style="display:flex;align-items:center;gap:.65rem;">
+                    <span id="cam-count" style="font-size:.63rem;color:var(--accent);">0 cameras</span>
+                    <div id="cam-selector-wrap" style="display:none;position:relative;">
+                      <button id="cam-dropdown-btn" onclick="event.stopPropagation();toggleCamDropdown()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);font-size:.63rem;border-radius:5px;padding:.18rem .5rem;cursor:pointer;display:flex;align-items:center;gap:.3rem;">
+                        <span id="cam-dropdown-label">All</span> ▾
+                      </button>
+                      <div id="cam-dropdown-menu" style="display:none;position:absolute;right:0;top:110%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:.4rem;z-index:50;min-width:140px;box-shadow:0 8px 24px rgba(0,0,0,.4);" onclick="event.stopPropagation()">
+                        <div id="cam-checkbox-list" style="display:flex;flex-direction:column;gap:.25rem;"></div>
+                      </div>
+                    </div>
+                    <span class="collapse-btn" id="cam-collapse-icon">▾</span>
+                  </div>
+                </div>
+                <div class="video-area-body" id="cam-body">
+                  <div class="video-grid" id="cam-grid"></div>
+                </div>
+                <div class="resize-handle" id="cam-resize" title="Drag to resize"></div>
+              </div>
+
+              <!-- Screen share panel — reuses existing screen-area / screen-grid -->
+              <div class="video-area hidden" id="screen-area">
+                <div class="video-area-header" onclick="togglePanel('screen-area')">
+                  <span>🖥️ Screen Share</span>
+                  <div style="display:flex;align-items:center;gap:.65rem;">
+                    <span id="screen-count" style="font-size:.63rem;color:var(--accent2);">0 sharing</span>
+                    <div id="screen-selector-wrap" style="display:none;align-items:center;gap:.4rem;font-size:.63rem;color:var(--muted);">
+                      View: <div id="screen-checkboxes" style="display:flex;gap:.35rem;flex-wrap:wrap;"></div>
+                    </div>
+                    <span class="collapse-btn" id="screen-collapse-icon">▾</span>
+                  </div>
+                </div>
+                <div id="screen-body" style="height:200px;min-height:80px;box-sizing:border-box;">
+                  <div class="screen-grid" id="screen-grid"></div>
+                </div>
+                <div class="resize-handle" id="screen-resize" title="Drag to resize"></div>
+              </div>
+
+              <!-- Participants list (voice, no cam) -->
+              <div class="participants-panel" style="flex:1;min-height:60px;">
+                <div class="panel-header">
+                  <span>Participants</span>
+                  <span class="participant-count" id="p-count">0</span>
+                </div>
+                <div class="participants-list" id="p-list"></div>
+              </div>
+
+            </div>
+
+            <!-- RESIZE: mid↔right -->
+            <div class="col-resize-handle" id="cv-right-col-resize" title="Drag to resize"></div>
+
+            <!-- RIGHT: Controls -->
+            <div class="col-right" style="padding:.5rem .5rem .5rem .4rem;">
+
+              <!-- My Controls -->
+              <div class="my-controls">
+                <div class="section-title">🎤 My Controls</div>
+                <button class="mic-btn" id="mic-btn" onclick="toggleMic()">
+                  <div class="pulse-ring"></div>
+                  <span id="mic-icon">🎙️</span>
+                  <span id="mic-label">MIC ON</span>
+                </button>
+                <div class="volume-bar"><div class="volume-fill" id="vol-fill"></div></div>
+                <div style="font-size:.58rem;color:var(--muted);margin-top:.28rem;text-align:center;">Voice activity</div>
+                <div class="media-controls">
+                  <button class="media-btn" id="cam-btn" onclick="toggleCamera()">📷 Camera</button>
+                  <button class="media-btn" id="screen-btn" onclick="requestOrToggleScreen()">🖥️ Screen</button>
+                </div>
+              </div>
+
+              <!-- Pending invites (host only) -->
+              <div id="pending-invites-box" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;">
+                <div class="panel-header" style="border-bottom:1px solid var(--border);">
+                  <span>⏳ Waiting</span>
+                  <span class="participant-count" id="pending-invites-count">0</span>
+                </div>
+                <div id="pending-invites-list" style="padding:.4rem .6rem;"></div>
+              </div>
+
+              <!-- Host Controls -->
+              <div class="host-panel hidden" id="host-panel">
+                <div class="host-title">👑 Host Controls</div>
+                <div class="host-actions">
+                  <button class="host-btn" id="mute-all-btn" onclick="hostMuteAll()">🔇 Mute All</button>
+                  <button class="host-btn" onclick="hostUnmuteAll()">🔊 Unmute All</button>
+                  <button class="host-btn" id="screen-requests-btn" onclick="toggleScreenRequests()">🖥️ Block Screen Sharing</button>
+                  <button class="host-btn" id="chat-lock-btn" onclick="toggleChatLock()">💬 Lock Chat</button>
+                  <button class="host-btn" id="room-lock-btn" onclick="toggleLock()">🔒 Lock Room</button>
+                  <button class="host-btn" id="record-btn" onclick="toggleRecording()" style="border-color:var(--danger);color:var(--danger);">⏺ Start Recording</button>
+                  <button class="host-btn danger" onclick="cvEndRoom()">⛔ End Room</button>
+                </div>
+                <div class="invite-box">
+                  <p>📨 Share invite:</p>
+                  <div class="invite-url" id="invite-url" onclick="copyRoomURL()">—</div>
+                  <div style="display:flex;gap:.4rem;margin-top:.5rem;flex-wrap:wrap;">
+                    <button class="host-btn" style="flex:1;border-color:var(--accent);color:var(--accent);" onclick="copyRoomURL()">🔗 Copy URL</button>
+                    <button class="host-btn" style="flex:1;border-color:var(--accent3);color:var(--accent3);" onclick="openFriendInvitePanel()">👥 Invite Friends</button>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Bottom bar: status + leave -->
+          <div style="padding:.45rem .8rem;border-top:1px solid var(--border);background:var(--surface);display:flex;align-items:center;gap:.6rem;flex-shrink:0;">
+            <span style="font-size:.62rem;color:var(--accent3);display:flex;align-items:center;gap:.3rem;font-weight:700;">
+              <span class="conn-dot connected" id="conn-dot"></span>LIVE &bull;
+              <span id="p-count-header">0</span> participant(s)
+              <span id="chat-lock-badge" style="display:none;color:var(--danger);font-size:.6rem;">💬 LOCKED</span>
+              <span id="mute-all-badge" style="display:none;color:var(--danger);font-size:.6rem;">🔇 MUTED</span>
+              <span id="rec-badge" style="display:none;color:var(--danger);font-size:.6rem;animation:blink 1s infinite;">⏺ REC</span>
             </span>
-            <button id="cv-mic-btn" onclick="cvToggleMute()" style="padding:.28rem .6rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:.7rem;cursor:pointer;display:flex;align-items:center;gap:.25rem;">🎙️ <span id="cv-mic-label">Mic On</span></button>
-            <button id="cv-cam-btn" onclick="cvToggleCam()" style="padding:.28rem .6rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:.7rem;cursor:pointer;">📷 Camera</button>
-            <button id="cv-screen-btn" onclick="cvToggleScreen()" style="padding:.28rem .6rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:.7rem;cursor:pointer;">🖥 Screen</button>
-            <button onclick="copyRoomURL()" style="padding:.28rem .6rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:.7rem;cursor:pointer;">🔗 Invite</button>
-            <span id="cv-room-p-count" style="font-size:.65rem;color:var(--muted);margin-left:auto;flex-shrink:0;"></span>
-            <button onclick="cvLeaveRoom()" style="padding:.28rem .65rem;border-radius:7px;border:none;background:var(--danger);color:#fff;font-size:.7rem;cursor:pointer;font-weight:600;">📞 Leave</button>
+            <span style="margin-left:auto;"></span>
+            <button onclick="cvLeaveRoom()" style="padding:.28rem .7rem;border-radius:7px;border:none;background:var(--danger);color:#fff;font-size:.7rem;cursor:pointer;font-weight:600;">📞 Leave</button>
           </div>
         </div>
       </div>
@@ -1474,6 +1369,237 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
         <input id="cv-msg-input" placeholder="Message #general…" style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.5rem .75rem;color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:.78rem;outline:none;" onkeydown="cvMsgKeydown(event)" oninput="cvMsgInput(event)"/>
         <button onclick="sendCommunityMessage()" style="width:30px;height:30px;border-radius:7px;border:none;background:var(--accent);color:#fff;cursor:pointer;font-size:.8rem;flex-shrink:0;">➤</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<div id="room">
+  <div class="room-header">
+    <div class="room-info">
+      <h2 id="room-title">Room</h2>
+      <div class="room-meta">
+        <span class="conn-dot connected" id="fs-conn-dot"></span>
+        LIVE &bull; <span id="fs-p-count-header">0</span> participant(s)
+        <span id="fs-chat-lock-badge" style="display:none;margin-left:.5rem;color:var(--danger);font-size:.63rem;">💬 CHAT LOCKED</span>
+        <span id="fs-mute-all-badge" style="display:none;margin-left:.5rem;color:var(--danger);font-size:.63rem;">🔇 ALL MUTED</span>
+        <span id="fs-rec-badge" style="display:none;margin-left:.5rem;color:var(--danger);font-size:.63rem;animation:blink 1s infinite;">⏺ REC</span>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:.65rem;flex-wrap:wrap;">
+      <button class="theme-toggle" onclick="toggleTheme()" id="theme-btn-room" title="Toggle light/dark mode">🌙</button>
+      <button class="profile-btn" onclick="openFriendsPanel()" id="friends-header-btn">
+        <div class="profile-avatar-sm" id="header-avatar">👤</div>
+        <span id="header-username">—</span>
+        <span id="header-req-badge" class="friend-badge hidden">0</span>
+      </button>
+      <div class="room-id-badge" onclick="copyRoomURL()">🔗 Copy URL</div>
+      <button class="btn btn-sm btn-ghost" onclick="leaveRoom()">Leave →</button>
+    </div>
+  </div>
+
+  <!-- Host approval popup: shown to HOST when a participant requests screen share -->
+  <div class="share-request-banner" id="fs-share-request-banner">
+    <span id="fs-share-request-text">🖥️ wants to share their screen</span>
+    <div class="share-req-btns">
+      <button class="share-req-btn accept" onclick="hostApproveScreen()">Approve</button>
+      <button class="share-req-btn deny" onclick="hostDenyScreen()">Deny</button>
+    </div>
+  </div>
+
+  <div class="room-body">
+
+    <!-- LEFT COL: Chat -->
+    <div class="col-left">
+      <div class="chat-col-panel" id="fs-chat-panel-el">
+        <div class="panel-header" style="cursor:default;">
+          💬 Chat
+          <span style="font-size:.58rem;color:var(--muted);">paste/drag up to 10MB</span>
+        </div>
+        <div class="chat-messages" id="fs-chat-messages"></div>
+        <div id="fs-img-preview-area" style="padding:0 .55rem .4rem;display:none;">
+          <div class="img-preview-wrap">
+            <img id="fs-img-preview-thumb" src="" alt="preview"/>
+            <button class="remove-img" onclick="clearImage()">✕</button>
+          </div>
+        </div>
+        <div class="chat-locked-notice" id="fs-chat-locked-notice">🔒 Chat locked by host</div>
+        <div class="chat-input-wrap" id="fs-chat-input-wrap">
+          <input type="file" id="fs-img-file-input" accept="image/*,video/*,.pdf,.zip,.doc,.docx" style="display:none" onchange="handleFileSelect(event)"/>
+          <button class="img-attach-btn" onclick="document.getElementById('img-file-input').click()" title="Attach file">📎</button>
+          <input class="chat-input" id="fs-chat-in" placeholder="Type a message…"
+            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat();}"/>
+          <button class="send-btn" onclick="sendChat()">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- CHAT ↔ VIDEO horizontal resize handle -->
+    <div class="col-resize-handle" id="chat-col-resize" title="Drag to resize chat"></div>
+
+    <!-- MIDDLE COL: Video (top) + Screen Share (bottom) -->
+    <div class="col-mid">
+
+      <!-- CAMERA PANEL -->
+      <div class="video-area hidden" id="fs-cam-area">
+        <div class="video-area-header" onclick="togglePanel('cam-area')">
+          <span>📷 Video</span>
+          <div style="display:flex;align-items:center;gap:.65rem;">
+            <span id="fs-cam-count" style="font-size:.63rem;color:var(--accent);">0 cameras</span>
+            <!-- Dropdown to pick which cameras to show — visible whenever 2+ cams -->
+            <div id="fs-cam-selector-wrap" style="display:none;position:relative;">
+              <button id="fs-cam-dropdown-btn" onclick="event.stopPropagation();toggleCamDropdown()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:.63rem;border-radius:5px;padding:.18rem .5rem;cursor:pointer;display:flex;align-items:center;gap:.3rem;">
+                <span id="fs-cam-dropdown-label">All</span> ▾
+              </button>
+              <div id="fs-cam-dropdown-menu" style="display:none;position:absolute;right:0;top:110%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:.4rem;z-index:50;min-width:140px;box-shadow:0 8px 24px rgba(0,0,0,.4);" onclick="event.stopPropagation()">
+                <div id="fs-cam-checkbox-list" style="display:flex;flex-direction:column;gap:.25rem;"></div>
+              </div>
+            </div>
+            <span class="collapse-btn" id="fs-cam-collapse-icon">▾</span>
+          </div>
+        </div>
+        <div class="video-area-body" id="fs-cam-body">
+          <div class="video-grid" id="fs-cam-grid"></div>
+        </div>
+        <div class="resize-handle" id="fs-cam-resize" title="Drag to resize"></div>
+      </div>
+
+      <!-- SCREEN SHARE PANEL -->
+      <div class="video-area hidden" id="fs-screen-area">
+        <div class="video-area-header" onclick="togglePanel('screen-area')">
+          <span>🖥️ Screen Share</span>
+          <div style="display:flex;align-items:center;gap:.65rem;">
+            <span id="fs-screen-count" style="font-size:.63rem;color:var(--accent2);">0 sharing</span>
+            <div id="fs-screen-selector-wrap" style="display:none;align-items:center;gap:.4rem;font-size:.63rem;color:var(--muted);">
+              View: <div id="fs-screen-checkboxes" style="display:flex;gap:.35rem;flex-wrap:wrap;"></div>
+            </div>
+            <span class="collapse-btn" id="fs-screen-collapse-icon">▾</span>
+          </div>
+        </div>
+        <div id="fs-screen-body" style="height:200px;min-height:80px;box-sizing:border-box;">
+          <div class="screen-grid" id="fs-screen-grid"></div>
+        </div>
+        <div class="resize-handle" id="fs-screen-resize" title="Drag to resize"></div>
+      </div>
+
+    </div>
+
+    <!-- RIGHT COL: Controls -->
+    <div class="col-right">
+
+      <!-- My Controls -->
+      <div class="my-controls">
+        <div class="section-title">🎤 My Controls</div>
+        <button class="mic-btn" id="fs-mic-btn" onclick="toggleMic()">
+          <div class="pulse-ring"></div>
+          <span id="fs-mic-icon">🎙️</span>
+          <span id="fs-mic-label">MIC ON</span>
+        </button>
+        <div class="volume-bar"><div class="volume-fill" id="fs-vol-fill"></div></div>
+        <div style="font-size:.58rem;color:var(--muted);margin-top:.28rem;text-align:center;">Voice activity</div>
+        <div class="media-controls">
+          <button class="media-btn" id="fs-cam-btn" onclick="toggleCamera()">📷 Camera</button>
+          <button class="media-btn" id="fs-screen-btn" onclick="requestOrToggleScreen()">🖥️ Screen</button>
+        </div>
+      </div>
+
+      <!-- Participants -->
+      <div class="participants-panel">
+        <div class="panel-header">
+          <span>Participants</span>
+          <span class="participant-count" id="fs-p-count">0</span>
+        </div>
+        <div class="participants-list" id="fs-p-list"></div>
+      </div>
+
+      <!-- Pending invites (host only) -->
+      <div id="fs-pending-invites-box" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;">
+        <div class="panel-header" style="border-bottom:1px solid var(--border);">
+          <span>⏳ Waiting to Join</span>
+          <span class="participant-count" id="fs-pending-invites-count">0</span>
+        </div>
+        <div id="fs-pending-invites-list" style="padding:.4rem .6rem;"></div>
+      </div>
+
+      <!-- Host Controls -->
+      <div class="host-panel hidden" id="fs-host-panel">
+        <div class="host-title">👑 Host Controls</div>
+        <div class="host-actions">
+          <button class="host-btn" id="fs-mute-all-btn" onclick="hostMuteAll()">🔇 Mute All</button>
+          <button class="host-btn" onclick="hostUnmuteAll()">🔊 Unmute All</button>
+          <button class="host-btn" id="fs-screen-requests-btn" onclick="toggleScreenRequests()">🖥️ Block Screen Sharing</button>
+          <button class="host-btn" id="fs-chat-lock-btn" onclick="toggleChatLock()">💬 Lock Chat</button>
+          <button class="host-btn" id="fs-room-lock-btn" onclick="toggleLock()">🔒 Lock Room</button>
+          <button class="host-btn" id="fs-record-btn" onclick="toggleRecording()" style="border-color:var(--danger);color:var(--danger);">⏺ Start Recording</button>
+          <button class="host-btn danger" onclick="endRoom()">⛔ End Room</button>
+        </div>
+        <div class="invite-box">
+          <p>📨 Share invite:</p>
+          <div class="invite-url" id="fs-invite-url" onclick="copyRoomURL()">—</div>
+          <div style="display:flex;gap:.4rem;margin-top:.5rem;flex-wrap:wrap;">
+            <button class="host-btn" style="flex:1;border-color:var(--accent);color:var(--accent);" onclick="copyRoomURL()">🔗 Copy URL</button>
+            <button class="host-btn" style="flex:1;border-color:var(--accent3);color:var(--accent3);" onclick="openFriendInvitePanel()">👥 Invite Friends</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- JOIN REQUEST BANNER (shown to host) -->
+<div class="join-request-banner" id="fs-join-request-banner">
+  <span id="fs-join-request-text">wants to join your room</span>
+  <div class="join-req-btns">
+    <button class="share-req-btn accept" onclick="hostApproveJoin()">Let In</button>
+    <button class="share-req-btn deny" onclick="hostDenyJoin()">Deny</button>
+  </div>
+</div>
+
+<!-- CREATE COMMUNITY MODAL -->
+<div id="create-community-overlay" class="save-modal-overlay hidden">
+  <div class="save-modal" style="max-width:480px;">
+    <h3>🏘️ Create Community</h3><button class="modal-close-x" onclick="closeCreateCommunity()" title="Close">✕</button>
+    <div class="auth-field">
+      <label>Community Name</label>
+      <input id="cc-name" type="text" placeholder="My Awesome Community" maxlength="64" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.55rem .75rem;color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:.78rem;outline:none;box-sizing:border-box;"/>
+    </div>
+    <div class="auth-field" style="margin-top:.65rem;">
+      <label>Description</label>
+      <textarea id="cc-desc" placeholder="What is this community about?" maxlength="500" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.55rem .75rem;color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:.75rem;outline:none;resize:vertical;min-height:70px;box-sizing:border-box;"></textarea>
+    </div>
+    <div class="auth-field" style="margin-top:.65rem;">
+      <label>Tags (up to 10, space-separated)</label>
+      <input id="cc-tags" type="text" placeholder="#gaming #music #tech" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.55rem .75rem;color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:.78rem;outline:none;box-sizing:border-box;"/>
+    </div>
+    <label style="display:flex;align-items:center;gap:.5rem;font-size:.72rem;color:var(--muted);cursor:pointer;margin-top:.65rem;user-select:none;">
+      <input type="checkbox" id="cc-public" checked style="accent-color:var(--accent);cursor:pointer;"/>
+      Public community (searchable by anyone)
+    </label>
+    <label style="display:flex;align-items:center;gap:.5rem;font-size:.72rem;color:var(--muted);cursor:pointer;margin-top:.5rem;user-select:none;">
+      <input type="checkbox" id="cc-paid" style="accent-color:var(--accent3);cursor:pointer;" onchange="document.getElementById('cc-pricing-section').classList.toggle('hidden',!this.checked)"/>
+      💰 Paid community (charge for access)
+    </label>
+    <!-- Pricing section (shown when paid is checked) -->
+    <div id="cc-pricing-section" class="hidden" style="margin-top:.75rem;background:rgba(67,233,123,.05);border:1px solid rgba(67,233,123,.2);border-radius:10px;padding:.85rem;">
+      <div style="font-size:.68rem;color:var(--accent3);font-weight:600;margin-bottom:.6rem;text-transform:uppercase;letter-spacing:.05em;">Subscription Prices (leave blank to disable a plan)</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;">
+        <div><label style="font-size:.6rem;color:var(--muted);display:block;margin-bottom:.2rem;">Weekly ($)</label>
+          <input id="cc-price-weekly" type="number" min="0" step="0.01" placeholder="e.g. 1.99" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:.4rem .6rem;color:var(--text);font-size:.75rem;outline:none;box-sizing:border-box;"/></div>
+        <div><label style="font-size:.6rem;color:var(--muted);display:block;margin-bottom:.2rem;">Monthly ($)</label>
+          <input id="cc-price-monthly" type="number" min="0" step="0.01" placeholder="e.g. 4.99" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:.4rem .6rem;color:var(--text);font-size:.75rem;outline:none;box-sizing:border-box;"/></div>
+        <div><label style="font-size:.6rem;color:var(--muted);display:block;margin-bottom:.2rem;">Yearly ($)</label>
+          <input id="cc-price-yearly" type="number" min="0" step="0.01" placeholder="e.g. 39.99" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:.4rem .6rem;color:var(--text);font-size:.75rem;outline:none;box-sizing:border-box;"/></div>
+        <div><label style="font-size:.6rem;color:var(--muted);display:block;margin-bottom:.2rem;">Lifetime ($)</label>
+          <input id="cc-price-lifetime" type="number" min="0" step="0.01" placeholder="e.g. 99.99" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:.4rem .6rem;color:var(--text);font-size:.75rem;outline:none;box-sizing:border-box;"/></div>
+      </div>
+      <div style="font-size:.62rem;color:var(--muted);margin-top:.5rem;">⚠️ You'll need to connect a Stripe account after creating to receive payments.</div>
+    </div>
+    <div id="cc-error" style="color:var(--danger);font-size:.7rem;margin-top:.5rem;min-height:1rem;"></div>
+    <div style="display:flex;gap:.5rem;margin-top:.75rem;">
+      <button class="save-modal-cancel" style="flex:1;margin-top:0;padding:.6rem;" onclick="closeCreateCommunity()">Cancel</button>
+      <button class="auth-btn" style="flex:1;margin-top:0;" id="cc-submit-btn" onclick="submitCreateCommunity()">Create Community</button>
     </div>
   </div>
 </div>
@@ -5672,14 +5798,14 @@ function setupAnalyser(){
   audioCtx.createMediaStreamSource(localStream).connect(analyser);
   const data=new Uint8Array(analyser.frequencyBinCount);
   volTimer=setInterval(()=>{
-    if(isMuted){document.getElementById('vol-fill').style.width='0%';return;}
+    if(isMuted){const _vf=roomEl('vol-fill'); if(_vf){ _vf.style.width='0%'; return; }}
     analyser.getByteFrequencyData(data);
     const avg=data.reduce((a,b)=>a+b,0)/data.length;
     document.getElementById('vol-fill').style.width=Math.min(100,avg*2.5)+'%';
     const speaking=avg>15;
     if(speaking!==isSpeaking){
       isSpeaking=speaking;
-      document.getElementById('mic-btn').classList.toggle('speaking-active',speaking&&!isMuted);
+      roomEl('mic-btn').classList.toggle('speaking-active',speaking&&!isMuted);
       if(socket)socket.emit('speaking',{active:speaking&&!isMuted});
       const me=participants.get(socket?.id);
       if(me){me.speaking=speaking&&!isMuted;renderParticipants();}
@@ -6696,10 +6822,10 @@ function showRoom(name){
   document.getElementById('landing').style.display='none';
   document.getElementById('room').style.display='block';
   document.getElementById('room-title').textContent=name||'Voice Room';
-  if(isHost)document.getElementById('host-panel').classList.remove('hidden');
+  if(isHost)document.getElementById('fs-host-panel').classList.remove('hidden');
   updateInvite(); updateConnDot('connected');
-  initResizeHandle('cam-resize','cam-area','cam-body', 80, 600);
-  initResizeHandle('screen-resize','screen-area','screen-body', 80, 700);
+  initResizeHandle('fs-cam-resize','fs-cam-area','fs-cam-body', 80, 600);
+  initResizeHandle('fs-screen-resize','fs-screen-area','fs-screen-body', 80, 700);
   initChatResize();
   const screenBtn = document.getElementById('screen-btn');
   const hasDisplayMedia = !!(navigator.mediaDevices?.getDisplayMedia);
@@ -6714,24 +6840,51 @@ function showRoom(name){
 }
 
 function showCommunityInlineRoom(name){
-  // Keep community view open; show live room inside cv-room-view
   const idleEl = document.getElementById('cv-room-idle');
   const activeEl = document.getElementById('cv-room-active-info');
   const liveEl = document.getElementById('cv-room-live');
   if(idleEl) idleEl.style.display='none';
   if(activeEl) activeEl.classList.add('hidden');
   if(liveEl){ liveEl.classList.remove('hidden'); liveEl.style.display='flex'; }
-  // Hide the join/create/end buttons since user is now in the room
   const joinBtn=document.getElementById('cv-join-room-btn');
   const createBtn=document.getElementById('cv-create-room-btn');
   const endBtn=document.getElementById('cv-end-room-btn');
   if(joinBtn) joinBtn.classList.add('hidden');
   if(createBtn) createBtn.style.display='none';
   if(endBtn) endBtn.classList.add('hidden');
-  // Update room status in header
   const roomStatus=document.getElementById('cv-room-status');
   if(roomStatus) roomStatus.innerHTML='<span style="width:8px;height:8px;border-radius:50%;background:var(--accent3);animation:pulse 1.5s infinite;display:inline-block;"></span> <span style="color:var(--accent3);">Live — In Room</span>';
-  cvRenderParticipants();
+  // Show host panel
+  if(isHost) document.getElementById('host-panel').classList.remove('hidden');
+  // Init resize handles for inline room
+  setTimeout(()=>{
+    initResizeHandle('cam-resize','cam-area','cam-body', 80, 600);
+    initResizeHandle('screen-resize','screen-area','screen-body', 80, 700);
+    initCvChatResize();
+  }, 50);
+}
+
+function initCvChatResize(){
+  const handle = document.getElementById('cv-chat-col-resize');
+  const rightHandle = document.getElementById('cv-right-col-resize');
+  const grid = document.querySelector('.cv-room-body');
+  if(!handle||!grid) return;
+  let dragging=false, startX=0, startCols='';
+  const onDown=(e)=>{ dragging=true; startX=e.clientX; startCols=getComputedStyle(grid).gridTemplateColumns; handle.classList.add('dragging'); };
+  const onMove=(e)=>{ if(!dragging)return; const dx=e.clientX-startX; startX=e.clientX; const cols=startCols.split(' '); const cur=parseInt(cols[0]); cols[0]=Math.max(140,Math.min(400,cur+dx))+'px'; grid.style.gridTemplateColumns=cols.join(' '); startCols=getComputedStyle(grid).gridTemplateColumns; };
+  const onUp=()=>{ dragging=false; handle.classList.remove('dragging'); };
+  handle.addEventListener('mousedown',onDown);
+  document.addEventListener('mousemove',onMove);
+  document.addEventListener('mouseup',onUp);
+  if(rightHandle){
+    let rd=false,rx=0;
+    const rDown=(e)=>{ rd=true; rx=e.clientX; rightHandle.classList.add('dragging'); };
+    const rMove=(e)=>{ if(!rd)return; const dx=e.clientX-rx; rx=e.clientX; const cols=getComputedStyle(grid).gridTemplateColumns.split(' '); const cur=parseInt(cols[4]); cols[4]=Math.max(140,Math.min(380,cur-dx))+'px'; grid.style.gridTemplateColumns=cols.join(' '); };
+    const rUp=()=>{ rd=false; rightHandle.classList.remove('dragging'); };
+    rightHandle.addEventListener('mousedown',rDown);
+    document.addEventListener('mousemove',rMove);
+    document.addEventListener('mouseup',rUp);
+  }
 }
 
 function cvRenderParticipants(){
@@ -6782,20 +6935,20 @@ function updateInvite(){
   document.getElementById('invite-url').textContent=url;
   history.replaceState(null,'',`?room=${roomId}`);
 }
-function updateConnDot(s){const d=document.getElementById('conn-dot');if(d)d.className=`conn-dot ${s}`;}
+function updateConnDot(s){const d=roomEl('conn-dot');if(d)d.className=`conn-dot ${s}`;}
 function updateBadges(){
-  document.getElementById('mute-all-badge').style.display=isAllMuted?'inline':'none';
-  document.getElementById('chat-lock-badge').style.display=isChatLocked?'inline':'none';
+  roomEl('mute-all-badge').style.display=isAllMuted?'inline':'none';
+  roomEl('chat-lock-badge').style.display=isChatLocked?'inline':'none';
 }
 
 // ── Participants render ──
 function renderParticipants(){
   // Also update community inline view if active
   if(_communityRoomMode) cvRenderParticipants();
-  const list=document.getElementById('p-list');
+  const list=roomEl('p-list');
   const count=participants.size;
-  document.getElementById('p-count').textContent=count;
-  document.getElementById('p-count-header').textContent=count;
+  roomEl('p-count').textContent=count;
+  const _pch=roomEl('p-count-header'); if(_pch) _pch.textContent=count;
   list.innerHTML='';
   participants.forEach((p,id)=>{
     const isMine=id===socket?.id;
@@ -6826,8 +6979,8 @@ function renderParticipants(){
 
 // ── Chat ──
 function applyChatLockUI(locked){
-  const panel = document.getElementById('chat-panel-el');
-  const notice = document.getElementById('chat-locked-notice');
+  const panel = roomEl('chat-panel-el');
+  const notice = roomEl('chat-locked-notice');
   const inp = document.getElementById('chat-in');
   const sendBtn = document.querySelector('.send-btn');
   const attachBtn = document.querySelector('.img-attach-btn');
@@ -6872,7 +7025,7 @@ function linkify(text){
 }
 
 function addChat(cls,name,text,ih=false,image=null,msgId=null,fromId=null){
-  const c=document.getElementById('chat-messages');
+  const c=roomEl('chat-messages');
   const d=document.createElement('div');
   const id=msgId||`msg-${++msgCounter}`;
   d.id=id; d.className=`chat-msg ${cls}`; d.dataset.from=fromId||socket?.id||'';
@@ -6995,15 +7148,16 @@ function leaveRoom(forced=false){
   // Restore community inline view to idle/active state
   const liveEl=document.getElementById('cv-room-live');
   if(liveEl){ liveEl.classList.add('hidden'); liveEl.style.display='none'; }
-  document.getElementById('p-list').innerHTML='';
-  document.getElementById('chat-messages').innerHTML='';
-  document.getElementById('cam-grid').innerHTML='';
-  document.getElementById('screen-grid').innerHTML='';
-  document.getElementById('cam-area').classList.add('hidden');
-  document.getElementById('screen-area').classList.add('hidden');
-  document.getElementById('host-panel').classList.add('hidden');
-  document.getElementById('chat-panel-el').classList.remove('chat-locked-ui');
-  document.getElementById('share-request-banner').classList.remove('visible');
+  const _fs = (id)=>{ const el=document.getElementById(id); if(el) return el; return document.getElementById('fs-'+id); };
+  _fs('p-list').innerHTML='';
+  _fs('chat-messages').innerHTML='';
+  _fs('cam-grid').innerHTML='';
+  _fs('screen-grid').innerHTML='';
+  _fs('cam-area').classList.add('hidden');
+  _fs('screen-area').classList.add('hidden');
+  _fs('host-panel').classList.add('hidden');
+  _fs('chat-panel-el').classList.remove('chat-locked-ui');
+  _fs('share-request-banner').classList.remove('visible');
   const btn=document.getElementById('mic-btn');
   btn.classList.remove('muted','speaking-active','host-locked');
   document.getElementById('mic-icon').textContent='🎙️';
@@ -7530,7 +7684,7 @@ function cvToggleScreen(){
 
 
 function cvSendRoomChat(){
-  const inp = document.getElementById('cv-room-chat-input');
+  const inp = document.getElementById('cv-chat-in');
   if(!inp) return;
   const text = inp.value.trim();
   if(!text || !socket) return;
@@ -7541,7 +7695,7 @@ function cvSendRoomChat(){
 }
 
 function cvAddRoomChat(type, name, text){
-  const el = document.getElementById('cv-room-chat-messages');
+  const el = document.getElementById('cv-chat-messages');
   if(!el) return;
   const div = document.createElement('div');
   div.style.cssText = 'display:flex;flex-direction:column;gap:.1rem;';
@@ -7551,6 +7705,27 @@ function cvAddRoomChat(type, name, text){
     '<div style="background:'+(isMe?'var(--accent)':'var(--surface2)')+';color:'+(isMe?'#fff':'var(--text)')+';border-radius:8px;padding:.3rem .5rem;font-size:.75rem;max-width:95%;'+(isMe?'margin-left:auto;':'')+'">'+esc(text)+'</div>';
   el.appendChild(div);
   el.scrollTop = el.scrollHeight;
+}
+
+
+function cvEndRoom(){
+  if(!confirm('End the room for everyone?')) return;
+  endRoom(); // reuse existing endRoom
+}
+
+function cvClearImage(){ clearImage(); }
+function cvHandleFileSelect(e){ handleFileSelect(e); }
+
+
+// Element accessor: returns community-mode element OR standalone fallback
+function roomEl(id){
+  if(_communityRoomMode){
+    const el=document.getElementById(id);
+    if(el) return el;
+  }
+  const fs=document.getElementById('fs-'+id);
+  if(fs) return fs;
+  return document.getElementById(id);
 }
 
 </script>
