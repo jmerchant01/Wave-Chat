@@ -196,8 +196,8 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .hbar-btn:hover{border-color:var(--host);color:var(--host);}
 .hbar-btn.danger-btn{border-color:var(--danger);color:var(--danger);}
 .hbar-btn.danger-btn:hover{background:var(--danger);color:#fff;}
-.hbar-btn.active-state{border-color:var(--accent3);color:var(--accent3);background:rgba(67,233,123,.1);font-weight:600;}
-.hbar-btn.rec-active{border-color:var(--danger);color:var(--danger);animation:blink 1s infinite;}
+
+
 .room2-body{flex:1;display:flex;overflow:hidden;min-height:0;}
 /* Resizable columns */
 .r2-col{display:flex;flex-direction:column;overflow:hidden;min-width:0;}
@@ -241,9 +241,9 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .r2-p-row:hover{background:var(--surface2);}
 .r2-p-av{width:26px;height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:700;color:#fff;flex-shrink:0;}
 .r2-p-name{flex:1;font-size:.75rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.r2-p-btns{display:flex;gap:.2rem;opacity:0;transition:opacity .15s;}
+.r2-p-btns{display:flex;gap:.2rem;}
 .r2-p-row:hover .r2-p-btns{opacity:1;}
-.r2-p-btn{width:22px;height:22px;border-radius:5px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:.62rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;}
+.r2-p-btn{width:24px;height:24px;border-radius:5px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);font-size:.68rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0;}
 .r2-p-btn:hover{border-color:var(--accent);color:var(--accent);}
 .r2-p-btn.danger:hover{border-color:var(--danger);color:var(--danger);}
 /* Chat with per-message actions */
@@ -1404,8 +1404,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
               <div class="host-panel hidden" id="host-panel">
                 <div class="host-title">👑 Host Controls</div>
                 <div class="host-actions">
-                  <button class="host-btn" id="mute-all-btn" onclick="hostMuteAll()">🔇 Mute All</button>
-                  <button class="host-btn" onclick="hostUnmuteAll()">🔊 Unmute All</button>
+                  <button class="host-btn" id="mute-all-btn" onclick="toggleMuteAll()">🔇 Mute All</button>
                   <button class="host-btn" id="screen-requests-btn" onclick="toggleScreenRequests()">🖥️ Block Screen</button>
                   <button class="host-btn" id="chat-lock-btn" onclick="toggleChatLock()">💬 Lock Chat</button>
                   <button class="host-btn" id="room-lock-btn" onclick="toggleLock()">🔒 Lock Room</button>
@@ -1481,8 +1480,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
   <div class="room2-host-bar" id="fs-host-panel">
     <span style="font-size:.62rem;color:var(--host);font-weight:700;letter-spacing:.05em;">👑 HOST</span>
     <div style="width:1px;height:14px;background:var(--border);flex-shrink:0;"></div>
-    <button class="hbar-btn" id="mute-all-btn" onclick="hostMuteAll()">🔇 Mute All</button>
-    <button class="hbar-btn" onclick="hostUnmuteAll()">🔊 Unmute All</button>
+    <button class="hbar-btn" id="mute-all-btn" onclick="toggleMuteAll()">🔇 Mute All</button>
     <button class="hbar-btn" id="screen-requests-btn" onclick="toggleScreenRequests()">🖥 Block Screen</button>
     <button class="hbar-btn" id="chat-lock-btn" onclick="toggleChatLock()">💬 Lock Chat</button>
     <button class="hbar-btn" id="room-lock-btn" onclick="toggleLock()">🔒 Lock Room</button>
@@ -5861,12 +5859,23 @@ function toggleMic(){
 }
 function applyMute(){
   if(localStream)localStream.getAudioTracks().forEach(t=>t.enabled=!isMuted);
-  const btn=document.getElementById('mic-btn');
-  btn.classList.toggle('muted',isMuted&&!micHostLocked);
-  btn.classList.toggle('host-locked',micHostLocked);
-  document.getElementById('mic-icon').textContent=isMuted?'🔇':'🎙️';
-  document.getElementById('mic-label').textContent=micHostLocked?'MUTED BY HOST':isMuted?'MIC OFF':'MIC ON';
-  if(isMuted){btn.classList.remove('speaking-active');document.getElementById('vol-fill').style.width='0%';}
+  // Update ALL mic buttons (standalone uses 'mic-btn' via roomEl, community uses same)
+  ['mic-btn','cv-mic-btn'].forEach(id=>{
+    const btn=document.getElementById(id); if(!btn) return;
+    btn.classList.toggle('muted',isMuted&&!micHostLocked);
+    btn.classList.toggle('host-locked',micHostLocked);
+  });
+  ['mic-icon'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.textContent=isMuted?'🔇':'🎙️';
+  });
+  ['mic-label','cv-mic-label'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.textContent=micHostLocked?'MUTED BY HOST':isMuted?'MIC OFF':'MIC ON';
+  });
+  if(isMuted){
+    const btn=document.getElementById('mic-btn'); if(btn) btn.classList.remove('speaking-active');
+    const vf=roomEl('vol-fill'); if(vf) vf.style.width='0%';
+  }
 }
 
 // ── CAMERA ──
@@ -5921,10 +5930,7 @@ function requestOrToggleScreen(){
 function toggleScreenRequests(){
   screenRequestsEnabled=!screenRequestsEnabled;
   socket.emit('host_screen_requests_toggle',{enabled:screenRequestsEnabled});
-  ['screen-requests-btn'].forEach(id=>{
-    const btn=document.getElementById(id);
-    if(btn){ btn.textContent=screenRequestsEnabled?'🖥 Block Screen':'🖥 Allow Screen'; btn.classList.toggle('active-state',!screenRequestsEnabled); }
-  });
+  document.querySelectorAll('#screen-requests-btn').forEach(b=>{b.textContent=screenRequestsEnabled?'🖥 Block Screen':'🖥 Allow Screen';});
   // If blocking, stop own screen share too
   if(!screenRequestsEnabled && isScreenSharing) stopScreenShare();
   toast(screenRequestsEnabled?'🖥️ Screen sharing allowed':'🖥️ Screen sharing blocked for everyone');
@@ -6202,6 +6208,7 @@ function addScreenStream(peerId, stream, sharerName){
 
 function removeScreenStream(peerId){
   screenStreams.delete(peerId);
+  if(focusedScreen===peerId) focusedScreen=null;
   refreshScreenPanel();
 }
 
@@ -7325,28 +7332,29 @@ function hostKick(id){
   if(!p||!confirm(`Remove ${p.name} from the room?`))return;
   socket.emit('host_kick',{target:id});
 }
-function hostMuteAll(){
-  socket.emit('host_mute',{target:'all'}); isAllMuted=true;
-  participants.forEach((p,id)=>{if(id!==socket.id)p.muted=true;});
-  renderParticipants(); toast('🔇 Muted everyone — they cannot unmute'); updateBadges();
-  document.getElementById('mute-all-btn').classList.add('active-state');
+function toggleMuteAll(){
+  if(isAllMuted){ // unmute
+    socket.emit('host_unmute',{target:'all'}); isAllMuted=false;
+    participants.forEach((p,id)=>{if(id!==socket.id)p.muted=false;});
+    renderParticipants(); toast('🔊 Unmuted everyone'); updateBadges();
+    document.querySelectorAll('#mute-all-btn').forEach(b=>{b.textContent='🔇 Mute All';});
+  } else { // mute
+    socket.emit('host_mute',{target:'all'}); isAllMuted=true;
+    participants.forEach((p,id)=>{if(id!==socket.id)p.muted=true;});
+    renderParticipants(); toast('🔇 Muted everyone — they cannot unmute'); updateBadges();
+    document.querySelectorAll('#mute-all-btn').forEach(b=>{b.textContent='🔊 Unmute All';});
+  }
 }
-function hostUnmuteAll(){
-  socket.emit('host_unmute',{target:'all'}); isAllMuted=false;
-  participants.forEach((p,id)=>{if(id!==socket.id)p.muted=false;});
-  renderParticipants(); toast('🔊 Unmuted everyone'); updateBadges();
-  document.getElementById('mute-all-btn').classList.remove('active-state');
-}
+function hostMuteAll(){ isAllMuted=false; toggleMuteAll(); } // compat alias
+function hostUnmuteAll(){ isAllMuted=true; toggleMuteAll(); } // compat alias
 function toggleChatLock(){
   isChatLocked=!isChatLocked; socket.emit('host_chat_lock',{locked:isChatLocked});
-  const btn=document.getElementById('chat-lock-btn');
-  if(btn){btn.textContent=isChatLocked?'💬 Unlock Chat':'💬 Lock Chat';btn.classList.toggle('active-state',isChatLocked);}
+  document.querySelectorAll('#chat-lock-btn').forEach(b=>{b.textContent=isChatLocked?'💬 Unlock Chat':'💬 Lock Chat';});
   updateBadges();
 }
 function toggleLock(){
   isLocked=!isLocked; socket.emit('host_lock',{locked:isLocked});
-  const btn=document.getElementById('room-lock-btn');
-  if(btn){btn.textContent=isLocked?'🔓 Unlock Room':'🔒 Lock Room';btn.classList.toggle('active-state',isLocked);}
+  document.querySelectorAll('#room-lock-btn').forEach(b=>{b.textContent=isLocked?'🔓 Unlock Room':'🔒 Lock Room';});
 }
 function endRoom(){
   if(!confirm('End the room for everyone?'))return;
@@ -7390,8 +7398,8 @@ function leaveRoom(forced=false){
   _fs('share-request-banner').classList.remove('visible');
   const btn=document.getElementById('mic-btn');
   btn.classList.remove('muted','speaking-active','host-locked');
-  document.getElementById('mic-icon').textContent='🎙️';
-  document.getElementById('mic-label').textContent='MIC ON';
+  ['mic-icon'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent='🎙️';});
+  ['mic-label','cv-mic-label'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent='MIC ON';});
   document.getElementById('cam-btn').classList.remove('active');
   document.getElementById('cam-btn').textContent='📷 Camera';
   document.getElementById('screen-btn').classList.remove('screenshare-active');
@@ -8061,24 +8069,45 @@ function initR2ScreenResize(){
       return;
     }
     sp.classList.add('visible');
-    // Auto-size: screen gets 55%, video gets 45%
+    // Auto-size: if focused screen, give it 70%; else 55%
     const midH=sp.parentElement?.offsetHeight||600;
-    sp.style.height=Math.round(midH*0.55)+'px';
+    const screenFrac = focusedScreen ? 0.72 : 0.55;
+    sp.style.height=Math.round(midH*screenFrac)+'px';
     const vp=document.getElementById('r2-video-panel');
-    if(vp){ vp.style.flex='none'; vp.style.height=Math.round(midH*0.45)+'px'; }
+    if(vp){ vp.style.flex='none'; vp.style.height=Math.round(midH*(1-screenFrac))+'px'; }
     const sc=document.getElementById('screen-count'); if(sc) sc.textContent=screenStreams.size;
-    // Render screen tiles into r2-screen-grid
+    // Render screen tiles into r2-screen-grid — click to enlarge
     grid.innerHTML='';
-    screenStreams.forEach(({stream,visible},peerId)=>{
-      if(visible===false) return;
+    if(focusedScreen && screenStreams.has(focusedScreen)){
+      // Full-panel focused screen
+      const {stream,name} = screenStreams.get(focusedScreen);
       const wrap=document.createElement('div');
-      wrap.style.cssText='position:relative;border-radius:8px;overflow:hidden;background:#000;height:100%;min-width:200px;flex:1;';
+      wrap.style.cssText='position:relative;border-radius:8px;overflow:hidden;background:#000;width:100%;flex:1;cursor:zoom-out;';
+      wrap.title='Click to collapse'; wrap.onclick=()=>focusScreen(focusedScreen);
       const vid=document.createElement('video');
       vid.srcObject=stream; vid.autoplay=true; vid.playsInline=true; vid.muted=true;
       vid.style.cssText='width:100%;height:100%;object-fit:contain;';
-      wrap.appendChild(vid);
+      const lbl=document.createElement('div');
+      lbl.style.cssText='position:absolute;bottom:6px;left:8px;font-size:.62rem;color:#fff;background:rgba(0,0,0,.55);border-radius:4px;padding:.1rem .35rem;';
+      lbl.textContent=(name||'?')+' — screen';
+      wrap.appendChild(vid); wrap.appendChild(lbl);
       grid.appendChild(wrap);
-    });
+    } else {
+      screenStreams.forEach(({stream,visible,name},peerId)=>{
+        if(visible===false) return;
+        const wrap=document.createElement('div');
+        wrap.style.cssText='position:relative;border-radius:8px;overflow:hidden;background:#000;height:100%;min-width:200px;flex:1;cursor:zoom-in;';
+        wrap.title='Click to enlarge'; wrap.onclick=()=>focusScreen(peerId);
+        const vid=document.createElement('video');
+        vid.srcObject=stream; vid.autoplay=true; vid.playsInline=true; vid.muted=true;
+        vid.style.cssText='width:100%;height:100%;object-fit:contain;';
+        const lbl=document.createElement('div');
+        lbl.style.cssText='position:absolute;bottom:4px;left:6px;font-size:.6rem;color:#fff;background:rgba(0,0,0,.5);border-radius:3px;padding:.1rem .3rem;';
+        lbl.textContent=(name||'?')+' — screen';
+        wrap.appendChild(vid); wrap.appendChild(lbl);
+        grid.appendChild(wrap);
+      });
+    }
     r2RenderVideoGrid();
   };
 })();
@@ -8093,6 +8122,16 @@ function initR2ScreenResize(){
 })();
 
 // ── addChat with per-message block/report ──
+
+
+// ── Screen share enlarge ──
+let focusedScreen = null; // peerId whose screen is enlarged
+
+function focusScreen(peerId){
+  focusedScreen = focusedScreen === peerId ? null : peerId;
+  refreshScreenPanel();
+}
+
 
 </script>
 
