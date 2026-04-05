@@ -606,5 +606,142 @@ app.post('/api/rooms/admin-end', async (req, res) => {
   } catch(e) { res.status(500).json({error:e.message}); }
 });
 
+
+// ─────────────────────────────────────────────
+// ADMIN: Live rooms overview + DM viewer
+// ─────────────────────────────────────────────
+
+app.get('/api/admin/check', async (req, res) => {
+  try {
+    const token = (req.headers.authorization||'').replace('Bearer ','');
+    if(!token) return res.json({isAdmin:false});
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'JayMerch';
+    res.json({ isAdmin: decoded.username?.toLowerCase() === ADMIN_USERNAME.toLowerCase() });
+  } catch(e) { res.json({isAdmin:false}); }
+});
+
+app.get('/api/admin/live-rooms', async (req, res) => {
+  try {
+    const token = (req.headers.authorization||'').replace('Bearer ','');
+    if(!token) return res.status(401).json({error:'Unauthorized'});
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'JayMerch';
+    if(decoded.username?.toLowerCase() !== ADMIN_USERNAME.toLowerCase()) return res.status(403).json({error:'Admin only'});
+    const result = [];
+    rooms.forEach((room, roomId) => {
+      if(room.communityId) return; // exclude community rooms from this endpoint
+      const participants = [];
+      room.participants.forEach((p,id) => participants.push({id, name:p.name, isHost:p.isHost}));
+      result.push({ roomId, name:room.name, participantCount:participants.length, participants });
+    });
+    res.json({ rooms: result });
+  } catch(e) { res.status(500).json({error:e.message}); }
+});
+
+app.get('/api/admin/live-community-rooms', async (req, res) => {
+  try {
+    const token = (req.headers.authorization||'').replace('Bearer ','');
+    if(!token) return res.status(401).json({error:'Unauthorized'});
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'JayMerch';
+    if(decoded.username?.toLowerCase() !== ADMIN_USERNAME.toLowerCase()) return res.status(403).json({error:'Admin only'});
+    const Community = require('./models/Community');
+    const result = [];
+    for(const [roomId, room] of rooms.entries()){
+      if(!room.communityId) continue;
+      let communityName = room.communityId;
+      try{ const comm = await Community.findById(room.communityId).select('name').lean(); communityName = comm?.name||room.communityId; }catch(e){}
+      const participants = [];
+      room.participants.forEach((p,id) => participants.push({id, name:p.name, isHost:p.isHost}));
+      result.push({ roomId, roomName:room.name, communityId:room.communityId, channelId:room.channelId, communityName, participantCount:participants.length, participants });
+    }
+    res.json({ rooms: result });
+  } catch(e) { res.status(500).json({error:e.message}); }
+});
+
+app.get('/api/admin/users', async (req, res) => {
+  try {
+    const token = (req.headers.authorization||'').replace('Bearer ','');
+    if(!token) return res.status(401).json({error:'Unauthorized'});
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'JayMerch';
+    if(decoded.username?.toLowerCase() !== ADMIN_USERNAME.toLowerCase()) return res.status(403).json({error:'Admin only'});
+    const User = require('./models/User');
+    const limit = Math.min(parseInt(req.query.limit)||50, 200);
+    const users = await User.find().select('username avatar isVerified createdAt').limit(limit).sort({createdAt:-1}).lean();
+    res.json({ users });
+  } catch(e) { res.status(500).json({error:e.message}); }
+});
+
+app.get('/api/admin/users/:userId/dms', async (req, res) => {
+  try {
+    const token = (req.headers.authorization||'').replace('Bearer ','');
+    if(!token) return res.status(401).json({error:'Unauthorized'});
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'JayMerch';
+    if(decoded.username?.toLowerCase() !== ADMIN_USERNAME.toLowerCase()) return res.status(403).json({error:'Admin only'});
+    const mongoose = require('mongoose');
+    const Message = mongoose.connection.collection('messages');
+    const User = require('./models/User');
+    const uid = req.params.userId;
+    // Find all unique conversation partners
+    const sent = await Message.distinct('receiverId', {senderId: new mongoose.Types.ObjectId(uid)});
+    const received = await Message.distinct('senderId', {receiverId: new mongoose.Types.ObjectId(uid)});
+    const partnerIds = [...new Set([...sent.map(String), ...received.map(String)].filter(id=>id!==uid))];
+    const conversations = await Promise.all(partnerIds.map(async pid => {
+      const user = await User.findById(pid).select('username').lean();
+      const last = await Message.find({$or:[{senderId:new mongoose.Types.ObjectId(uid),receiverId:new mongoose.Types.ObjectId(pid)},{senderId:new mongoose.Types.ObjectId(pid),receiverId:new mongoose.Types.ObjectId(uid)}]}).sort({createdAt:-1}).limit(1).toArray();
+      return { otherUserId: pid, otherUser: user?.username||'Unknown', lastMessage: last[0]?.text||'' };
+    }));
+    res.json({ conversations });
+  } catch(e) { res.status(500).json({error:e.message}); }
+});
+
+app.get('/api/admin/users/:userId/dms/:otherUserId', async (req, res) => {
+  try {
+    const token = (req.headers.authorization||'').replace('Bearer ','');
+    if(!token) return res.status(401).json({error:'Unauthorized'});
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'JayMerch';
+    if(decoded.username?.toLowerCase() !== ADMIN_USERNAME.toLowerCase()) return res.status(403).json({error:'Admin only'});
+    const mongoose = require('mongoose');
+    const Message = mongoose.connection.collection('messages');
+    const User = require('./models/User');
+    const { userId, otherUserId } = req.params;
+    const messages = await Message.find({
+      $or:[
+        {senderId:new mongoose.Types.ObjectId(userId), receiverId:new mongoose.Types.ObjectId(otherUserId)},
+        {senderId:new mongoose.Types.ObjectId(otherUserId), receiverId:new mongoose.Types.ObjectId(userId)}
+      ]
+    }).sort({createdAt:1}).limit(200).toArray();
+    // Get sender names
+    const userIds = [...new Set(messages.map(m=>m.senderId?.toString()))];
+    const users = await User.find({_id:{$in:userIds}}).select('username').lean();
+    const userMap = {}; users.forEach(u=>userMap[u._id.toString()]=u.username);
+    const result = messages.map(m => ({...m, senderName: userMap[m.senderId?.toString()]||'?'}));
+    res.json({ messages: result });
+  } catch(e) { res.status(500).json({error:e.message}); }
+});
+
+app.post('/api/rooms/admin-end-by-id', async (req, res) => {
+  try {
+    const token = (req.headers.authorization||'').replace('Bearer ','');
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'JayMerch';
+    if(decoded.username?.toLowerCase() !== ADMIN_USERNAME.toLowerCase()) return res.status(403).json({error:'Admin only'});
+    const { roomId } = req.body;
+    const room = rooms.get(roomId);
+    if(!room) return res.json({success:true, ended:false, note:'room not found'});
+    io.to(roomId).emit('room_ended');
+    if(room.communityId){ 
+      io.to(`community:${room.communityId}`).emit('community_room_update',{communityId:room.communityId, channelId:room.channelId, roomId, members:[], ended:true}); 
+    }
+    if(room.isPublic) publicRooms.delete(roomId);
+    rooms.delete(roomId);
+    res.json({ success: true, ended: true });
+  } catch(e) { res.status(500).json({error:e.message}); }
+});
+
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`🌊 WAVE running on port ${PORT}`));

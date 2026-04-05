@@ -889,6 +889,8 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 <nav id="global-nav">
   <a class="gnav-logo" href="#">👋 WAVE</a>
   <div class="gnav-right">
+    <!-- Admin Live Rooms (admin only) -->
+    <button class="gnav-icon-btn hidden" id="admin-live-btn" onclick="openAdminLiveRooms()" title="Live Rooms (Admin)" style="border-color:var(--danger);color:var(--danger);">📡</button>
     <!-- Notification Bell -->
     <button class="gnav-icon-btn" id="notif-btn" onclick="toggleNotifPanel()" title="Notifications">
       🔔
@@ -1475,14 +1477,9 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
       </div>
     </div>
     <div style="display:flex;align-items:center;gap:.5rem;flex-shrink:0;">
-      <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">🌙</button>
-      <button class="profile-btn" onclick="openFriendsPanel()">
-        <div class="profile-avatar-sm" id="header-avatar">👤</div>
-        <span id="header-username">—</span>
-        <span id="header-req-badge" class="friend-badge hidden">0</span>
-      </button>
       <div class="room-id-badge" onclick="copyRoomURL()">🔗 Copy URL</div>
-      <button class="btn btn-sm btn-ghost" onclick="leaveRoom()">Leave →</button>
+      <button class="hbar-btn" style="border-color:var(--accent3);color:var(--accent3);" onclick="openFriendInvitePanel()">👥 Invite Friends</button>
+      <button class="btn btn-sm btn-ghost" id="room-leave-btn" onclick="handleLeaveRoom()">Leave →</button>
     </div>
   </div>
 
@@ -1498,7 +1495,6 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     <button class="hbar-btn danger-btn" onclick="endRoom()">⛔ End Room</button>
     <span style="flex:1;"></span>
     <div class="invite-url" id="invite-url" onclick="copyRoomURL()" style="font-size:.6rem;color:var(--muted);cursor:pointer;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></div>
-    <button class="hbar-btn" style="border-color:var(--accent3);color:var(--accent3);" onclick="openFriendInvitePanel()">👥 Invite</button>
   </div>
 
   <!-- Share / Join request banners -->
@@ -1581,16 +1577,16 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
         </div>
       </div>
 
+      <!-- Pending invites ABOVE participants (host only) -->
+      <div id="fs-pending-invites-box" style="display:none;border-bottom:1px solid var(--border);">
+        <div class="r2-p-header" style="color:var(--host);">⏳ Pending Invites <span class="participant-count" id="fs-pending-invites-count">0</span></div>
+        <div id="fs-pending-invites-list" style="padding:.3rem .5rem;font-size:.72rem;"></div>
+      </div>
+
       <!-- Participants panel -->
       <div class="r2-participants">
         <div class="r2-p-header">Participants <span class="participant-count" id="fs-p-count">0</span></div>
         <div class="r2-p-list" id="fs-p-list"></div>
-      </div>
-
-      <!-- Pending invites (host) -->
-      <div id="fs-pending-invites-box" style="display:none;border-top:1px solid var(--border);">
-        <div class="r2-p-header">⏳ Waiting <span class="participant-count" id="fs-pending-invites-count">0</span></div>
-        <div id="fs-pending-invites-list" style="padding:.3rem .5rem;font-size:.72rem;"></div>
       </div>
 
     </div>
@@ -2353,6 +2349,10 @@ function onAuthSuccess(){
   }
   // Connect home socket for real-time notifications (presence, invites, friend requests)
   initHomeSocket();
+  // Check admin status silently
+  fetch('/api/admin/check',{headers:{Authorization:`Bearer ${authToken}`}}).then(r=>r.json()).then(d=>{
+    if(d.isAdmin){ if(currentUser) currentUser.isAdmin=true; updateGlobalNav(); }
+  }).catch(()=>{});
 }
 
 function switchAuthTab(tab){
@@ -3641,6 +3641,9 @@ function updateGlobalNav(){
     else{ av.textContent=(currentUser.username||'?').slice(0,2).toUpperCase(); av.style.background=colorFor(currentUser.id||'x'); av.style.color='#fff'; }
   }
   if(un) un.textContent=currentUser.username||'';
+  // Show admin live rooms button for admin user
+  const adminBtn=document.getElementById('admin-live-btn');
+  if(adminBtn) adminBtn.classList.toggle('hidden', !currentUser.isAdmin);
 }
 // ═══════════════════════════════════════════════════
 // ── Friend Online Bell ──
@@ -6889,12 +6892,17 @@ function showRoom(name){
   const rd = document.getElementById('room');
   rd.style.display='flex';
   document.getElementById('room-title').textContent=name||'Voice Room';
-  // Show room avatar in header if one was uploaded
   if(_roomAvatarBase64){
     const hav=document.getElementById('room-header-avatar');
     const havImg=document.getElementById('room-header-avatar-img');
     if(hav && havImg){ havImg.src=_roomAvatarBase64; hav.style.display='block'; }
   }
+  // Reset all host bar buttons to default state
+  document.querySelectorAll('#mute-all-btn').forEach(b=>b.textContent='🔇 Mute All');
+  document.querySelectorAll('#screen-requests-btn').forEach(b=>b.textContent='🖥 Block Screen');
+  document.querySelectorAll('#chat-lock-btn').forEach(b=>b.textContent='💬 Lock Chat');
+  document.querySelectorAll('#room-lock-btn').forEach(b=>b.textContent='🔒 Lock Room');
+  document.querySelectorAll('#record-btn').forEach(b=>b.textContent='⏺ Start Recording');
   const hp=document.getElementById('fs-host-panel');
   if(isHost && hp) hp.classList.add('visible');
   updateInvite(); updateConnDot('connected');
@@ -7536,6 +7544,16 @@ function endRoom(){
 }
 
 // ── Leave room ──
+
+function handleLeaveRoom(){
+  if(isHost){
+    if(!confirm('You are the host. Leaving will end the room for everyone. End room?')) return;
+    endRoom();
+  } else {
+    leaveRoom();
+  }
+}
+
 function leaveRoom(forced=false){
   closeFocus();
   if(isRecording) stopRecording();
@@ -8323,6 +8341,155 @@ function exitScreenFullscreen(){
 }
 
 
+
+// ═══════════════════════════════════════════════════
+// ADMIN PANEL
+// ═══════════════════════════════════════════════════
+let _adminLiveTab = 'rooms';
+let _adminDmUserId = null;
+
+function openAdminLiveRooms(){
+  document.getElementById('admin-live-overlay').classList.remove('hidden');
+  adminLiveTab('rooms');
+}
+function closeAdminLive(){
+  document.getElementById('admin-live-overlay').classList.add('hidden');
+}
+
+async function adminLiveTab(tab){
+  _adminLiveTab = tab;
+  // Update tab buttons
+  ['rooms','channels','users','dms'].forEach(t=>{
+    const btn=document.getElementById('al-tab-'+t);
+    if(btn){ btn.style.borderColor=t===tab?'var(--accent)':'var(--border)'; btn.style.color=t===tab?'var(--accent)':'var(--muted)'; }
+  });
+  const content=document.getElementById('al-content');
+  content.innerHTML='<div class="panel-loading"><div class="panel-spinner"></div><div class="panel-loading-text">Loading…</div></div>';
+  try{
+    if(tab==='rooms'){
+      const res=await fetch('/api/admin/live-rooms',{headers:{Authorization:`Bearer ${authToken}`}});
+      const data=await res.json();
+      if(!res.ok){ content.innerHTML='<p style="color:var(--danger)">'+esc(data.error||'Error')+'</p>'; return; }
+      if(!data.rooms?.length){ content.innerHTML='<p style="color:var(--muted);padding:1rem;">No live voice rooms right now.</p>'; return; }
+      content.innerHTML='';
+      data.rooms.forEach(r=>{
+        const card=document.createElement('div');
+        card.style.cssText='background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:.75rem 1rem;margin-bottom:.5rem;';
+        card.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.4rem;">
+          <div>
+            <div style="font-weight:700;font-size:.85rem;">${esc(r.name)}</div>
+            <div style="font-size:.65rem;color:var(--muted);">Room ID: ${esc(r.roomId)} &bull; ${r.participantCount} participant(s)</div>
+            <div style="font-size:.65rem;color:var(--muted);margin-top:.2rem;">Participants: ${r.participants.map(p=>esc(p.name)).join(', ')||'—'}</div>
+          </div>
+          <button class="hbar-btn danger-btn" onclick="adminForceEndRoom('${esc(r.roomId)}')">⛔ End Room</button>
+        </div>`;
+        content.appendChild(card);
+      });
+    } else if(tab==='channels'){
+      const res=await fetch('/api/admin/live-community-rooms',{headers:{Authorization:`Bearer ${authToken}`}});
+      const data=await res.json();
+      if(!res.ok){ content.innerHTML='<p style="color:var(--danger)">'+esc(data.error||'Error')+'</p>'; return; }
+      if(!data.rooms?.length){ content.innerHTML='<p style="color:var(--muted);padding:1rem;">No live community rooms right now.</p>'; return; }
+      content.innerHTML='';
+      data.rooms.forEach(r=>{
+        const card=document.createElement('div');
+        card.style.cssText='background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:.75rem 1rem;margin-bottom:.5rem;';
+        card.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.4rem;">
+          <div>
+            <div style="font-weight:700;font-size:.85rem;">${esc(r.roomName)} <span style="font-size:.7rem;color:var(--muted);">in ${esc(r.communityName)}</span></div>
+            <div style="font-size:.65rem;color:var(--muted);">${r.participantCount} participant(s): ${r.participants.map(p=>esc(p.name)).join(', ')||'—'}</div>
+          </div>
+          <button class="hbar-btn danger-btn" onclick="adminForceEndCommunityRoom('${esc(r.communityId)}','${esc(r.channelId)}')">⛔ End</button>
+        </div>`;
+        content.appendChild(card);
+      });
+    } else if(tab==='users'){
+      const res=await fetch('/api/admin/users?limit=50',{headers:{Authorization:`Bearer ${authToken}`}});
+      const data=await res.json();
+      if(!res.ok){ content.innerHTML='<p style="color:var(--danger)">'+esc(data.error||'Error')+'</p>'; return; }
+      content.innerHTML='';
+      (data.users||data).forEach(u=>{
+        const row=document.createElement('div');
+        row.style.cssText='display:flex;align-items:center;gap:.5rem;padding:.4rem .5rem;border-bottom:1px solid var(--border);';
+        const av=document.createElement('div');
+        av.style.cssText='width:28px;height:28px;border-radius:6px;background:'+colorFor(u._id||u.id)+';display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:700;color:#fff;flex-shrink:0;overflow:hidden;';
+        if(u.avatar) av.innerHTML='<img src="'+esc(u.avatar)+'" style="width:100%;height:100%;object-fit:cover;">';
+        else av.textContent=(u.username||'?').slice(0,2).toUpperCase();
+        const nm=document.createElement('div');
+        nm.style.cssText='flex:1;font-size:.78rem;';
+        nm.textContent=(u.username||'?')+(u.isVerified?' ✓':'');
+        const dmBtn=document.createElement('button');
+        dmBtn.className='hbar-btn'; dmBtn.textContent='💬 DMs';
+        dmBtn.onclick=()=>adminViewUserDMs(u._id||u.id, u.username);
+        row.appendChild(av); row.appendChild(nm); row.appendChild(dmBtn);
+        content.appendChild(row);
+      });
+    } else if(tab==='dms' && _adminDmUserId){
+      await adminLoadDMs(_adminDmUserId);
+    }
+  }catch(e){ content.innerHTML='<p style="color:var(--danger)">Error: '+esc(e.message)+'</p>'; }
+}
+
+async function adminViewUserDMs(userId, username){
+  _adminDmUserId = userId;
+  const dmTab=document.getElementById('al-tab-dms');
+  if(dmTab){ dmTab.style.display='flex'; dmTab.textContent='💬 '+username+' DMs'; }
+  adminLiveTab('dms');
+}
+
+async function adminLoadDMs(userId){
+  const content=document.getElementById('al-content');
+  try{
+    const res=await fetch('/api/admin/users/'+userId+'/dms',{headers:{Authorization:`Bearer ${authToken}`}});
+    const data=await res.json();
+    if(!res.ok){ content.innerHTML='<p style="color:var(--danger)">'+esc(data.error||'Error')+'</p>'; return; }
+    if(!data.conversations?.length){ content.innerHTML='<p style="color:var(--muted);padding:1rem;">No DM conversations found.</p>'; return; }
+    content.innerHTML='';
+    data.conversations.forEach(conv=>{
+      const card=document.createElement('div');
+      card.style.cssText='background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:.65rem .9rem;margin-bottom:.4rem;cursor:pointer;';
+      card.innerHTML='<div style="font-weight:600;font-size:.8rem;">'+esc(conv.otherUser)+'</div>'
+        +'<div style="font-size:.65rem;color:var(--muted);">'+(conv.lastMessage?esc(conv.lastMessage.substring(0,60)):'No messages')+'</div>';
+      card.onclick=()=>adminViewDMThread(userId, conv.otherUserId, conv.otherUser, content);
+      content.appendChild(card);
+    });
+  }catch(e){ content.innerHTML='<p style="color:var(--danger)">'+esc(e.message)+'</p>'; }
+}
+
+async function adminViewDMThread(userId, otherUserId, otherUsername, container){
+  const backBtn=document.createElement('div'); backBtn.style.cssText='padding:.5rem;font-size:.72rem;color:var(--muted);cursor:pointer;'; backBtn.textContent='← Back to DMs'; backBtn.onclick=()=>adminLoadDMs(userId); container.innerHTML=''; container.appendChild(backBtn);
+  try{
+    const res=await fetch('/api/admin/users/'+userId+'/dms/'+otherUserId,{headers:{Authorization:`Bearer ${authToken}`}});
+    const data=await res.json();
+    if(!res.ok){ container.innerHTML+='<p style="color:var(--danger)">'+esc(data.error||'Error')+'</p>'; return; }
+    (data.messages||[]).forEach(m=>{
+      const msg=document.createElement('div');
+      msg.style.cssText='padding:.3rem .5rem;border-bottom:1px solid rgba(255,255,255,.04);font-size:.75rem;';
+      const isFromUser = m.senderId?.toString()===userId?.toString();
+      msg.innerHTML='<span style="font-weight:600;color:'+(isFromUser?'var(--accent)':'var(--text)')+';">'+esc(m.senderName||'?')+'</span>'
+        +' <span style="color:var(--muted);font-size:.6rem;">'+new Date(m.createdAt).toLocaleString()+'</span>'
+        +'<div>'+esc(m.text||'')+(m.image?'<br><img src="'+esc(m.image)+'" style="max-width:120px;border-radius:4px;margin-top:.2rem;">':'')+'</div>';
+      container.appendChild(msg);
+    });
+  }catch(e){ container.innerHTML+='<p style="color:var(--danger)">'+esc(e.message)+'</p>'; }
+}
+
+async function adminForceEndRoom(roomId){
+  if(!confirm('Force end room '+roomId+'?')) return;
+  try{
+    await fetch('/api/rooms/admin-end-by-id',{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${authToken}`},body:JSON.stringify({roomId})});
+    adminLiveTab('rooms');
+  }catch(e){ toast('Error: '+e.message); }
+}
+
+async function adminForceEndCommunityRoom(communityId, channelId){
+  if(!confirm('Force end this community room?')) return;
+  try{
+    await fetch('/api/rooms/admin-end',{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${authToken}`},body:JSON.stringify({communityId,channelId})});
+    adminLiveTab('channels');
+  }catch(e){ toast('Error: '+e.message); }
+}
+
 </script>
 
 <!-- ── Notification Preferences Modal ── -->
@@ -8500,6 +8667,24 @@ function exitScreenFullscreen(){
       <button class="save-modal-cancel" style="flex:1;" onclick="closeCropModal()">Cancel</button>
       <button class="auth-btn" style="flex:1;margin-top:0;" onclick="applyCrop()">✅ Apply</button>
     </div>
+  </div>
+</div>
+
+
+<!-- ADMIN LIVE ROOMS MODAL -->
+<div id="admin-live-overlay" class="save-modal-overlay hidden" style="z-index:9990;">
+  <div class="save-modal" style="max-width:760px;max-height:85vh;display:flex;flex-direction:column;">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-shrink:0;margin-bottom:.75rem;">
+      <h3 style="margin:0;color:var(--danger);">📡 Admin — Live Overview</h3>
+      <button class="modal-close-x" onclick="closeAdminLive()">✕</button>
+    </div>
+    <div style="display:flex;gap:.5rem;flex-shrink:0;margin-bottom:.75rem;">
+      <button class="hbar-btn" id="al-tab-rooms" onclick="adminLiveTab('rooms')" style="border-color:var(--accent);color:var(--accent);">🎙️ Voice Rooms</button>
+      <button class="hbar-btn" id="al-tab-channels" onclick="adminLiveTab('channels')">🏘️ Community Rooms</button>
+      <button class="hbar-btn" id="al-tab-users" onclick="adminLiveTab('users')">👤 Users</button>
+      <button class="hbar-btn" id="al-tab-dms" onclick="adminLiveTab('dms')" style="display:none;">💬 DMs</button>
+    </div>
+    <div id="al-content" style="flex:1;overflow-y:auto;"></div>
   </div>
 </div>
 
