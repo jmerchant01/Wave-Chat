@@ -196,7 +196,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .hbar-btn:hover{border-color:var(--host);color:var(--host);}
 .hbar-btn.danger-btn{border-color:var(--danger);color:var(--danger);}
 .hbar-btn.danger-btn:hover{background:var(--danger);color:#fff;}
-.hbar-btn.active-state{border-color:var(--accent3);color:var(--accent3);}
+.hbar-btn.active-state{border-color:var(--accent3);color:var(--accent3);background:rgba(67,233,123,.1);font-weight:600;}
 .hbar-btn.rec-active{border-color:var(--danger);color:var(--danger);animation:blink 1s infinite;}
 .room2-body{flex:1;display:flex;overflow:hidden;min-height:0;}
 /* Resizable columns */
@@ -1310,7 +1310,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
                   <div class="img-preview-wrap"><img id="cv-img-preview-thumb" src="" alt=""/><button class="remove-img" onclick="cvClearImage()">✕</button></div>
                 </div>
                 <div class="chat-locked-notice" id="cv-chat-locked-notice">🔒 Chat locked</div>
-                <div class="chat-input-wrap" id="cv-chat-input-wrap">
+                <div class="chat-input-wrap" id="cv-chat-input-wrap" style="flex-wrap:nowrap;min-width:0;">
                   <input type="file" id="cv-img-file-input" accept="image/*,video/*,.pdf,.zip,.doc,.docx" style="display:none" onchange="cvHandleFileSelect(event)"/>
                   <button class="img-attach-btn" onclick="document.getElementById('cv-img-file-input').click()">📎</button>
                   <input class="chat-input" id="cv-chat-in" placeholder="Type a message…" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();cvSendRoomChat();}"/>
@@ -1517,11 +1517,11 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
           </div>
         </div>
         <div class="chat-locked-notice" id="fs-chat-locked-notice">🔒 Chat locked by host</div>
-        <div class="chat-input-wrap" id="fs-chat-input-wrap">
+        <div class="chat-input-wrap" id="fs-chat-input-wrap" style="flex-wrap:nowrap;min-width:0;">
           <input type="file" id="img-file-input" accept="image/*,video/*,.pdf,.zip,.doc,.docx" style="display:none" onchange="handleFileSelect(event)"/>
-          <button class="img-attach-btn" onclick="document.getElementById('img-file-input').click()">📎</button>
-          <input class="chat-input" id="chat-in" placeholder="Type a message…" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat();}"/>
-          <button class="send-btn" onclick="sendChat()"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
+          <button class="img-attach-btn" onclick="document.getElementById('img-file-input').click()" style="flex-shrink:0;">📎</button>
+          <input class="chat-input" id="chat-in" placeholder="Type a message…" style="min-width:0;flex:1;" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat();}"/>
+          <button class="send-btn" onclick="sendChat()" style="flex-shrink:0;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
         </div>
       </div>
     </div>
@@ -1530,24 +1530,21 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     <!-- MID: Video always-on + Screen share -->
     <div class="r2-col r2-col-mid">
 
-      <!-- Always-visible participant video grid -->
-      <div class="r2-video-panel" id="r2-video-panel" style="flex:1;min-height:120px;">
-        <!-- Spotlight row (pinned, larger) -->
-        <div class="r2-spotlight-row" id="r2-spotlight-row"></div>
-        <!-- Main grid -->
-        <div class="r2-grid-area" id="r2-grid-area"></div>
-        <!-- Vertical resize handle -->
-        <div class="r2-video-resize" id="r2-video-resize"></div>
-      </div>
-
-      <!-- Screen share -->
+      <!-- Screen share ON TOP (shown when active) -->
       <div class="r2-screen-panel" id="r2-screen-panel">
         <div class="sp-header">
           <span>🖥 Screen Share — <span id="screen-count">0</span> sharing</span>
           <div id="screen-selector-wrap" style="display:none;"><div id="screen-checkboxes"></div></div>
         </div>
-        <div class="sp-grid" id="screen-grid"></div>
+        <div class="sp-grid" id="r2-screen-grid"></div>
         <div class="r2-screen-resize" id="r2-screen-resize"></div>
+      </div>
+
+      <!-- Video grid BELOW (always visible) -->
+      <div class="r2-video-panel" id="r2-video-panel" style="flex:1;min-height:80px;">
+        <div class="r2-spotlight-row" id="r2-spotlight-row"></div>
+        <div class="r2-grid-area" id="r2-grid-area"></div>
+        <div class="r2-video-resize" id="r2-video-resize"></div>
       </div>
 
     </div>
@@ -5612,8 +5609,10 @@ function connectSocket(){
   });
   socket.on('room_locked',({locked})=>{
     isLocked=locked;
-    const btn=document.getElementById('room-lock-btn');
-    if(btn){btn.textContent=locked?'🔓 Unlock Room':'🔒 Lock Room';btn.classList.toggle('active-state',locked);}
+    ['room-lock-btn'].forEach(id=>{
+      const btn=document.getElementById(id);
+      if(btn){btn.textContent=locked?'🔓 Unlock Room':'🔒 Lock Room';btn.classList.toggle('active-state',locked);}
+    });
   });
   socket.on('chat_locked',({locked})=>{
     isChatLocked=locked;
@@ -5922,11 +5921,10 @@ function requestOrToggleScreen(){
 function toggleScreenRequests(){
   screenRequestsEnabled=!screenRequestsEnabled;
   socket.emit('host_screen_requests_toggle',{enabled:screenRequestsEnabled});
-  const btn=document.getElementById('screen-requests-btn');
-  if(btn){
-    btn.textContent=screenRequestsEnabled?'🖥️ Block Screen Sharing':'🖥️ Allow Screen Sharing';
-    btn.classList.toggle('active-state',!screenRequestsEnabled);
-  }
+  ['screen-requests-btn'].forEach(id=>{
+    const btn=document.getElementById(id);
+    if(btn){ btn.textContent=screenRequestsEnabled?'🖥 Block Screen':'🖥 Allow Screen'; btn.classList.toggle('active-state',!screenRequestsEnabled); }
+  });
   // If blocking, stop own screen share too
   if(!screenRequestsEnabled && isScreenSharing) stopScreenShare();
   toast(screenRequestsEnabled?'🖥️ Screen sharing allowed':'🖥️ Screen sharing blocked for everyone');
@@ -6662,7 +6660,7 @@ async function startRecording(usePicker=false){
   mediaRecorder.start(1000); // collect chunks every second
 
   isRecording = true;
-  const btn = document.getElementById('record-btn');
+  const btn = document.getElementById('record-btn'); if(!btn) return;
   btn.textContent = '⏹ Stop Recording';
   btn.style.borderColor = 'var(--danger)';
   btn.style.background = 'rgba(255,71,87,.15)';
@@ -6689,7 +6687,7 @@ function stopRecording(){
   if(mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
   if(recAudioCtx) recAudioCtx.close().catch(()=>{});
   recAudioSources = [];
-  const btn = document.getElementById('record-btn');
+  const btn = document.getElementById('record-btn'); if(!btn) return;
   btn.textContent = '⏺ Start Recording';
   btn.style.background = '';
   btn.style.animation = '';
@@ -7222,8 +7220,10 @@ function applyChatLockUI(locked){
   if(fileInput) fileInput.disabled = lockForMe;
 
   document.getElementById('chat-lock-badge').style.display = locked ? 'inline' : 'none';
-  const btn = document.getElementById('chat-lock-btn');
-  if(btn){ btn.textContent = locked ? '💬 Unlock Chat' : '💬 Lock Chat'; btn.classList.toggle('active-state', locked); }
+  ['chat-lock-btn'].forEach(id=>{
+    const btn=document.getElementById(id);
+    if(btn){ btn.textContent=locked?'💬 Unlock Chat':'💬 Lock Chat'; btn.classList.toggle('active-state',locked); }
+  });
 }
 
 function sendChat(){
@@ -8042,24 +8042,55 @@ function initR2ScreenResize(){
   document.addEventListener('mouseup', ()=>{ if(dragging){dragging=false;handle.classList.remove('dragging');} });
 }
 
-// ── Hook refreshScreenPanel to show r2-screen-panel ──
-const _origRefreshScreen = refreshScreenPanel;
-function refreshScreenPanel(){
-  _origRefreshScreen?.();
-  const sp=document.getElementById('r2-screen-panel');
-  if(!sp) return;
-  if(screenStreams.size>0){ sp.classList.add('visible'); r2RenderVideoGrid(); }
-  else { sp.classList.remove('visible'); }
-  const sc=document.getElementById('screen-count'); if(sc) sc.textContent=screenStreams.size;
-}
+// ── refreshScreenPanel — handles all three contexts ──
+// Override must run AFTER original definition
+(function(){
+  const _orig = refreshScreenPanel;
+  refreshScreenPanel = function(){
+    if(_communityRoomMode){ _orig?.(); return; }
+    // Standalone room: use r2-screen-grid, ignore old screen-area
+    const sp=document.getElementById('r2-screen-panel');
+    const grid=document.getElementById('r2-screen-grid');
+    if(!sp||!grid) return;
+    if(screenStreams.size===0){
+      sp.classList.remove('visible');
+      // Restore video panel to flex:1
+      const vp=document.getElementById('r2-video-panel');
+      if(vp){ vp.style.flex='1'; vp.style.height=''; }
+      r2RenderVideoGrid();
+      return;
+    }
+    sp.classList.add('visible');
+    // Auto-size: screen gets 55%, video gets 45%
+    const midH=sp.parentElement?.offsetHeight||600;
+    sp.style.height=Math.round(midH*0.55)+'px';
+    const vp=document.getElementById('r2-video-panel');
+    if(vp){ vp.style.flex='none'; vp.style.height=Math.round(midH*0.45)+'px'; }
+    const sc=document.getElementById('screen-count'); if(sc) sc.textContent=screenStreams.size;
+    // Render screen tiles into r2-screen-grid
+    grid.innerHTML='';
+    screenStreams.forEach(({stream,visible},peerId)=>{
+      if(visible===false) return;
+      const wrap=document.createElement('div');
+      wrap.style.cssText='position:relative;border-radius:8px;overflow:hidden;background:#000;height:100%;min-width:200px;flex:1;';
+      const vid=document.createElement('video');
+      vid.srcObject=stream; vid.autoplay=true; vid.playsInline=true; vid.muted=true;
+      vid.style.cssText='width:100%;height:100%;object-fit:contain;';
+      wrap.appendChild(vid);
+      grid.appendChild(wrap);
+    });
+    r2RenderVideoGrid();
+  };
+})();
 
-// ── Hook refreshCamPanel to update R2 video grid ──
-const _origRefreshCam = refreshCamPanel;
-function refreshCamPanel(){
-  if(_communityRoomMode){ _origRefreshCam?.(); return; }
-  // In standalone room, just update the R2 grid (don't use old cam-area)
-  r2RenderVideoGrid();
-}
+// ── refreshCamPanel — standalone room uses R2 grid only ──
+(function(){
+  const _orig = refreshCamPanel;
+  refreshCamPanel = function(){
+    if(_communityRoomMode){ _orig?.(); return; }
+    r2RenderVideoGrid();
+  };
+})();
 
 // ── addChat with per-message block/report ──
 
