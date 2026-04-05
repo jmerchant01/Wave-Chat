@@ -217,8 +217,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .r2-tile.speaking{border-color:var(--accent3);box-shadow:0 0 0 1px var(--accent3);}
 .r2-tile.muted-tile{border-color:var(--danger);}
 /* Spotlight row: 2x2 grid layout for 4 favs, else single row */
-#r2-spotlight-row{flex-shrink:0;display:flex;flex-wrap:wrap;gap:.35rem;padding:.35rem .35rem 0;}
-#r2-spotlight-row:empty{display:none;}
+#r2-fav-half{box-sizing:border-box;}
 .r2-tile.focused{position:fixed!important;inset:0;border-radius:0;z-index:500;width:100%!important;height:100%!important;}
 .r2-tile video{width:100%;height:100%;object-fit:cover;display:block;}
 .r2-tile .r2-tile-label{position:absolute;bottom:0;left:0;right:0;padding:.2rem .4rem;background:linear-gradient(transparent,rgba(0,0,0,.7));font-size:.65rem;color:#fff;display:flex;align-items:center;gap:.3rem;}
@@ -1550,9 +1549,13 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
       </div>
 
       <!-- Video grid BELOW (always visible) -->
-      <div class="r2-video-panel" id="r2-video-panel" style="flex:1;min-height:80px;">
-        <div class="r2-spotlight-row" id="r2-spotlight-row"></div>
-        <div class="r2-grid-area" id="r2-grid-area"></div>
+      <div class="r2-video-panel" id="r2-video-panel" style="flex:1;min-height:80px;display:flex;flex-direction:column;">
+        <!-- Favorites half — takes 50% height when favs exist, hidden otherwise -->
+        <div id="r2-fav-half" style="display:none;flex-shrink:0;overflow:hidden;"></div>
+        <!-- Divider shown only when both halves have content -->
+        <div id="r2-half-divider" style="display:none;height:3px;background:var(--border);flex-shrink:0;"></div>
+        <!-- Regular participants half -->
+        <div id="r2-grid-area" style="flex:1;padding:.35rem;display:flex;flex-wrap:wrap;gap:.35rem;overflow-y:auto;align-content:flex-start;min-height:60px;"></div>
         <div class="r2-video-resize" id="r2-video-resize"></div>
       </div>
 
@@ -7156,63 +7159,96 @@ function renderParticipants(){
 }
 
 // ── R2 video grid ──
-const SMALL_TILE_W = 140; // px — small tile width
-const SMALL_TILE_H = 105; // px — small tile height (4:3)
-const FAV_TILE_BIG = 200; // px — fav tile when in 2x2
-const FAV_TILE_SM  = 160; // px — fav tile when < 4
+const SMALL_TILE_W = 140;
+const SMALL_TILE_H = 105;
 
 function r2RenderVideoGrid(){
-  const spotRow=document.getElementById('r2-spotlight-row');
-  const gridArea=document.getElementById('r2-grid-area');
-  if(!spotRow||!gridArea) return;
-  spotRow.innerHTML=''; gridArea.innerHTML='';
+  const favHalf   = document.getElementById('r2-fav-half');
+  const divider   = document.getElementById('r2-half-divider');
+  const gridArea  = document.getElementById('r2-grid-area');
+  const panel     = document.getElementById('r2-video-panel');
+  if(!favHalf||!gridArea||!panel) return;
 
+  favHalf.innerHTML=''; gridArea.innerHTML='';
+
+  // ── Fullscreen focused peer ──
   if(focusedPeer!==null){
+    favHalf.style.display='none';
+    if(divider) divider.style.display='none';
     gridArea.style.cssText='position:relative;flex:1;overflow:hidden;';
     const tile=buildR2Tile(focusedPeer, participants.get(focusedPeer), true);
     tile.style.cssText='width:100%;height:100%;';
     gridArea.appendChild(tile);
     return;
   }
-
-  gridArea.style.cssText='padding:.35rem;display:flex;flex-wrap:wrap;gap:.35rem;overflow-y:auto;align-content:flex-start;';
+  gridArea.style.cssText='flex:1;padding:.35rem;display:flex;flex-wrap:wrap;gap:.35rem;overflow-y:auto;align-content:flex-start;min-height:60px;';
 
   const all=Array.from(participants.entries()).filter(([id])=>!localMutes.has(id)||id===socket?.id);
   const hasCam=(id)=>camStreams.has(id);
-
-  // Favorites (spotlighted) — max 4
   const favs=all.filter(([id])=>spotlightPeers.has(id)).slice(0,4);
   const rest=all.filter(([id])=>!spotlightPeers.has(id));
-
-  // Sort rest: cam-on first
   rest.sort((a,b)=>(hasCam(b[0])?1:0)-(hasCam(a[0])?1:0));
 
-  // ── Favorites section ──
+  // ── Favorites — always exactly half the panel height ──
   if(favs.length){
-    const n=favs.length;
-    const is2x2 = n===4;
-    // 4 favs → 2x2 grid; 1-3 → single row
-    if(is2x2){
-      // Two rows of two
-      const rows=[favs.slice(0,2), favs.slice(2,4)];
-      rows.forEach(row=>{
-        const rowEl=document.createElement('div');
-        rowEl.style.cssText='display:flex;gap:.35rem;width:100%;';
-        row.forEach(([id,p])=>{
-          const tile=buildR2Tile(id,p,false,true);
-          tile.style.cssText='flex:1;height:'+FAV_TILE_BIG+'px;';
-          rowEl.appendChild(tile);
-        });
-        spotRow.appendChild(rowEl);
-      });
-    } else {
-      // Single row, all side by side
+    const panelH = panel.offsetHeight||400;
+    const halfH  = Math.max(100, Math.round(panelH * 0.5));
+    favHalf.style.cssText='height:'+halfH+'px;flex-shrink:0;display:flex;flex-direction:column;overflow:hidden;padding:.35rem .35rem 0;box-sizing:border-box;';
+    if(divider) divider.style.display='block';
+
+    const n = favs.length;
+    const gap = 5;
+
+    if(n===1){
+      // Single fav fills entire top half
+      const tile=buildR2Tile(favs[0][0],favs[0][1],false,true);
+      tile.style.cssText='flex:1;width:100%;';
+      favHalf.appendChild(tile);
+
+    } else if(n===2){
+      // Two side by side
+      const row=document.createElement('div');
+      row.style.cssText='display:flex;gap:'+gap+'px;flex:1;';
       favs.forEach(([id,p])=>{
         const tile=buildR2Tile(id,p,false,true);
-        tile.style.cssText='width:'+FAV_TILE_SM+'px;height:'+(FAV_TILE_SM*0.75)+'px;flex-shrink:0;';
-        spotRow.appendChild(tile);
+        tile.style.cssText='flex:1;height:100%;';
+        row.appendChild(tile);
       });
+      favHalf.appendChild(row);
+
+    } else if(n===3){
+      // Three side by side
+      const row=document.createElement('div');
+      row.style.cssText='display:flex;gap:'+gap+'px;flex:1;';
+      favs.forEach(([id,p])=>{
+        const tile=buildR2Tile(id,p,false,true);
+        tile.style.cssText='flex:1;height:100%;';
+        row.appendChild(tile);
+      });
+      favHalf.appendChild(row);
+
+    } else {
+      // 4 → equal 2×2 grid
+      const topRow=document.createElement('div');
+      topRow.style.cssText='display:flex;gap:'+gap+'px;flex:1;margin-bottom:'+gap+'px;';
+      const botRow=document.createElement('div');
+      botRow.style.cssText='display:flex;gap:'+gap+'px;flex:1;';
+      favs.slice(0,2).forEach(([id,p])=>{
+        const tile=buildR2Tile(id,p,false,true);
+        tile.style.cssText='flex:1;height:100%;';
+        topRow.appendChild(tile);
+      });
+      favs.slice(2,4).forEach(([id,p])=>{
+        const tile=buildR2Tile(id,p,false,true);
+        tile.style.cssText='flex:1;height:100%;';
+        botRow.appendChild(tile);
+      });
+      favHalf.appendChild(topRow);
+      favHalf.appendChild(botRow);
     }
+  } else {
+    favHalf.style.display='none';
+    if(divider) divider.style.display='none';
   }
 
   // ── Regular participants — fixed small tiles ──
@@ -7222,9 +7258,8 @@ function r2RenderVideoGrid(){
     gridArea.appendChild(tile);
   });
 
-  // Also show non-fav but visible participants (if all are favs, show nothing in gridArea)
   if(!rest.length && !favs.length){
-    gridArea.innerHTML='<div style="color:var(--muted);font-size:.75rem;padding:1rem;">No participants</div>';
+    gridArea.innerHTML='<div style="color:var(--muted);font-size:.75rem;padding:1rem;">No participants yet</div>';
   }
 }
 
@@ -8132,6 +8167,7 @@ function initR2VideoResize(){
     if(!dragging) return;
     const newH=Math.max(80, Math.min(window.innerHeight*0.85, startH+(e.clientY-startY)));
     panel.style.flex='none'; panel.style.height=newH+'px';
+    r2RenderVideoGrid(); // re-render so fav half recalculates
   });
   document.addEventListener('mouseup', ()=>{ if(dragging){dragging=false;handle.classList.remove('dragging');} });
 }
