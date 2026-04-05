@@ -186,7 +186,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 */
 
 /* ═══ REDESIGNED ROOM ═══ */
-.room2{position:fixed;inset:0;background:var(--bg);z-index:400;display:flex;flex-direction:column;}
+.room2{position:fixed;inset:0;background:var(--bg);z-index:400;display:flex;flex-direction:column;overflow:hidden;}
 .room2-header{padding:.55rem 1rem;border-bottom:1px solid var(--border);background:var(--surface);display:flex;align-items:center;gap:.75rem;flex-shrink:0;}
 .room2-title{font-family:'Syne',sans-serif;font-weight:700;font-size:1rem;margin:0;}
 .room2-meta{font-size:.65rem;color:var(--muted);display:flex;align-items:center;gap:.4rem;}
@@ -202,17 +202,17 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 /* Resizable columns */
 .r2-col{display:flex;flex-direction:column;overflow:hidden;min-width:0;}
 .r2-col-chat{width:240px;min-width:160px;flex-shrink:0;border-right:1px solid var(--border);}
-.r2-col-mid{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+.r2-col-mid{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;}
 .r2-col-right{width:240px;min-width:160px;flex-shrink:0;border-left:1px solid var(--border);overflow-y:auto;}
 .r2-drag{width:5px;flex-shrink:0;cursor:ew-resize;background:transparent;transition:background .15s;z-index:5;}
 .r2-drag:hover,.r2-drag.dragging{background:var(--accent);}
 /* Video grid — always shown */
-.r2-video-panel{flex-shrink:0;background:#0a0a12;display:flex;flex-direction:column;position:relative;min-height:120px;}
+.r2-video-panel{flex-shrink:0;background:#0a0a12;display:flex;flex-direction:column;position:relative;min-height:80px;}
 .r2-video-resize{height:5px;cursor:ns-resize;background:transparent;flex-shrink:0;transition:background .15s;}
 .r2-video-resize:hover,.r2-video-resize.dragging{background:var(--accent);}
 .r2-spotlight-row{display:flex;gap:.3rem;padding:.3rem .3rem 0;overflow-x:auto;flex-shrink:0;}
 .r2-spotlight-row:empty{display:none;}
-.r2-grid-area{flex:1;padding:.3rem;display:flex;flex-wrap:wrap;gap:.3rem;overflow-y:auto;align-content:flex-start;}
+.r2-grid-area{flex:1;padding:.3rem;display:flex;flex-wrap:wrap;gap:.3rem;overflow-y:auto;align-content:flex-start;align-items:stretch;}
 /* Participant tile */
 .r2-tile{position:relative;border-radius:8px;overflow:hidden;background:#111;border:1.5px solid var(--border);cursor:pointer;transition:border-color .2s;flex-shrink:0;}
 .r2-tile.speaking{border-color:var(--accent3);}
@@ -1454,7 +1454,11 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 
   <!-- Primary header -->
   <div class="room2-header">
-    <div style="flex:1;min-width:0;">
+    <div style="display:flex;align-items:center;gap:.65rem;flex:1;min-width:0;">
+      <div id="room-header-avatar" style="width:36px;height:36px;border-radius:8px;background:var(--surface2);overflow:hidden;flex-shrink:0;display:none;border:1px solid var(--border);">
+        <img id="room-header-avatar-img" style="width:100%;height:100%;object-fit:cover;" src="" alt=""/>
+      </div>
+      <div style="min-width:0;">
       <div class="room2-title" id="room-title">Room</div>
       <div class="room2-meta">
         <span class="conn-dot connected" id="fs-conn-dot"></span>
@@ -1462,6 +1466,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
         <span id="fs-chat-lock-badge" style="display:none;color:var(--danger);">💬 LOCKED</span>
         <span id="fs-mute-all-badge" style="display:none;color:var(--danger);">🔇 MUTED</span>
         <span id="fs-rec-badge" style="display:none;color:var(--danger);animation:blink 1s infinite;">⏺ REC</span>
+      </div>
       </div>
     </div>
     <div style="display:flex;align-items:center;gap:.5rem;flex-shrink:0;">
@@ -6859,6 +6864,12 @@ function showRoom(name){
   const rd = document.getElementById('room');
   rd.style.display='flex';
   document.getElementById('room-title').textContent=name||'Voice Room';
+  // Show room avatar in header if one was uploaded
+  if(_roomAvatarBase64){
+    const hav=document.getElementById('room-header-avatar');
+    const havImg=document.getElementById('room-header-avatar-img');
+    if(hav && havImg){ havImg.src=_roomAvatarBase64; hav.style.display='block'; }
+  }
   const hp=document.getElementById('fs-host-panel');
   if(isHost && hp) hp.classList.add('visible');
   updateInvite(); updateConnDot('connected');
@@ -7125,7 +7136,11 @@ function r2RenderVideoGrid(){
   // Main grid
   const rest=pArray.filter(([id])=>!spotlightPeers.has(id));
   const n=rest.length||1;
-  const tileW=n<=2?'calc(50% - .15rem)':n<=4?'calc(33% - .2rem)':'calc(25% - .23rem)';
+  // Tiles fill full width: 1=100%, 2=50% each, 3=33%, 4+=25%
+  const tileW = n===1 ? 'calc(100% - .3rem)'
+              : n===2 ? 'calc(50% - .15rem)'
+              : n<=4  ? 'calc(33.33% - .2rem)'
+                      : 'calc(25% - .23rem)';
   rest.forEach(([id,p])=>{
     const tile=buildR2Tile(id,p,false,false);
     tile.style.cssText='width:'+tileW+';aspect-ratio:4/3;min-height:80px;';
@@ -7369,6 +7384,7 @@ function leaveRoom(forced=false){
   roomId='';micHostLocked=false;isAllMuted=false;isCameraOn=false;isScreenSharing=false;screenShareAllowed=false;screenRequestsEnabled=true;
   _roomAvatarBase64=null;
   const _rav=document.getElementById('room-avatar-preview'); if(_rav) _rav.innerHTML='🎙️';
+  const _hav=document.getElementById('room-header-avatar'); if(_hav) _hav.style.display='none';
   if(!_communityRoomMode){
     document.getElementById('room').style.display='none';
     document.getElementById('landing').style.display='flex';
@@ -7697,8 +7713,9 @@ function applyCrop(){
   ctx.restore();
 
   const result = out.toDataURL('image/jpeg', 0.88);
+  const cb = _cropCallback; // save before closeCropModal nulls it
   closeCropModal();
-  _cropCallback(result);
+  if(cb) cb(result);
 }
 
 function closeCropModal(){
