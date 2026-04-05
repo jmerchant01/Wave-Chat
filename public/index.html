@@ -664,7 +664,26 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 
 
 /* ── Community inline room ── */
-#cv-room-participants .cv-p-tile{
+#cv-room-participants 
+/* ── Community inline room participant chips ── */
+.cv-p-chip{
+  display:flex;align-items:center;gap:.35rem;padding:.3rem .5rem;
+  background:var(--surface2);border:1px solid var(--border);border-radius:8px;
+  font-size:.72rem;cursor:default;user-select:none;min-width:80px;
+  transition:border-color .2s,background .2s;position:relative;
+}
+.cv-p-chip.speaking{ border-color:var(--accent3);background:rgba(67,233,123,.07); }
+.cv-p-chip.screen-sharing{ border-color:var(--accent2);background:rgba(255,101,132,.07); }
+.cv-p-chip .chip-av{
+  width:22px;height:22px;border-radius:6px;display:flex;align-items:center;
+  justify-content:center;font-size:.6rem;font-weight:700;color:#fff;flex-shrink:0;
+}
+.cv-p-chip .chip-name{ font-weight:500;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+.cv-p-chip .chip-icons{ display:flex;align-items:center;gap:.15rem;font-size:.65rem;margin-left:auto; }
+/* Horizontal resize handles for community room columns */
+.cv-h-resize:active{ background:var(--accent)!important; }
+
+.cv-p-tile{
   display:flex;flex-direction:column;align-items:center;gap:.4rem;
   padding:.75rem .6rem;border-radius:12px;background:var(--surface2);
   border:2px solid transparent;min-width:90px;max-width:120px;flex:1;
@@ -1192,11 +1211,11 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
           </div>
           <div id="cv-room-member-list" style="font-size:.75rem;color:var(--muted);margin-bottom:1rem;"></div>
         </div>
-        <!-- LIVE state: identical to full voice room — chat left, video mid, controls right -->
-        <div id="cv-room-live" class="hidden" style="flex:1;display:flex;flex-direction:column;overflow:hidden;">
+        <!-- LIVE state: full room UI inside community channel -->
+        <div id="cv-room-live" class="hidden" style="flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative;">
 
-          <!-- Share-request banner (host only) -->
-          <div class="share-request-banner" id="cv-share-request-banner" style="display:none;position:absolute;top:0;left:0;right:0;z-index:50;">
+          <!-- Share-request banner -->
+          <div class="share-request-banner" id="cv-share-request-banner" style="display:none;">
             <span id="cv-share-request-text">🖥️ wants to share their screen</span>
             <div class="share-req-btns">
               <button class="share-req-btn accept" onclick="hostApproveScreen()">Approve</button>
@@ -1204,101 +1223,80 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
             </div>
           </div>
 
-          <!-- Three-column room body -->
-          <div class="cv-room-body" style="flex:1;display:grid;grid-template-columns:220px 5px 1fr 5px 220px;overflow:hidden;min-height:0;">
+          <!-- Main 3-column body — takes ALL available height -->
+          <div class="cv-room-body" style="flex:1;display:flex;overflow:hidden;min-height:0;">
 
             <!-- LEFT: Chat -->
-            <div class="col-left" style="padding:.5rem .4rem .5rem .5rem;">
-              <div class="chat-col-panel" id="cv-chat-panel-el">
-                <div class="panel-header" style="cursor:default;">💬 Chat
-                  <span style="font-size:.55rem;color:var(--muted);">paste/drag up to 10MB</span>
-                </div>
-                <div class="chat-messages" id="cv-chat-messages"></div>
+            <div id="cv-col-chat" style="width:220px;min-width:120px;max-width:420px;display:flex;flex-direction:column;flex-shrink:0;overflow:hidden;border-right:1px solid var(--border);">
+              <div class="chat-col-panel" id="cv-chat-panel-el" style="flex:1;border:none;border-radius:0;">
+                <div class="panel-header" style="cursor:default;font-size:.65rem;">💬 Chat</div>
+                <div class="chat-messages" id="cv-chat-messages" style="flex:1;overflow-y:auto;"></div>
                 <div id="cv-img-preview-area" style="padding:0 .55rem .4rem;display:none;">
-                  <div class="img-preview-wrap">
-                    <img id="cv-img-preview-thumb" src="" alt="preview"/>
-                    <button class="remove-img" onclick="cvClearImage()">✕</button>
-                  </div>
+                  <div class="img-preview-wrap"><img id="cv-img-preview-thumb" src="" alt=""/><button class="remove-img" onclick="cvClearImage()">✕</button></div>
                 </div>
-                <div class="chat-locked-notice" id="cv-chat-locked-notice">🔒 Chat locked by host</div>
+                <div class="chat-locked-notice" id="cv-chat-locked-notice">🔒 Chat locked</div>
                 <div class="chat-input-wrap" id="cv-chat-input-wrap">
                   <input type="file" id="cv-img-file-input" accept="image/*,video/*,.pdf,.zip,.doc,.docx" style="display:none" onchange="cvHandleFileSelect(event)"/>
-                  <button class="img-attach-btn" onclick="document.getElementById('cv-img-file-input').click()" title="Attach">📎</button>
-                  <input class="chat-input" id="cv-chat-in" placeholder="Type a message…"
-                    onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();cvSendRoomChat();}"/>
-                  <button class="send-btn" onclick="cvSendRoomChat()">
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-                  </button>
+                  <button class="img-attach-btn" onclick="document.getElementById('cv-img-file-input').click()">📎</button>
+                  <input class="chat-input" id="cv-chat-in" placeholder="Type a message…" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();cvSendRoomChat();}"/>
+                  <button class="send-btn" onclick="cvSendRoomChat()"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
                 </div>
               </div>
             </div>
 
-            <!-- RESIZE: chat↔mid -->
-            <div class="col-resize-handle" id="cv-chat-col-resize" title="Drag to resize"></div>
+            <!-- DRAG: chat ↔ mid -->
+            <div class="cv-h-resize" data-target="cv-col-chat" data-side="right" style="width:5px;cursor:ew-resize;background:transparent;flex-shrink:0;transition:background .15s;" onmouseenter="this.style.background='var(--accent)'" onmouseleave="this.style.background='transparent'"></div>
 
-            <!-- MIDDLE: Video + Screen + Participants -->
-            <div class="col-mid" style="display:flex;flex-direction:column;gap:.5rem;padding:.5rem 0;overflow-y:auto;">
+            <!-- MID: participants grid + screen/cam panels -->
+            <div id="cv-col-mid" style="flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:200px;">
 
-              <!-- Camera panel — reuses existing cam-area / cam-grid -->
-              <div class="video-area hidden" id="cam-area">
-                <div class="video-area-header" onclick="togglePanel('cam-area')">
+              <!-- Screen share (when active) -->
+              <div class="video-area hidden" id="screen-area" style="flex-shrink:0;border-radius:0;border-left:none;border-right:none;border-top:none;">
+                <div class="video-area-header" onclick="togglePanel('screen-area')" style="font-size:.62rem;">
+                  <span>🖥️ Screen Share</span>
+                  <div style="display:flex;align-items:center;gap:.5rem;">
+                    <span id="screen-count" style="font-size:.6rem;color:var(--accent2);">0 sharing</span>
+                    <div id="screen-selector-wrap" style="display:none;align-items:center;gap:.3rem;font-size:.6rem;color:var(--muted);">View: <div id="screen-checkboxes" style="display:flex;gap:.3rem;flex-wrap:wrap;"></div></div>
+                    <span class="collapse-btn" id="screen-collapse-icon">▾</span>
+                  </div>
+                </div>
+                <div id="screen-body" style="height:220px;min-height:80px;box-sizing:border-box;position:relative;">
+                  <div class="screen-grid" id="screen-grid"></div>
+                  <div class="resize-handle" id="screen-resize" title="Drag to resize"></div>
+                </div>
+              </div>
+
+              <!-- Camera video (when active) -->
+              <div class="video-area hidden" id="cam-area" style="flex-shrink:0;border-radius:0;border-left:none;border-right:none;border-top:none;">
+                <div class="video-area-header" onclick="togglePanel('cam-area')" style="font-size:.62rem;">
                   <span>📷 Video</span>
-                  <div style="display:flex;align-items:center;gap:.65rem;">
-                    <span id="cam-count" style="font-size:.63rem;color:var(--accent);">0 cameras</span>
+                  <div style="display:flex;align-items:center;gap:.5rem;">
+                    <span id="cam-count" style="font-size:.6rem;color:var(--accent);">0 cameras</span>
                     <div id="cam-selector-wrap" style="display:none;position:relative;">
-                      <button id="cam-dropdown-btn" onclick="event.stopPropagation();toggleCamDropdown()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);font-size:.63rem;border-radius:5px;padding:.18rem .5rem;cursor:pointer;display:flex;align-items:center;gap:.3rem;">
-                        <span id="cam-dropdown-label">All</span> ▾
-                      </button>
-                      <div id="cam-dropdown-menu" style="display:none;position:absolute;right:0;top:110%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:.4rem;z-index:50;min-width:140px;box-shadow:0 8px 24px rgba(0,0,0,.4);" onclick="event.stopPropagation()">
-                        <div id="cam-checkbox-list" style="display:flex;flex-direction:column;gap:.25rem;"></div>
-                      </div>
+                      <button id="cam-dropdown-btn" onclick="event.stopPropagation();toggleCamDropdown()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);font-size:.6rem;border-radius:5px;padding:.15rem .4rem;cursor:pointer;display:flex;align-items:center;gap:.2rem;"><span id="cam-dropdown-label">All</span> ▾</button>
+                      <div id="cam-dropdown-menu" style="display:none;position:absolute;right:0;top:110%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:.3rem;z-index:50;min-width:130px;box-shadow:0 8px 24px rgba(0,0,0,.4);" onclick="event.stopPropagation()"><div id="cam-checkbox-list" style="display:flex;flex-direction:column;gap:.2rem;"></div></div>
                     </div>
                     <span class="collapse-btn" id="cam-collapse-icon">▾</span>
                   </div>
                 </div>
-                <div class="video-area-body" id="cam-body">
+                <div class="video-area-body" id="cam-body" style="position:relative;">
                   <div class="video-grid" id="cam-grid"></div>
+                  <div class="resize-handle" id="cam-resize" title="Drag to resize"></div>
                 </div>
-                <div class="resize-handle" id="cam-resize" title="Drag to resize"></div>
               </div>
 
-              <!-- Screen share panel — reuses existing screen-area / screen-grid -->
-              <div class="video-area hidden" id="screen-area">
-                <div class="video-area-header" onclick="togglePanel('screen-area')">
-                  <span>🖥️ Screen Share</span>
-                  <div style="display:flex;align-items:center;gap:.65rem;">
-                    <span id="screen-count" style="font-size:.63rem;color:var(--accent2);">0 sharing</span>
-                    <div id="screen-selector-wrap" style="display:none;align-items:center;gap:.4rem;font-size:.63rem;color:var(--muted);">
-                      View: <div id="screen-checkboxes" style="display:flex;gap:.35rem;flex-wrap:wrap;"></div>
-                    </div>
-                    <span class="collapse-btn" id="screen-collapse-icon">▾</span>
-                  </div>
-                </div>
-                <div id="screen-body" style="height:200px;min-height:80px;box-sizing:border-box;">
-                  <div class="screen-grid" id="screen-grid"></div>
-                </div>
-                <div class="resize-handle" id="screen-resize" title="Drag to resize"></div>
-              </div>
-
-              <!-- Participants list (voice, no cam) -->
-              <div class="participants-panel" style="flex:1;min-height:60px;">
-                <div class="panel-header">
-                  <span>Participants</span>
-                  <span class="participant-count" id="p-count">0</span>
-                </div>
-                <div class="participants-list" id="p-list"></div>
-              </div>
-
+              <!-- Participant blocks grid — small chips, screen sharers first -->
+              <div style="flex:1;overflow-y:auto;padding:.6rem;display:flex;flex-wrap:wrap;gap:.4rem;align-content:flex-start;" id="cv-p-grid"></div>
             </div>
 
-            <!-- RESIZE: mid↔right -->
-            <div class="col-resize-handle" id="cv-right-col-resize" title="Drag to resize"></div>
+            <!-- DRAG: mid ↔ right -->
+            <div class="cv-h-resize" data-target="cv-col-right" data-side="left" style="width:5px;cursor:ew-resize;background:transparent;flex-shrink:0;transition:background .15s;" onmouseenter="this.style.background='var(--accent)'" onmouseleave="this.style.background='transparent'"></div>
 
-            <!-- RIGHT: Controls -->
-            <div class="col-right" style="padding:.5rem .5rem .5rem .4rem;">
+            <!-- RIGHT: My controls + host controls -->
+            <div id="cv-col-right" style="width:210px;min-width:140px;max-width:340px;display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0;border-left:1px solid var(--border);padding:.5rem;">
 
               <!-- My Controls -->
-              <div class="my-controls">
+              <div class="my-controls" style="margin-bottom:.6rem;">
                 <div class="section-title">🎤 My Controls</div>
                 <button class="mic-btn" id="mic-btn" onclick="toggleMic()">
                   <div class="pulse-ring"></div>
@@ -1306,20 +1304,25 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
                   <span id="mic-label">MIC ON</span>
                 </button>
                 <div class="volume-bar"><div class="volume-fill" id="vol-fill"></div></div>
-                <div style="font-size:.58rem;color:var(--muted);margin-top:.28rem;text-align:center;">Voice activity</div>
+                <div style="font-size:.57rem;color:var(--muted);margin-top:.2rem;text-align:center;">Voice activity</div>
                 <div class="media-controls">
                   <button class="media-btn" id="cam-btn" onclick="toggleCamera()">📷 Camera</button>
                   <button class="media-btn" id="screen-btn" onclick="requestOrToggleScreen()">🖥️ Screen</button>
                 </div>
               </div>
 
-              <!-- Pending invites (host only) -->
-              <div id="pending-invites-box" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;">
-                <div class="panel-header" style="border-bottom:1px solid var(--border);">
-                  <span>⏳ Waiting</span>
-                  <span class="participant-count" id="pending-invites-count">0</span>
+              <!-- Participants count -->
+              <div class="participants-panel" style="margin-bottom:.5rem;">
+                <div class="panel-header">
+                  <span>Participants</span>
+                  <span class="participant-count" id="p-count">0</span>
                 </div>
-                <div id="pending-invites-list" style="padding:.4rem .6rem;"></div>
+              </div>
+
+              <!-- Pending invites -->
+              <div id="pending-invites-box" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:.5rem;">
+                <div class="panel-header" style="border-bottom:1px solid var(--border);"><span>⏳ Waiting</span><span class="participant-count" id="pending-invites-count">0</span></div>
+                <div id="pending-invites-list" style="padding:.3rem .5rem;"></div>
               </div>
 
               <!-- Host Controls -->
@@ -1328,18 +1331,17 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
                 <div class="host-actions">
                   <button class="host-btn" id="mute-all-btn" onclick="hostMuteAll()">🔇 Mute All</button>
                   <button class="host-btn" onclick="hostUnmuteAll()">🔊 Unmute All</button>
-                  <button class="host-btn" id="screen-requests-btn" onclick="toggleScreenRequests()">🖥️ Block Screen Sharing</button>
+                  <button class="host-btn" id="screen-requests-btn" onclick="toggleScreenRequests()">🖥️ Block Screen</button>
                   <button class="host-btn" id="chat-lock-btn" onclick="toggleChatLock()">💬 Lock Chat</button>
                   <button class="host-btn" id="room-lock-btn" onclick="toggleLock()">🔒 Lock Room</button>
                   <button class="host-btn" id="record-btn" onclick="toggleRecording()" style="border-color:var(--danger);color:var(--danger);">⏺ Start Recording</button>
                   <button class="host-btn danger" onclick="cvEndRoom()">⛔ End Room</button>
                 </div>
                 <div class="invite-box">
-                  <p>📨 Share invite:</p>
-                  <div class="invite-url" id="invite-url" onclick="copyRoomURL()">—</div>
-                  <div style="display:flex;gap:.4rem;margin-top:.5rem;flex-wrap:wrap;">
-                    <button class="host-btn" style="flex:1;border-color:var(--accent);color:var(--accent);" onclick="copyRoomURL()">🔗 Copy URL</button>
-                    <button class="host-btn" style="flex:1;border-color:var(--accent3);color:var(--accent3);" onclick="openFriendInvitePanel()">👥 Invite Friends</button>
+                  <div class="invite-url" id="invite-url" onclick="copyRoomURL()" style="font-size:.6rem;"></div>
+                  <div style="display:flex;gap:.3rem;margin-top:.4rem;">
+                    <button class="host-btn" style="flex:1;border-color:var(--accent);color:var(--accent);font-size:.62rem;" onclick="copyRoomURL()">🔗 Copy</button>
+                    <button class="host-btn" style="flex:1;border-color:var(--accent3);color:var(--accent3);font-size:.62rem;" onclick="openFriendInvitePanel()">👥 Invite</button>
                   </div>
                 </div>
               </div>
@@ -1347,17 +1349,18 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
             </div>
           </div>
 
-          <!-- Bottom bar: status + leave -->
-          <div style="padding:.45rem .8rem;border-top:1px solid var(--border);background:var(--surface);display:flex;align-items:center;gap:.6rem;flex-shrink:0;">
-            <span style="font-size:.62rem;color:var(--accent3);display:flex;align-items:center;gap:.3rem;font-weight:700;">
-              <span class="conn-dot connected" id="conn-dot"></span>LIVE &bull;
-              <span id="p-count-header">0</span> participant(s)
-              <span id="chat-lock-badge" style="display:none;color:var(--danger);font-size:.6rem;">💬 LOCKED</span>
-              <span id="mute-all-badge" style="display:none;color:var(--danger);font-size:.6rem;">🔇 MUTED</span>
-              <span id="rec-badge" style="display:none;color:var(--danger);font-size:.6rem;animation:blink 1s infinite;">⏺ REC</span>
-            </span>
-            <span style="margin-left:auto;"></span>
-            <button onclick="cvLeaveRoom()" style="padding:.28rem .7rem;border-radius:7px;border:none;background:var(--danger);color:#fff;font-size:.7rem;cursor:pointer;font-weight:600;">📞 Leave</button>
+          <!-- Footer: live status + quick controls + leave -->
+          <div style="padding:.4rem .75rem;border-top:1px solid var(--border);background:var(--surface);display:flex;align-items:center;gap:.5rem;flex-shrink:0;flex-wrap:wrap;">
+            <span class="conn-dot connected" id="conn-dot"></span>
+            <span style="font-size:.62rem;color:var(--accent3);font-weight:700;">LIVE</span>
+            <span style="font-size:.62rem;color:var(--muted);">•</span>
+            <span id="p-count-header" style="font-size:.62rem;color:var(--muted);">0</span>
+            <span style="font-size:.62rem;color:var(--muted);">participant(s)</span>
+            <span id="chat-lock-badge" style="display:none;font-size:.6rem;color:var(--danger);">💬 LOCKED</span>
+            <span id="mute-all-badge" style="display:none;font-size:.6rem;color:var(--danger);">🔇 MUTED</span>
+            <span id="rec-badge" style="display:none;font-size:.6rem;color:var(--danger);animation:blink 1s infinite;">⏺ REC</span>
+            <span style="flex:1;"></span>
+            <button onclick="cvLeaveRoom()" style="padding:.25rem .65rem;border-radius:7px;border:none;background:var(--danger);color:#fff;font-size:.7rem;cursor:pointer;font-weight:600;">📞 Leave</button>
           </div>
         </div>
       </div>
@@ -6853,14 +6856,14 @@ function showCommunityInlineRoom(name){
   if(createBtn) createBtn.style.display='none';
   if(endBtn) endBtn.classList.add('hidden');
   const roomStatus=document.getElementById('cv-room-status');
-  if(roomStatus) roomStatus.innerHTML='<span style="width:8px;height:8px;border-radius:50%;background:var(--accent3);animation:pulse 1.5s infinite;display:inline-block;"></span> <span style="color:var(--accent3);">Live — In Room</span>';
+  if(roomStatus) roomStatus.innerHTML='<span style="width:7px;height:7px;border-radius:50%;background:var(--accent3);animation:pulse 1.5s infinite;display:inline-block;"></span> <span style="color:var(--accent3);font-weight:700;">LIVE</span><span id="cv-header-pcount" style="color:var(--muted);font-size:.62rem;"></span>';
   // Show host panel
   if(isHost) document.getElementById('host-panel').classList.remove('hidden');
   // Init resize handles for inline room
   setTimeout(()=>{
     initResizeHandle('cam-resize','cam-area','cam-body', 80, 600);
     initResizeHandle('screen-resize','screen-area','screen-body', 80, 700);
-    initCvChatResize();
+    initCvColumnResize();
   }, 50);
 }
 
@@ -6888,24 +6891,38 @@ function initCvChatResize(){
 }
 
 function cvRenderParticipants(){
-  const el = document.getElementById('cv-room-participants');
+  const el = document.getElementById('cv-p-grid');
   if(!el) return;
   el.innerHTML = '';
-  const count = document.getElementById('cv-room-p-count');
-  if(count) count.textContent = participants.size + ' participant' + (participants.size!==1?'s':'');
-  participants.forEach((p, id)=>{
-    const isMine = id === socket?.id;
-    const tile = document.createElement('div');
-    tile.className = 'cv-p-tile' + (p.speaking?' speaking':'') + (p.muted?' muted':'');
-    const bg = colorFor(id);
-    tile.innerHTML =
-      '<div class="cv-p-avatar" style="background:'+bg+';">' +
-        (p.avatar ? '<img src="'+p.avatar+'" style="width:100%;height:100%;object-fit:cover;border-radius:8px;">' : esc((p.name||'?').slice(0,2).toUpperCase())) +
-      '</div>' +
-      '<div class="cv-p-name">' + esc(p.name||'?') + (p.isHost?' 👑':'') + (isMine?' (you)':'') + '</div>' +
-      '<span class="cv-p-mic">' + (p.muted?'🔇':'🎙️') + '</span>';
-    el.appendChild(tile);
+  // Screen sharers first, then everyone else
+  const pArray = Array.from(participants.entries());
+  const isSharing = (id)=> screenStreams && screenStreams.has(id);
+  pArray.sort((a,b)=>{
+    const as=isSharing(a[0])?1:0, bs=isSharing(b[0])?1:0;
+    return bs-as;
   });
+  pArray.forEach(([id, p])=>{
+    const isMine = id === socket?.id;
+    const sharing = isSharing(id);
+    const chip = document.createElement('div');
+    chip.className = 'cv-p-chip' + (p.speaking?' speaking':'') + (sharing?' screen-sharing':'');
+    const bg = colorFor(id);
+    const initials = esc((p.name||'?').slice(0,2).toUpperCase());
+    chip.innerHTML =
+      '<div class="chip-av" style="background:'+bg+';">'+initials+'</div>'+
+      '<span class="chip-name">'+esc(p.name||'?')+(isMine?' <span style="color:var(--muted);font-size:.6rem;">(you)</span>':'')+'</span>'+
+      '<span class="chip-icons">'+
+        (p.isHost?'<span title="Host">👑</span>':'')+
+        (sharing?'<span title="Sharing screen" style="color:var(--accent2);">🖥</span>':'')+
+        (p.muted?'<span title="Muted">🔇</span>':'<span title="Unmuted" style="color:var(--accent3);">🎙</span>')+
+      '</span>';
+    el.appendChild(chip);
+  });
+  // Update count
+  const ph = document.getElementById('p-count-header');
+  const pc = document.getElementById('p-count');
+  if(ph) ph.textContent = participants.size;
+  if(pc) pc.textContent = participants.size;
 }
 
 function cvToggleMute(){
@@ -7726,6 +7743,33 @@ function roomEl(id){
   const fs=document.getElementById('fs-'+id);
   if(fs) return fs;
   return document.getElementById(id);
+}
+
+
+function initCvColumnResize(){
+  document.querySelectorAll('.cv-h-resize').forEach(handle=>{
+    const targetId = handle.dataset.target;
+    const side = handle.dataset.side; // 'right' = dragging right edge of target, 'left' = left edge
+    let dragging=false, startX=0, startW=0;
+    handle.addEventListener('mousedown', e=>{
+      e.preventDefault();
+      dragging=true; startX=e.clientX;
+      const el=document.getElementById(targetId);
+      startW=el?el.offsetWidth:220;
+      handle.style.background='var(--accent)';
+    });
+    document.addEventListener('mousemove', e=>{
+      if(!dragging) return;
+      const el=document.getElementById(targetId); if(!el) return;
+      const dx = side==='right' ? e.clientX-startX : startX-e.clientX;
+      const minW=parseInt(el.style.minWidth)||120;
+      const maxW=parseInt(el.style.maxWidth)||420;
+      el.style.width=Math.max(minW,Math.min(maxW,startW+dx))+'px';
+    });
+    document.addEventListener('mouseup', ()=>{
+      if(dragging){ dragging=false; handle.style.background='transparent'; }
+    });
+  });
 }
 
 </script>
