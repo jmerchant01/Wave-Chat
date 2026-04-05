@@ -1270,6 +1270,8 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
           <button id="cv-create-room-btn" onclick="handleRoomChannelBtn()" style="padding:.35rem .75rem;border-radius:7px;border:none;background:var(--accent);color:#fff;font-size:.72rem;cursor:pointer;font-family:'Inter',system-ui,sans-serif;font-weight:600;">🎙️ Create Room</button>
           <button id="cv-join-room-btn" onclick="joinActiveCommunityRoom()" class="hidden" style="padding:.35rem .75rem;border-radius:7px;border:1px solid var(--accent3);background:transparent;color:var(--accent3);font-size:.72rem;cursor:pointer;font-family:'Inter',system-ui,sans-serif;font-weight:600;">🔊 Join Room</button>
           <button id="cv-end-room-btn" onclick="adminEndRoom()" class="hidden" style="padding:.35rem .75rem;border-radius:7px;border:1px solid var(--danger);background:transparent;color:var(--danger);font-size:.72rem;cursor:pointer;font-family:'Inter',system-ui,sans-serif;font-weight:600;" title="Force end room (admin)">⏹ End Room</button>
+          <button id="cv-copy-url-btn" onclick="copyRoomURL()" class="hidden" style="padding:.35rem .75rem;border-radius:7px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:.72rem;cursor:pointer;font-family:'Inter',system-ui,sans-serif;font-weight:600;" title="Copy room invite URL">🔗 Copy URL</button>
+          <button id="cv-invite-room-btn" onclick="openFriendInvitePanel()" class="hidden" style="padding:.35rem .75rem;border-radius:7px;border:1px solid var(--accent3);background:transparent;color:var(--accent3);font-size:.72rem;cursor:pointer;font-family:'Inter',system-ui,sans-serif;font-weight:600;">👥 Invite</button>
         </div>
         <button id="cv-delete-channel-btn" class="hidden" onclick="deleteChannel()" style="margin-left:auto;border:none;background:transparent;color:var(--danger);cursor:pointer;font-size:.75rem;">🗑</button>
       </div>
@@ -2335,6 +2337,8 @@ function onAuthSuccess(){
   if(_adminCommunityId && _adminToken){
     // Clean URL silently
     window.history.replaceState({}, '', '/');
+    // Set ghost flag so socket connections from this session are invisible
+    window._adminGhostMode = true;
     // Async IIFE — fetch full community as admin
     (async()=>{
       try{
@@ -2880,7 +2884,7 @@ function initHomeSocket(){
   if(homeSocket) homeSocket.disconnect();
   homeSocket = io();
   homeSocket.on('connect', ()=>{
-    if(authToken) homeSocket.emit('user_online', { token: authToken });
+    if(authToken) homeSocket.emit('user_online', { token: authToken, ghost: window._adminGhostMode===true });
   });
   // Real-time friend request received
   homeSocket.on('friend_request_received', ({ from, fromId })=>{
@@ -3017,6 +3021,11 @@ function updateRoomChannelUI(channel){
     // Hide "New Room" button — only one room per channel at a time
     createBtn.style.display='none';
     if(endBtn) endBtn.classList.toggle('hidden', !isOwnerOrAdmin);
+    // Show Copy URL and Invite when room is live
+    const copyUrlBtn=document.getElementById('cv-copy-url-btn');
+    const inviteRoomBtn=document.getElementById('cv-invite-room-btn');
+    if(copyUrlBtn) copyUrlBtn.classList.remove('hidden');
+    if(inviteRoomBtn) inviteRoomBtn.classList.remove('hidden');
     roomStatus.innerHTML=`<span style="width:8px;height:8px;border-radius:50%;background:var(--accent3);animation:pulse 1.5s infinite;display:inline-block;"></span> <span style="color:var(--accent3);">Live</span>`;
     memberList.textContent = members.length ? `${members.length} member${members.length!==1?'s':''} in room: ${members.slice(0,5).join(', ')}${members.length>5?` +${members.length-5} more`:''}` : 'Room is active';
     document.getElementById('cv-join-room-btn').onclick = ()=>joinCommunityRoom(activeRoomId);
@@ -3026,6 +3035,8 @@ function updateRoomChannelUI(channel){
     activeEl.classList.add('hidden');
     joinBtn.classList.add('hidden');
     if(endBtn) endBtn.classList.add('hidden');
+    const _cub=document.getElementById('cv-copy-url-btn'); if(_cub) _cub.classList.add('hidden');
+    const _irb=document.getElementById('cv-invite-room-btn'); if(_irb) _irb.classList.add('hidden');
     createBtn.textContent='🎙️ Create Room';
     roomStatus.innerHTML='';
     const idleTitle = document.getElementById('cv-room-idle-title');
@@ -5581,7 +5592,7 @@ function connectSocket(){
   socket.on('connect',()=>{
     myId=socket.id;
     // Register as online with JWT so friends can invite us
-    if(authToken) socket.emit('user_online', { token: authToken });
+    if(authToken) socket.emit('user_online', { token: authToken, ghost: window._adminGhostMode===true });
     // Set up recording permission handlers
     setupRecordPermissionHandlers();
   });
@@ -8290,7 +8301,7 @@ function initR2ScreenResize(){
 (function(){
   const _orig = refreshScreenPanel;
   refreshScreenPanel = function(){
-    if(_communityRoomMode){ _orig?.(); return; }
+    // Both standalone AND community room now use r2-screen-panel/r2-screen-grid
     // Standalone room: use r2-screen-grid, ignore old screen-area
     const sp=document.getElementById('r2-screen-panel');
     const grid=document.getElementById('r2-screen-grid');
@@ -8341,7 +8352,7 @@ function initR2ScreenResize(){
 (function(){
   const _orig = refreshCamPanel;
   refreshCamPanel = function(){
-    if(_communityRoomMode){ _orig?.(); return; }
+    // Both standalone AND community room use r2RenderVideoGrid
     r2RenderVideoGrid();
   };
 })();
