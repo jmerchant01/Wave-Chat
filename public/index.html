@@ -184,6 +184,81 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
    Middle col: video (top) + screen share (bottom), scrollable
    Right col: controls sidebar, scrollable
 */
+
+/* ═══ REDESIGNED ROOM ═══ */
+.room2{position:fixed;inset:0;background:var(--bg);z-index:400;display:flex;flex-direction:column;}
+.room2-header{padding:.55rem 1rem;border-bottom:1px solid var(--border);background:var(--surface);display:flex;align-items:center;gap:.75rem;flex-shrink:0;}
+.room2-title{font-family:'Syne',sans-serif;font-weight:700;font-size:1rem;margin:0;}
+.room2-meta{font-size:.65rem;color:var(--muted);display:flex;align-items:center;gap:.4rem;}
+.room2-host-bar{padding:.35rem .9rem;border-bottom:1px solid var(--border);background:var(--surface);display:none;align-items:center;gap:.4rem;flex-shrink:0;flex-wrap:wrap;}
+.room2-host-bar.visible{display:flex;}
+.hbar-btn{padding:.25rem .55rem;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:.66rem;cursor:pointer;display:flex;align-items:center;gap:.25rem;white-space:nowrap;transition:all .15s;}
+.hbar-btn:hover{border-color:var(--host);color:var(--host);}
+.hbar-btn.danger-btn{border-color:var(--danger);color:var(--danger);}
+.hbar-btn.danger-btn:hover{background:var(--danger);color:#fff;}
+.hbar-btn.active-state{border-color:var(--accent3);color:var(--accent3);}
+.hbar-btn.rec-active{border-color:var(--danger);color:var(--danger);animation:blink 1s infinite;}
+.room2-body{flex:1;display:flex;overflow:hidden;min-height:0;}
+/* Resizable columns */
+.r2-col{display:flex;flex-direction:column;overflow:hidden;min-width:0;}
+.r2-col-chat{width:240px;min-width:160px;flex-shrink:0;border-right:1px solid var(--border);}
+.r2-col-mid{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+.r2-col-right{width:240px;min-width:160px;flex-shrink:0;border-left:1px solid var(--border);overflow-y:auto;}
+.r2-drag{width:5px;flex-shrink:0;cursor:ew-resize;background:transparent;transition:background .15s;z-index:5;}
+.r2-drag:hover,.r2-drag.dragging{background:var(--accent);}
+/* Video grid — always shown */
+.r2-video-panel{flex-shrink:0;background:#0a0a12;display:flex;flex-direction:column;position:relative;min-height:120px;}
+.r2-video-resize{height:5px;cursor:ns-resize;background:transparent;flex-shrink:0;transition:background .15s;}
+.r2-video-resize:hover,.r2-video-resize.dragging{background:var(--accent);}
+.r2-spotlight-row{display:flex;gap:.3rem;padding:.3rem .3rem 0;overflow-x:auto;flex-shrink:0;}
+.r2-spotlight-row:empty{display:none;}
+.r2-grid-area{flex:1;padding:.3rem;display:flex;flex-wrap:wrap;gap:.3rem;overflow-y:auto;align-content:flex-start;}
+/* Participant tile */
+.r2-tile{position:relative;border-radius:8px;overflow:hidden;background:#111;border:1.5px solid var(--border);cursor:pointer;transition:border-color .2s;flex-shrink:0;}
+.r2-tile.speaking{border-color:var(--accent3);}
+.r2-tile.focused{position:fixed!important;inset:0;border-radius:0;z-index:500;width:100%!important;height:100%!important;}
+.r2-tile video{width:100%;height:100%;object-fit:cover;display:block;}
+.r2-tile .r2-tile-label{position:absolute;bottom:0;left:0;right:0;padding:.2rem .4rem;background:linear-gradient(transparent,rgba(0,0,0,.7));font-size:.65rem;color:#fff;display:flex;align-items:center;gap:.3rem;}
+.r2-tile .r2-tile-av{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.4rem;}
+.r2-tile .r2-tile-av .big-av{width:54px;height:54px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;font-weight:700;color:#fff;}
+.r2-tile .r2-tile-av .av-name{font-size:.68rem;color:rgba(255,255,255,.8);}
+.r2-tile .r2-tile-actions{position:absolute;top:4px;right:4px;display:flex;gap:.2rem;opacity:0;transition:opacity .15s;}
+.r2-tile:hover .r2-tile-actions{opacity:1;}
+.r2-tile .ta-btn{width:20px;height:20px;border-radius:4px;border:none;background:rgba(0,0,0,.6);color:#fff;font-size:.6rem;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+/* Screen share area */
+.r2-screen-panel{flex-shrink:0;background:#050508;border-top:1px solid var(--border);display:none;min-height:80px;position:relative;}
+.r2-screen-panel.visible{display:flex;flex-direction:column;}
+.r2-screen-panel .sp-header{padding:.3rem .6rem;font-size:.62rem;color:var(--muted);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.r2-screen-panel .sp-grid{flex:1;display:flex;gap:.3rem;padding:.3rem;overflow-x:auto;}
+.r2-screen-resize{height:5px;cursor:ns-resize;background:transparent;flex-shrink:0;transition:background .15s;}
+.r2-screen-resize:hover,.r2-screen-resize.dragging{background:var(--accent2);}
+/* Right column */
+.r2-my-controls{padding:.65rem;border-bottom:1px solid var(--border);}
+.r2-participants{display:flex;flex-direction:column;flex:1;min-height:0;}
+.r2-p-header{padding:.4rem .65rem;font-size:.65rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;display:flex;align-items:center;gap:.3rem;border-bottom:1px solid var(--border);flex-shrink:0;}
+.r2-p-list{flex:1;overflow-y:auto;display:flex;flex-direction:column;}
+.r2-p-row{display:flex;align-items:center;gap:.4rem;padding:.35rem .5rem;border-bottom:1px solid rgba(255,255,255,.04);transition:background .15s;}
+.r2-p-row:hover{background:var(--surface2);}
+.r2-p-av{width:26px;height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:700;color:#fff;flex-shrink:0;}
+.r2-p-name{flex:1;font-size:.75rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.r2-p-btns{display:flex;gap:.2rem;opacity:0;transition:opacity .15s;}
+.r2-p-row:hover .r2-p-btns{opacity:1;}
+.r2-p-btn{width:22px;height:22px;border-radius:5px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:.62rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;}
+.r2-p-btn:hover{border-color:var(--accent);color:var(--accent);}
+.r2-p-btn.danger:hover{border-color:var(--danger);color:var(--danger);}
+/* Chat with per-message actions */
+.r2-chat-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+.r2-msg{position:relative;padding:.28rem .5rem;font-size:.75rem;border-radius:6px;transition:background .1s;}
+.r2-msg:hover{background:var(--surface2);}
+.r2-msg .r2-msg-actions{position:absolute;right:4px;top:50%;transform:translateY(-50%);display:flex;gap:.2rem;opacity:0;transition:opacity .1s;}
+.r2-msg:hover .r2-msg-actions{opacity:1;}
+.r2-msg .r2-ma-btn{width:19px;height:19px;border-radius:4px;border:1px solid var(--border);background:var(--surface);color:var(--muted);font-size:.55rem;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.r2-msg .r2-ma-btn:hover{border-color:var(--danger);color:var(--danger);}
+/* Spotlight toggle btn */
+.spotlight-pin{width:18px;height:18px;border-radius:4px;border:none;background:rgba(0,0,0,.5);color:#fff;font-size:.55rem;cursor:pointer;position:absolute;top:4px;left:4px;opacity:0;transition:opacity .15s;}
+.r2-tile:hover .spotlight-pin{opacity:1;}
+.r2-tile.pinned .spotlight-pin{opacity:1;background:var(--accent);color:#fff;}
+
 .room-body{
   display:grid;
   grid-template-columns:260px 6px 1fr 260px;
@@ -1376,21 +1451,23 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
   </div>
 </div>
 
-<div id="room">
-  <div class="room-header">
-    <div class="room-info">
-      <h2 id="room-title">Room</h2>
-      <div class="room-meta">
+<div id="room" class="room2" style="display:none;">
+
+  <!-- Primary header -->
+  <div class="room2-header">
+    <div style="flex:1;min-width:0;">
+      <div class="room2-title" id="room-title">Room</div>
+      <div class="room2-meta">
         <span class="conn-dot connected" id="fs-conn-dot"></span>
         LIVE &bull; <span id="fs-p-count-header">0</span> participant(s)
-        <span id="fs-chat-lock-badge" style="display:none;margin-left:.5rem;color:var(--danger);font-size:.63rem;">💬 CHAT LOCKED</span>
-        <span id="fs-mute-all-badge" style="display:none;margin-left:.5rem;color:var(--danger);font-size:.63rem;">🔇 ALL MUTED</span>
-        <span id="fs-rec-badge" style="display:none;margin-left:.5rem;color:var(--danger);font-size:.63rem;animation:blink 1s infinite;">⏺ REC</span>
+        <span id="fs-chat-lock-badge" style="display:none;color:var(--danger);">💬 LOCKED</span>
+        <span id="fs-mute-all-badge" style="display:none;color:var(--danger);">🔇 MUTED</span>
+        <span id="fs-rec-badge" style="display:none;color:var(--danger);animation:blink 1s infinite;">⏺ REC</span>
       </div>
     </div>
-    <div style="display:flex;align-items:center;gap:.65rem;flex-wrap:wrap;">
-      <button class="theme-toggle" onclick="toggleTheme()" id="theme-btn-room" title="Toggle light/dark mode">🌙</button>
-      <button class="profile-btn" onclick="openFriendsPanel()" id="friends-header-btn">
+    <div style="display:flex;align-items:center;gap:.5rem;flex-shrink:0;">
+      <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">🌙</button>
+      <button class="profile-btn" onclick="openFriendsPanel()">
         <div class="profile-avatar-sm" id="header-avatar">👤</div>
         <span id="header-username">—</span>
         <span id="header-req-badge" class="friend-badge hidden">0</span>
@@ -1400,7 +1477,23 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     </div>
   </div>
 
-  <!-- Host approval popup: shown to HOST when a participant requests screen share -->
+  <!-- Host controls bar (horizontal, host only) -->
+  <div class="room2-host-bar" id="fs-host-panel">
+    <span style="font-size:.62rem;color:var(--host);font-weight:700;letter-spacing:.05em;">👑 HOST</span>
+    <div style="width:1px;height:14px;background:var(--border);flex-shrink:0;"></div>
+    <button class="hbar-btn" id="mute-all-btn" onclick="hostMuteAll()">🔇 Mute All</button>
+    <button class="hbar-btn" onclick="hostUnmuteAll()">🔊 Unmute All</button>
+    <button class="hbar-btn" id="screen-requests-btn" onclick="toggleScreenRequests()">🖥 Block Screen</button>
+    <button class="hbar-btn" id="chat-lock-btn" onclick="toggleChatLock()">💬 Lock Chat</button>
+    <button class="hbar-btn" id="room-lock-btn" onclick="toggleLock()">🔒 Lock Room</button>
+    <button class="hbar-btn" id="record-btn" onclick="toggleRecording()" style="border-color:var(--danger);color:var(--danger);">⏺ Start Recording</button>
+    <button class="hbar-btn danger-btn" onclick="endRoom()">⛔ End Room</button>
+    <span style="flex:1;"></span>
+    <div class="invite-url" id="invite-url" onclick="copyRoomURL()" style="font-size:.6rem;color:var(--muted);cursor:pointer;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></div>
+    <button class="hbar-btn" style="border-color:var(--accent3);color:var(--accent3);" onclick="openFriendInvitePanel()">👥 Invite</button>
+  </div>
+
+  <!-- Share / Join request banners -->
   <div class="share-request-banner" id="fs-share-request-banner">
     <span id="fs-share-request-text">🖥️ wants to share their screen</span>
     <div class="share-req-btns">
@@ -1409,146 +1502,91 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     </div>
   </div>
 
-  <div class="room-body">
+  <!-- Body: chat | video+screen | controls -->
+  <div class="room2-body">
 
-    <!-- LEFT COL: Chat -->
-    <div class="col-left">
-      <div class="chat-col-panel" id="fs-chat-panel-el">
-        <div class="panel-header" style="cursor:default;">
-          💬 Chat
-          <span style="font-size:.58rem;color:var(--muted);">paste/drag up to 10MB</span>
-        </div>
-        <div class="chat-messages" id="fs-chat-messages"></div>
-        <div id="fs-img-preview-area" style="padding:0 .55rem .4rem;display:none;">
+    <!-- LEFT: Chat -->
+    <div class="r2-col r2-col-chat" id="r2-col-chat">
+      <div class="chat-col-panel" id="fs-chat-panel-el" style="flex:1;border:none;border-radius:0;border-right:none;">
+        <div class="panel-header" style="cursor:default;">💬 Chat <span style="font-size:.55rem;color:var(--muted);">paste/drag up to 10MB</span></div>
+        <div class="chat-messages" id="fs-chat-messages" style="flex:1;overflow-y:auto;"></div>
+        <div id="img-preview-area" style="padding:0 .55rem .4rem;display:none;">
           <div class="img-preview-wrap">
-            <img id="fs-img-preview-thumb" src="" alt="preview"/>
+            <img id="img-preview-thumb" src="" alt=""/>
             <button class="remove-img" onclick="clearImage()">✕</button>
           </div>
         </div>
         <div class="chat-locked-notice" id="fs-chat-locked-notice">🔒 Chat locked by host</div>
         <div class="chat-input-wrap" id="fs-chat-input-wrap">
-          <input type="file" id="fs-img-file-input" accept="image/*,video/*,.pdf,.zip,.doc,.docx" style="display:none" onchange="handleFileSelect(event)"/>
-          <button class="img-attach-btn" onclick="document.getElementById('img-file-input').click()" title="Attach file">📎</button>
-          <input class="chat-input" id="fs-chat-in" placeholder="Type a message…"
-            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat();}"/>
-          <button class="send-btn" onclick="sendChat()">
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-          </button>
+          <input type="file" id="img-file-input" accept="image/*,video/*,.pdf,.zip,.doc,.docx" style="display:none" onchange="handleFileSelect(event)"/>
+          <button class="img-attach-btn" onclick="document.getElementById('img-file-input').click()">📎</button>
+          <input class="chat-input" id="chat-in" placeholder="Type a message…" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat();}"/>
+          <button class="send-btn" onclick="sendChat()"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
         </div>
       </div>
     </div>
+    <div class="r2-drag" id="r2-drag-chat" data-col="r2-col-chat" data-side="right"></div>
 
-    <!-- CHAT ↔ VIDEO horizontal resize handle -->
-    <div class="col-resize-handle" id="chat-col-resize" title="Drag to resize chat"></div>
+    <!-- MID: Video always-on + Screen share -->
+    <div class="r2-col r2-col-mid">
 
-    <!-- MIDDLE COL: Video (top) + Screen Share (bottom) -->
-    <div class="col-mid">
-
-      <!-- CAMERA PANEL -->
-      <div class="video-area hidden" id="fs-cam-area">
-        <div class="video-area-header" onclick="togglePanel('cam-area')">
-          <span>📷 Video</span>
-          <div style="display:flex;align-items:center;gap:.65rem;">
-            <span id="fs-cam-count" style="font-size:.63rem;color:var(--accent);">0 cameras</span>
-            <!-- Dropdown to pick which cameras to show — visible whenever 2+ cams -->
-            <div id="fs-cam-selector-wrap" style="display:none;position:relative;">
-              <button id="fs-cam-dropdown-btn" onclick="event.stopPropagation();toggleCamDropdown()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:.63rem;border-radius:5px;padding:.18rem .5rem;cursor:pointer;display:flex;align-items:center;gap:.3rem;">
-                <span id="fs-cam-dropdown-label">All</span> ▾
-              </button>
-              <div id="fs-cam-dropdown-menu" style="display:none;position:absolute;right:0;top:110%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:.4rem;z-index:50;min-width:140px;box-shadow:0 8px 24px rgba(0,0,0,.4);" onclick="event.stopPropagation()">
-                <div id="fs-cam-checkbox-list" style="display:flex;flex-direction:column;gap:.25rem;"></div>
-              </div>
-            </div>
-            <span class="collapse-btn" id="fs-cam-collapse-icon">▾</span>
-          </div>
-        </div>
-        <div class="video-area-body" id="fs-cam-body">
-          <div class="video-grid" id="fs-cam-grid"></div>
-        </div>
-        <div class="resize-handle" id="fs-cam-resize" title="Drag to resize"></div>
+      <!-- Always-visible participant video grid -->
+      <div class="r2-video-panel" id="r2-video-panel" style="flex:1;min-height:120px;">
+        <!-- Spotlight row (pinned, larger) -->
+        <div class="r2-spotlight-row" id="r2-spotlight-row"></div>
+        <!-- Main grid -->
+        <div class="r2-grid-area" id="r2-grid-area"></div>
+        <!-- Vertical resize handle -->
+        <div class="r2-video-resize" id="r2-video-resize"></div>
       </div>
 
-      <!-- SCREEN SHARE PANEL -->
-      <div class="video-area hidden" id="fs-screen-area">
-        <div class="video-area-header" onclick="togglePanel('screen-area')">
-          <span>🖥️ Screen Share</span>
-          <div style="display:flex;align-items:center;gap:.65rem;">
-            <span id="fs-screen-count" style="font-size:.63rem;color:var(--accent2);">0 sharing</span>
-            <div id="fs-screen-selector-wrap" style="display:none;align-items:center;gap:.4rem;font-size:.63rem;color:var(--muted);">
-              View: <div id="fs-screen-checkboxes" style="display:flex;gap:.35rem;flex-wrap:wrap;"></div>
-            </div>
-            <span class="collapse-btn" id="fs-screen-collapse-icon">▾</span>
-          </div>
+      <!-- Screen share -->
+      <div class="r2-screen-panel" id="r2-screen-panel">
+        <div class="sp-header">
+          <span>🖥 Screen Share — <span id="screen-count">0</span> sharing</span>
+          <div id="screen-selector-wrap" style="display:none;"><div id="screen-checkboxes"></div></div>
         </div>
-        <div id="fs-screen-body" style="height:200px;min-height:80px;box-sizing:border-box;">
-          <div class="screen-grid" id="fs-screen-grid"></div>
-        </div>
-        <div class="resize-handle" id="fs-screen-resize" title="Drag to resize"></div>
+        <div class="sp-grid" id="screen-grid"></div>
+        <div class="r2-screen-resize" id="r2-screen-resize"></div>
       </div>
 
     </div>
+    <div class="r2-drag" id="r2-drag-right" data-col="r2-col-right" data-side="left"></div>
 
-    <!-- RIGHT COL: Controls -->
-    <div class="col-right">
+    <!-- RIGHT: My controls + participants -->
+    <div class="r2-col r2-col-right" id="r2-col-right">
 
-      <!-- My Controls -->
-      <div class="my-controls">
-        <div class="section-title">🎤 My Controls</div>
+      <!-- My controls -->
+      <div class="r2-my-controls">
+        <div class="section-title" style="font-size:.62rem;">🎤 My Controls</div>
         <button class="mic-btn" id="fs-mic-btn" onclick="toggleMic()">
           <div class="pulse-ring"></div>
           <span id="fs-mic-icon">🎙️</span>
           <span id="fs-mic-label">MIC ON</span>
         </button>
         <div class="volume-bar"><div class="volume-fill" id="fs-vol-fill"></div></div>
-        <div style="font-size:.58rem;color:var(--muted);margin-top:.28rem;text-align:center;">Voice activity</div>
-        <div class="media-controls">
+        <div style="font-size:.56rem;color:var(--muted);text-align:center;margin-top:.2rem;">Voice activity</div>
+        <div class="media-controls" style="margin-top:.5rem;">
           <button class="media-btn" id="fs-cam-btn" onclick="toggleCamera()">📷 Camera</button>
           <button class="media-btn" id="fs-screen-btn" onclick="requestOrToggleScreen()">🖥️ Screen</button>
         </div>
       </div>
 
-      <!-- Participants -->
-      <div class="participants-panel">
-        <div class="panel-header">
-          <span>Participants</span>
-          <span class="participant-count" id="fs-p-count">0</span>
-        </div>
-        <div class="participants-list" id="fs-p-list"></div>
+      <!-- Participants panel -->
+      <div class="r2-participants">
+        <div class="r2-p-header">Participants <span class="participant-count" id="fs-p-count">0</span></div>
+        <div class="r2-p-list" id="fs-p-list"></div>
       </div>
 
-      <!-- Pending invites (host only) -->
-      <div id="fs-pending-invites-box" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;">
-        <div class="panel-header" style="border-bottom:1px solid var(--border);">
-          <span>⏳ Waiting to Join</span>
-          <span class="participant-count" id="fs-pending-invites-count">0</span>
-        </div>
-        <div id="fs-pending-invites-list" style="padding:.4rem .6rem;"></div>
-      </div>
-
-      <!-- Host Controls -->
-      <div class="host-panel hidden" id="fs-host-panel">
-        <div class="host-title">👑 Host Controls</div>
-        <div class="host-actions">
-          <button class="host-btn" id="fs-mute-all-btn" onclick="hostMuteAll()">🔇 Mute All</button>
-          <button class="host-btn" onclick="hostUnmuteAll()">🔊 Unmute All</button>
-          <button class="host-btn" id="fs-screen-requests-btn" onclick="toggleScreenRequests()">🖥️ Block Screen Sharing</button>
-          <button class="host-btn" id="fs-chat-lock-btn" onclick="toggleChatLock()">💬 Lock Chat</button>
-          <button class="host-btn" id="fs-room-lock-btn" onclick="toggleLock()">🔒 Lock Room</button>
-          <button class="host-btn" id="fs-record-btn" onclick="toggleRecording()" style="border-color:var(--danger);color:var(--danger);">⏺ Start Recording</button>
-          <button class="host-btn danger" onclick="endRoom()">⛔ End Room</button>
-        </div>
-        <div class="invite-box">
-          <p>📨 Share invite:</p>
-          <div class="invite-url" id="fs-invite-url" onclick="copyRoomURL()">—</div>
-          <div style="display:flex;gap:.4rem;margin-top:.5rem;flex-wrap:wrap;">
-            <button class="host-btn" style="flex:1;border-color:var(--accent);color:var(--accent);" onclick="copyRoomURL()">🔗 Copy URL</button>
-            <button class="host-btn" style="flex:1;border-color:var(--accent3);color:var(--accent3);" onclick="openFriendInvitePanel()">👥 Invite Friends</button>
-          </div>
-        </div>
+      <!-- Pending invites (host) -->
+      <div id="fs-pending-invites-box" style="display:none;border-top:1px solid var(--border);">
+        <div class="r2-p-header">⏳ Waiting <span class="participant-count" id="fs-pending-invites-count">0</span></div>
+        <div id="fs-pending-invites-list" style="padding:.3rem .5rem;font-size:.72rem;"></div>
       </div>
 
     </div>
   </div>
+
 </div>
 
 <!-- JOIN REQUEST BANNER (shown to host) -->
@@ -6823,13 +6861,13 @@ function showRoom(name){
   }
   // Standard fullscreen room view
   document.getElementById('landing').style.display='none';
-  document.getElementById('room').style.display='block';
+  const rd = document.getElementById('room');
+  rd.style.display='flex';
   document.getElementById('room-title').textContent=name||'Voice Room';
-  if(isHost)document.getElementById('fs-host-panel').classList.remove('hidden');
+  const hp=document.getElementById('fs-host-panel');
+  if(isHost && hp) hp.classList.add('visible');
   updateInvite(); updateConnDot('connected');
-  initResizeHandle('fs-cam-resize','fs-cam-area','fs-cam-body', 80, 600);
-  initResizeHandle('fs-screen-resize','fs-screen-area','fs-screen-body', 80, 700);
-  initChatResize();
+  setTimeout(()=>{ initR2Resize(); initR2VideoResize(); initR2ScreenResize(); }, 50);
   const screenBtn = document.getElementById('screen-btn');
   const hasDisplayMedia = !!(navigator.mediaDevices?.getDisplayMedia);
   const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -6958,47 +6996,212 @@ function updateBadges(){
   roomEl('chat-lock-badge').style.display=isChatLocked?'inline':'none';
 }
 
+// ── Local mutes (client-side only, hides audio from specific peers) ──
+const localMutes = new Set(); // peerId -> muted locally
+
+function localMuteToggle(peerId){
+  if(localMutes.has(peerId)){
+    localMutes.delete(peerId);
+    // Unmute their audio track
+    const peer=peers.get(peerId);
+    if(peer) peer.pc.getReceivers().forEach(r=>{if(r.track?.kind==='audio')r.track.enabled=true;});
+  } else {
+    localMutes.add(peerId);
+    const peer=peers.get(peerId);
+    if(peer) peer.pc.getReceivers().forEach(r=>{if(r.track?.kind==='audio')r.track.enabled=false;});
+  }
+  renderParticipants();
+}
+
+function blockParticipant(peerId, name){
+  if(!confirm('Block '+name+'? You will no longer see or hear them in this session.')) return;
+  localMutes.add(peerId);
+  const peer=peers.get(peerId);
+  if(peer) peer.pc.getReceivers().forEach(r=>r.track&&(r.track.enabled=false));
+  toast('🚫 '+name+' blocked for this session');
+  renderParticipants();
+  r2RenderVideoGrid();
+}
+
+// spotlight: up to 5 pinned peers shown larger at top
+const spotlightPeers = new Set();
+let focusedPeer = null; // fullscreen peer
+
+function toggleSpotlight(peerId){
+  if(spotlightPeers.has(peerId)){
+    spotlightPeers.delete(peerId);
+  } else {
+    if(spotlightPeers.size>=5){ toast('Max 5 spotlight slots'); return; }
+    spotlightPeers.add(peerId);
+  }
+  renderParticipants(); r2RenderVideoGrid();
+}
+
+function focusTile(peerId){
+  if(focusedPeer===peerId){ focusedPeer=null; }
+  else { focusedPeer=peerId; }
+  r2RenderVideoGrid();
+}
+
 // ── Participants render ──
 function renderParticipants(){
-  // Also update community inline view if active
   if(_communityRoomMode) cvRenderParticipants();
   const list=roomEl('p-list');
+  if(!list) return;
   const count=participants.size;
-  roomEl('p-count').textContent=count;
-  const _pch=roomEl('p-count-header'); if(_pch) _pch.textContent=count;
+  const pc=roomEl('p-count'); if(pc) pc.textContent=count;
+  const pch=roomEl('p-count-header'); if(pch) pch.textContent=count;
   list.innerHTML='';
   participants.forEach((p,id)=>{
     const isMine=id===socket?.id;
     const color=colorFor(id);
-    const card=document.createElement('div');
-    card.className=`participant-card${p.speaking?' speaking':''}`;
-    const avClass=`avatar${p.speaking?' speaking-ring':''}`;
-    const hostTag=p.isHost?` <span style="color:var(--host);font-size:.62rem">👑</span>`:'';
-    const muteTag=p.muted?` <span style="color:var(--danger);font-size:.62rem">🔇</span>`:'';
-    const youTag=isMine?` <span style="font-size:.58rem;color:var(--muted)">(you)</span>`:'';
-    let ctrl='';
-    if(isHost&&!isMine){
-      ctrl=`<div class="participant-controls">
-        <button class="icon-btn${p.muted?' muted-on':''}" onclick="hostMute('${id}')" title="${p.muted?'Unmute':'Mute'}">${p.muted?'🔇':'🔊'}</button>
-        <button class="icon-btn screen-req" onclick="hostRequestScreen('${id}')" title="Request screen share">🖥️</button>
-        <button class="icon-btn" onclick="hostKick('${id}')" title="Remove">✕</button>
-        <button class="icon-btn" onclick="openReportModal('${id}','${esc(p.name)}')" title="Report user" style="color:var(--accent2);border-color:var(--accent2);">🚩</button>
-      </div>`;
-    } else if(!isMine){
-      ctrl=`<div class="participant-controls">
-        <button class="icon-btn" onclick="openReportModal('${id}','${esc(p.name)}')" title="Report user" style="color:var(--accent2);border-color:var(--accent2);">🚩</button>
-      </div>`;
+    const lMuted=localMutes.has(id);
+    const row=document.createElement('div');
+    row.className='r2-p-row'+(p.speaking?' speaking':'');
+    const av=document.createElement('div');
+    av.className='r2-p-av'; av.style.background=color;
+    av.textContent=initials(p.name);
+    const nm=document.createElement('div');
+    nm.className='r2-p-name';
+    nm.innerHTML=esc(p.name)+(p.isHost?' <span style="color:var(--host)">👑</span>':'')+(isMine?' <span style="color:var(--muted);font-size:.6rem">(you)</span>':'')+(p.muted?'<span style="color:var(--danger);font-size:.6rem"> 🔇</span>':'');
+    row.appendChild(av); row.appendChild(nm);
+    if(!isMine){
+      const btns=document.createElement('div');
+      btns.className='r2-p-btns';
+      // Local mute
+      const mb=document.createElement('button');
+      mb.className='r2-p-btn'; mb.title=lMuted?'Unmute locally':'Mute locally';
+      mb.textContent=lMuted?'🔇':'🔊'; mb.onclick=()=>localMuteToggle(id);
+      // Host kick (host only)
+      if(isHost){
+        const kb=document.createElement('button');
+        kb.className='r2-p-btn danger'; kb.title='Kick'; kb.textContent='✕'; kb.onclick=()=>hostKick(id);
+        btns.appendChild(mb); btns.appendChild(kb);
+      } else {
+        btns.appendChild(mb);
+      }
+      // Block
+      const bb=document.createElement('button');
+      bb.className='r2-p-btn danger'; bb.title='Block'; bb.textContent='🚫'; bb.onclick=()=>blockParticipant(id,p.name);
+      // Report
+      const rb=document.createElement('button');
+      rb.className='r2-p-btn'; rb.title='Report'; rb.textContent='🚩'; rb.style.color='var(--accent2)';
+      rb.onclick=()=>openReportModal(id,p.name);
+      btns.appendChild(bb); btns.appendChild(rb);
+      row.appendChild(btns);
     }
-    card.innerHTML=`<div class="${avClass}" style="background:${color}22;color:${color};border:1.5px solid ${color}55">${initials(p.name)}</div><div class="participant-name">${esc(p.name)}${hostTag}${muteTag}${youTag}</div>${ctrl}`;
-    list.appendChild(card);
+    list.appendChild(row);
   });
+  // Also update video grid
+  if(!_communityRoomMode) r2RenderVideoGrid();
+}
+
+// ── R2 video grid — always shown, spotlight row + main grid ──
+function r2RenderVideoGrid(){
+  const spotRow=document.getElementById('r2-spotlight-row');
+  const gridArea=document.getElementById('r2-grid-area');
+  if(!spotRow||!gridArea) return;
+  spotRow.innerHTML=''; gridArea.innerHTML='';
+  if(focusedPeer!==null){
+    // Full-area focused tile
+    gridArea.style.cssText='position:relative;flex:1;overflow:hidden;';
+    const tile=buildR2Tile(focusedPeer, participants.get(focusedPeer), true);
+    tile.style.cssText='width:100%;height:100%;';
+    gridArea.appendChild(tile);
+    return;
+  }
+  gridArea.style.cssText='flex:1;padding:.3rem;display:flex;flex-wrap:wrap;gap:.3rem;overflow-y:auto;align-content:flex-start;';
+  // Sort: cam-on first, then spotlight pinned, rest alphabetical
+  const pArray=Array.from(participants.entries()).filter(([id])=>!localMutes.has(id)||id===socket?.id);
+  const hasCam=(id)=>camStreams.has(id);
+  pArray.sort((a,b)=>{
+    const ac=hasCam(a[0])?2:0, bc=hasCam(b[0])?2:0;
+    return bc-ac;
+  });
+  // Spotlight row
+  const spotList=pArray.filter(([id])=>spotlightPeers.has(id));
+  if(spotList.length){
+    spotList.forEach(([id,p])=>{
+      const tile=buildR2Tile(id,p,false,true);
+      tile.style.cssText='width:160px;height:120px;flex-shrink:0;';
+      spotRow.appendChild(tile);
+    });
+  }
+  // Main grid
+  const rest=pArray.filter(([id])=>!spotlightPeers.has(id));
+  const n=rest.length||1;
+  const tileW=n<=2?'calc(50% - .15rem)':n<=4?'calc(33% - .2rem)':'calc(25% - .23rem)';
+  rest.forEach(([id,p])=>{
+    const tile=buildR2Tile(id,p,false,false);
+    tile.style.cssText='width:'+tileW+';aspect-ratio:4/3;min-height:80px;';
+    gridArea.appendChild(tile);
+  });
+}
+
+function buildR2Tile(peerId, p, isFocused, isSpotlight){
+  if(!p) p={name:'?',muted:false,isHost:false,speaking:false};
+  const isMine=peerId===socket?.id;
+  const cam=camStreams.get(peerId);
+  const color=colorFor(peerId);
+  const tile=document.createElement('div');
+  tile.className='r2-tile'+(p.speaking?' speaking':'')+(spotlightPeers.has(peerId)?' pinned':'')+(isFocused?' focused':'');
+  tile.onclick=()=>focusTile(peerId);
+
+  if(cam && cam.stream){
+    const vid=document.createElement('video');
+    vid.srcObject=cam.stream; vid.autoplay=true; vid.playsInline=true; vid.muted=isMine;
+    vid.style.cssText='width:100%;height:100%;object-fit:cover;position:absolute;inset:0;';
+    tile.appendChild(vid);
+  } else {
+    const av=document.createElement('div');
+    av.className='r2-tile-av';
+    const bigAv=document.createElement('div');
+    bigAv.className='big-av'; bigAv.style.background=color;
+    bigAv.textContent=initials(p.name||'?');
+    const nm=document.createElement('div');
+    nm.className='av-name'; nm.textContent=(p.name||'?')+(isMine?' (you)':'');
+    av.appendChild(bigAv); av.appendChild(nm);
+    tile.appendChild(av);
+  }
+
+  // Label bar
+  const lbl=document.createElement('div');
+  lbl.className='r2-tile-label';
+  lbl.innerHTML='<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(p.name||'?')+(p.isHost?' 👑':'')+'</span>'+(p.muted?'<span>🔇</span>':'<span style="color:var(--accent3);">🎙</span>');
+  tile.appendChild(lbl);
+
+  // Tile actions (hover)
+  if(!isMine){
+    const acts=document.createElement('div');
+    acts.className='r2-tile-actions';
+    const muteBtn=document.createElement('button');
+    muteBtn.className='ta-btn'; muteBtn.title='Mute locally'; muteBtn.textContent='🔇';
+    muteBtn.onclick=e=>{e.stopPropagation();localMuteToggle(peerId);};
+    const blockBtn=document.createElement('button');
+    blockBtn.className='ta-btn'; blockBtn.title='Block'; blockBtn.textContent='🚫';
+    blockBtn.onclick=e=>{e.stopPropagation();blockParticipant(peerId,p.name);};
+    const reportBtn=document.createElement('button');
+    reportBtn.className='ta-btn'; reportBtn.title='Report'; reportBtn.textContent='🚩';
+    reportBtn.onclick=e=>{e.stopPropagation();openReportModal(peerId,p.name);};
+    acts.appendChild(muteBtn); acts.appendChild(blockBtn); acts.appendChild(reportBtn);
+    tile.appendChild(acts);
+  }
+
+  // Spotlight pin
+  const pin=document.createElement('button');
+  pin.className='spotlight-pin'; pin.title=spotlightPeers.has(peerId)?'Remove from spotlight':'Pin to spotlight';
+  pin.textContent=spotlightPeers.has(peerId)?'⭐':'☆';
+  pin.onclick=e=>{e.stopPropagation();toggleSpotlight(peerId);};
+  tile.appendChild(pin);
+
+  return tile;
 }
 
 // ── Chat ──
 function applyChatLockUI(locked){
   const panel = roomEl('chat-panel-el');
   const notice = roomEl('chat-locked-notice');
-  const inp = document.getElementById('chat-in');
+  const inp = document.getElementById('chat-in')||document.getElementById('cv-chat-in');
   const sendBtn = document.querySelector('.send-btn');
   const attachBtn = document.querySelector('.img-attach-btn');
   const fileInput = document.getElementById('img-file-input');
@@ -7043,18 +7246,25 @@ function linkify(text){
 
 function addChat(cls,name,text,ih=false,image=null,msgId=null,fromId=null){
   const c=roomEl('chat-messages');
+  if(!c) return msgId||`msg-${++msgCounter}`;
   const d=document.createElement('div');
   const id=msgId||`msg-${++msgCounter}`;
-  d.id=id; d.className=`chat-msg ${cls}`; d.dataset.from=fromId||socket?.id||'';
+  d.id=id; d.className=`chat-msg ${cls} r2-msg`; d.dataset.from=fromId||socket?.id||'';
   if(cls==='system'){
     d.textContent=text;
   } else {
     const canDelete=(fromId===socket?.id)||(cls==='mine')||isHost;
     const delBtn=canDelete?`<button class="delete-msg-btn" onclick="deleteMessage('${id}')" title="Delete">✕</button>`:'';
+    const isOther=fromId&&fromId!==socket?.id;
+    const actionBtns=isOther?
+      `<div class="r2-msg-actions">
+        <button class="r2-ma-btn" title="Report" onclick="openReportModal('${fromId}','${esc(name)}')">🚩</button>
+        <button class="r2-ma-btn" title="Block sender" onclick="blockParticipant('${fromId}','${esc(name)}')">🚫</button>
+      </div>`:'';
     let html=`<span class="msg-name${ih?' is-host':''}">${esc(name)}${ih?' 👑':''}</span>`;
     if(text)html+=`: ${linkify(text)}`;
     if(image)html+=`<br><img class="chat-img" src="${image}" alt="image" onclick="openLightbox(this.src)"/>`;
-    html+=delBtn;
+    html+=delBtn+actionBtns;
     d.innerHTML=html;
   }
   c.appendChild(d); c.scrollTop=c.scrollHeight;
@@ -7154,12 +7364,15 @@ function leaveRoom(forced=false){
   if(volTimer){clearInterval(volTimer);volTimer=null;}
   if(audioCtx){audioCtx.close();audioCtx=null;}
   if(socket){socket.disconnect();socket=null;}
-  participants.clear(); videoTiles.clear(); camStreams.clear(); screenStreams.clear();
+  participants.clear(); videoTiles.clear(); camStreams.clear(); screenStreams.clear(); localMutes.clear(); spotlightPeers.clear(); focusedPeer=null;
   isMuted=false;isSpeaking=false;isLocked=false;isChatLocked=false;isHost=false;
   roomId='';micHostLocked=false;isAllMuted=false;isCameraOn=false;isScreenSharing=false;screenShareAllowed=false;screenRequestsEnabled=true;
   if(!_communityRoomMode){
     document.getElementById('room').style.display='none';
     document.getElementById('landing').style.display='flex';
+    // Reset host bar
+    const hp=document.getElementById('fs-host-panel');
+    if(hp) hp.classList.remove('visible');
   }
   _communityRoomMode = false;
   // Restore community inline view to idle/active state
@@ -7771,6 +7984,84 @@ function initCvColumnResize(){
     });
   });
 }
+
+
+// ══ R2 ROOM RESIZE SYSTEM ══
+function initR2Resize(){
+  // Horizontal column drag handles
+  document.querySelectorAll('.r2-drag').forEach(handle=>{
+    const colId=handle.dataset.col;
+    const side=handle.dataset.side; // 'right' = right edge of left col, 'left' = left edge of right col
+    let dragging=false, startX=0, startW=0;
+    handle.addEventListener('mousedown', e=>{
+      e.preventDefault(); dragging=true; startX=e.clientX;
+      const col=document.getElementById(colId);
+      startW=col?col.offsetWidth:240;
+      handle.classList.add('dragging');
+    });
+    document.addEventListener('mousemove', e=>{
+      if(!dragging) return;
+      const col=document.getElementById(colId); if(!col) return;
+      const dx = side==='right' ? e.clientX-startX : startX-e.clientX;
+      col.style.width=Math.max(160,Math.min(520,startW+dx))+'px';
+    });
+    document.addEventListener('mouseup', ()=>{ if(dragging){dragging=false;handle.classList.remove('dragging');} });
+  });
+}
+
+function initR2VideoResize(){
+  const handle=document.getElementById('r2-video-resize');
+  const panel=document.getElementById('r2-video-panel');
+  if(!handle||!panel) return;
+  let dragging=false, startY=0, startH=0;
+  handle.addEventListener('mousedown', e=>{
+    e.preventDefault(); dragging=true; startY=e.clientY; startH=panel.offsetHeight;
+    handle.classList.add('dragging');
+  });
+  document.addEventListener('mousemove', e=>{
+    if(!dragging) return;
+    const newH=Math.max(80, Math.min(window.innerHeight*0.85, startH+(e.clientY-startY)));
+    panel.style.flex='none'; panel.style.height=newH+'px';
+  });
+  document.addEventListener('mouseup', ()=>{ if(dragging){dragging=false;handle.classList.remove('dragging');} });
+}
+
+function initR2ScreenResize(){
+  const handle=document.getElementById('r2-screen-resize');
+  const panel=document.getElementById('r2-screen-panel');
+  if(!handle||!panel) return;
+  let dragging=false, startY=0, startH=0;
+  handle.addEventListener('mousedown', e=>{
+    e.preventDefault(); dragging=true; startY=e.clientY; startH=panel.offsetHeight;
+    handle.classList.add('dragging');
+  });
+  document.addEventListener('mousemove', e=>{
+    if(!dragging) return;
+    panel.style.height=Math.max(60, Math.min(600, startH+(e.clientY-startY)))+'px';
+  });
+  document.addEventListener('mouseup', ()=>{ if(dragging){dragging=false;handle.classList.remove('dragging');} });
+}
+
+// ── Hook refreshScreenPanel to show r2-screen-panel ──
+const _origRefreshScreen = refreshScreenPanel;
+function refreshScreenPanel(){
+  _origRefreshScreen?.();
+  const sp=document.getElementById('r2-screen-panel');
+  if(!sp) return;
+  if(screenStreams.size>0){ sp.classList.add('visible'); r2RenderVideoGrid(); }
+  else { sp.classList.remove('visible'); }
+  const sc=document.getElementById('screen-count'); if(sc) sc.textContent=screenStreams.size;
+}
+
+// ── Hook refreshCamPanel to update R2 video grid ──
+const _origRefreshCam = refreshCamPanel;
+function refreshCamPanel(){
+  if(_communityRoomMode){ _origRefreshCam?.(); return; }
+  // In standalone room, just update the R2 grid (don't use old cam-area)
+  r2RenderVideoGrid();
+}
+
+// ── addChat with per-message block/report ──
 
 </script>
 
