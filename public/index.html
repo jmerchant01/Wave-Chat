@@ -210,12 +210,15 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .r2-video-panel{flex-shrink:0;background:#0a0a12;display:flex;flex-direction:column;position:relative;min-height:80px;}
 .r2-video-resize{height:5px;cursor:ns-resize;background:transparent;flex-shrink:0;transition:background .15s;}
 .r2-video-resize:hover,.r2-video-resize.dragging{background:var(--accent);}
-.r2-spotlight-row{display:flex;gap:.3rem;padding:.3rem .3rem 0;overflow-x:auto;flex-shrink:0;}
-.r2-spotlight-row:empty{display:none;}
+/* spotlight-row overridden in r2-tile block */
 .r2-grid-area{flex:1;padding:.3rem;display:flex;flex-wrap:wrap;gap:.3rem;overflow-y:auto;align-content:flex-start;align-items:stretch;}
 /* Participant tile */
-.r2-tile{position:relative;border-radius:8px;overflow:hidden;background:#111;border:1.5px solid var(--border);cursor:pointer;transition:border-color .2s;flex-shrink:0;}
-.r2-tile.speaking{border-color:var(--accent3);}
+.r2-tile{position:relative;border-radius:8px;overflow:hidden;background:#111;border:2px solid transparent;transition:border-color .2s,box-shadow .2s;flex-shrink:0;}
+.r2-tile.speaking{border-color:var(--accent3);box-shadow:0 0 0 1px var(--accent3);}
+.r2-tile.muted-tile{border-color:var(--danger);}
+/* Spotlight row: 2x2 grid layout for 4 favs, else single row */
+#r2-spotlight-row{flex-shrink:0;display:flex;flex-wrap:wrap;gap:.35rem;padding:.35rem .35rem 0;}
+#r2-spotlight-row:empty{display:none;}
 .r2-tile.focused{position:fixed!important;inset:0;border-radius:0;z-index:500;width:100%!important;height:100%!important;}
 .r2-tile video{width:100%;height:100%;object-fit:cover;display:block;}
 .r2-tile .r2-tile-label{position:absolute;bottom:0;left:0;right:0;padding:.2rem .4rem;background:linear-gradient(transparent,rgba(0,0,0,.7));font-size:.65rem;color:#fff;display:flex;align-items:center;gap:.3rem;}
@@ -256,8 +259,9 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .r2-msg .r2-ma-btn:hover{border-color:var(--danger);color:var(--danger);}
 /* Spotlight toggle btn */
 .spotlight-pin{width:18px;height:18px;border-radius:4px;border:none;background:rgba(0,0,0,.5);color:#fff;font-size:.55rem;cursor:pointer;position:absolute;top:4px;left:4px;opacity:0;transition:opacity .15s;}
-.r2-tile:hover .spotlight-pin{opacity:1;}
+.r2-tile:hover .spotlight-pin{opacity:1;background:rgba(108,99,255,.7);}
 .r2-tile.pinned .spotlight-pin{opacity:1;background:var(--accent);color:#fff;}
+.r2-tile .spotlight-pin{opacity:.7;}
 
 .room-body{
   display:grid;
@@ -5604,7 +5608,22 @@ function connectSocket(){
     const p=participants.get(id); if(p){p.muted=muted;renderParticipants();}
   });
   socket.on('participant_speaking',({id,active})=>{
-    const p=participants.get(id); if(p){p.speaking=active;renderParticipants();}
+    const p=participants.get(id);
+    if(p){
+      p.speaking=active;
+      // Update tile border directly for perf (avoid full re-render every frame)
+      if(!_communityRoomMode){
+        document.querySelectorAll('.r2-tile').forEach(tile=>{
+          const pid=tile.dataset.peerId;
+          if(pid!==id) return;
+          const tp=participants.get(pid);
+          if(!tp) return;
+          tile.classList.toggle('speaking', tp.speaking);
+          tile.classList.toggle('muted-tile', !tp.speaking && tp.muted);
+        });
+      }
+      renderParticipants();
+    }
   });
   socket.on('room_state_update',(state)=>{
     participants.clear();
@@ -7045,9 +7064,11 @@ let focusedPeer = null; // fullscreen peer
 function toggleSpotlight(peerId){
   if(spotlightPeers.has(peerId)){
     spotlightPeers.delete(peerId);
+    toast('⭐ Removed from favorites');
   } else {
-    if(spotlightPeers.size>=5){ toast('Max 5 spotlight slots'); return; }
+    if(spotlightPeers.size>=4){ toast('⭐ Max 4 favorites — remove one first'); return; }
     spotlightPeers.add(peerId);
+    toast('⭐ Added to favorites');
   }
   renderParticipants(); r2RenderVideoGrid();
 }
@@ -7134,50 +7155,77 @@ function renderParticipants(){
   if(!_communityRoomMode) r2RenderVideoGrid();
 }
 
-// ── R2 video grid — always shown, spotlight row + main grid ──
+// ── R2 video grid ──
+const SMALL_TILE_W = 140; // px — small tile width
+const SMALL_TILE_H = 105; // px — small tile height (4:3)
+const FAV_TILE_BIG = 200; // px — fav tile when in 2x2
+const FAV_TILE_SM  = 160; // px — fav tile when < 4
+
 function r2RenderVideoGrid(){
   const spotRow=document.getElementById('r2-spotlight-row');
   const gridArea=document.getElementById('r2-grid-area');
   if(!spotRow||!gridArea) return;
   spotRow.innerHTML=''; gridArea.innerHTML='';
+
   if(focusedPeer!==null){
-    // Full-area focused tile
     gridArea.style.cssText='position:relative;flex:1;overflow:hidden;';
     const tile=buildR2Tile(focusedPeer, participants.get(focusedPeer), true);
     tile.style.cssText='width:100%;height:100%;';
     gridArea.appendChild(tile);
     return;
   }
-  gridArea.style.cssText='flex:1;padding:.3rem;display:flex;flex-wrap:wrap;gap:.3rem;overflow-y:auto;align-content:flex-start;';
-  // Sort: cam-on first, then spotlight pinned, rest alphabetical
-  const pArray=Array.from(participants.entries()).filter(([id])=>!localMutes.has(id)||id===socket?.id);
+
+  gridArea.style.cssText='padding:.35rem;display:flex;flex-wrap:wrap;gap:.35rem;overflow-y:auto;align-content:flex-start;';
+
+  const all=Array.from(participants.entries()).filter(([id])=>!localMutes.has(id)||id===socket?.id);
   const hasCam=(id)=>camStreams.has(id);
-  pArray.sort((a,b)=>{
-    const ac=hasCam(a[0])?2:0, bc=hasCam(b[0])?2:0;
-    return bc-ac;
-  });
-  // Spotlight row
-  const spotList=pArray.filter(([id])=>spotlightPeers.has(id));
-  if(spotList.length){
-    spotList.forEach(([id,p])=>{
-      const tile=buildR2Tile(id,p,false,true);
-      tile.style.cssText='width:160px;height:120px;flex-shrink:0;';
-      spotRow.appendChild(tile);
-    });
+
+  // Favorites (spotlighted) — max 4
+  const favs=all.filter(([id])=>spotlightPeers.has(id)).slice(0,4);
+  const rest=all.filter(([id])=>!spotlightPeers.has(id));
+
+  // Sort rest: cam-on first
+  rest.sort((a,b)=>(hasCam(b[0])?1:0)-(hasCam(a[0])?1:0));
+
+  // ── Favorites section ──
+  if(favs.length){
+    const n=favs.length;
+    const is2x2 = n===4;
+    // 4 favs → 2x2 grid; 1-3 → single row
+    if(is2x2){
+      // Two rows of two
+      const rows=[favs.slice(0,2), favs.slice(2,4)];
+      rows.forEach(row=>{
+        const rowEl=document.createElement('div');
+        rowEl.style.cssText='display:flex;gap:.35rem;width:100%;';
+        row.forEach(([id,p])=>{
+          const tile=buildR2Tile(id,p,false,true);
+          tile.style.cssText='flex:1;height:'+FAV_TILE_BIG+'px;';
+          rowEl.appendChild(tile);
+        });
+        spotRow.appendChild(rowEl);
+      });
+    } else {
+      // Single row, all side by side
+      favs.forEach(([id,p])=>{
+        const tile=buildR2Tile(id,p,false,true);
+        tile.style.cssText='width:'+FAV_TILE_SM+'px;height:'+(FAV_TILE_SM*0.75)+'px;flex-shrink:0;';
+        spotRow.appendChild(tile);
+      });
+    }
   }
-  // Main grid
-  const rest=pArray.filter(([id])=>!spotlightPeers.has(id));
-  const n=rest.length||1;
-  // Tiles fill full width: 1=100%, 2=50% each, 3=33%, 4+=25%
-  const tileW = n===1 ? 'calc(100% - .3rem)'
-              : n===2 ? 'calc(50% - .15rem)'
-              : n<=4  ? 'calc(33.33% - .2rem)'
-                      : 'calc(25% - .23rem)';
+
+  // ── Regular participants — fixed small tiles ──
   rest.forEach(([id,p])=>{
     const tile=buildR2Tile(id,p,false,false);
-    tile.style.cssText='width:'+tileW+';aspect-ratio:4/3;min-height:80px;';
+    tile.style.cssText='width:'+SMALL_TILE_W+'px;height:'+SMALL_TILE_H+'px;';
     gridArea.appendChild(tile);
   });
+
+  // Also show non-fav but visible participants (if all are favs, show nothing in gridArea)
+  if(!rest.length && !favs.length){
+    gridArea.innerHTML='<div style="color:var(--muted);font-size:.75rem;padding:1rem;">No participants</div>';
+  }
 }
 
 function buildR2Tile(peerId, p, isFocused, isSpotlight){
@@ -7186,7 +7234,10 @@ function buildR2Tile(peerId, p, isFocused, isSpotlight){
   const cam=camStreams.get(peerId);
   const color=colorFor(peerId);
   const tile=document.createElement('div');
-  tile.className='r2-tile'+(p.speaking?' speaking':'')+(spotlightPeers.has(peerId)?' pinned':'')+(isFocused?' focused':'');
+  // Border: speaking=green, muted=red, neither=transparent (no border color)
+  const tileClass='r2-tile'+(p.speaking?' speaking':p.muted?' muted-tile':'')+(spotlightPeers.has(peerId)?' pinned':'')+(isFocused?' focused':'');
+  tile.className=tileClass;
+  tile.dataset.peerId=peerId;
   // No whole-tile click — use dedicated expand button instead
 
   if(cam && cam.stream){
