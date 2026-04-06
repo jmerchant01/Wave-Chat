@@ -1,18 +1,20 @@
 const mongoose = require('mongoose');
 
+const categorySchema = new mongoose.Schema({
+  name: { type: String, required: true, trim: true },
+  order: { type: Number, default: 0 },
+  collapsed: { type: Boolean, default: false }
+});
+
 const channelSchema = new mongoose.Schema({
   name: { type: String, required: true, trim: true },
   type: { type: String, enum: ['text', 'voice', 'announcement', 'room'], default: 'text' },
   description: { type: String, default: '' },
   order: { type: Number, default: 0 },
-  // Per-channel permission overrides (roleId -> { canRead, canWrite })
+  categoryId: { type: String, default: null }, // null = uncategorized
   permissions: [{ roleId: String, canRead: Boolean, canWrite: Boolean }],
   locked: { type: Boolean, default: false },
   chatLocked: { type: Boolean, default: false },
-  // Roles that can VIEW this channel (empty = all roles can view)
-  viewRoles: [{ type: String }],
-  // Roles that can WRITE to this channel (empty = all roles can write, subject to chatLocked)
-  writeRoles: [{ type: String }],
   activeRoomId: { type: String, default: null }
 });
 
@@ -47,6 +49,7 @@ const communitySchema = new mongoose.Schema({
   tags:        [{ type: String, lowercase: true, trim: true }],
   ownerId:     { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   roles:       [roleSchema],
+  categories:  [categorySchema],
   channels:    [channelSchema],
   members:     [memberSchema],
   inviteCode:  { type: String, unique: true, sparse: true },

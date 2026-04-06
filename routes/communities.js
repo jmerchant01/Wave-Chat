@@ -286,7 +286,8 @@ router.post('/communities/:id/channels', auth, async (req, res) => {
     if (!hasPermission(community, req.user.id, 'canManageChannels')) return res.status(403).json({ error: 'No permission' });
     const { name, type, description } = req.body;
     if (!name) return res.status(400).json({ error: 'Channel name required' });
-    community.channels.push({ name: name.toLowerCase().replace(/\s+/g,'-'), type: type||'text', description: description||'', order: community.channels.length });
+    const { categoryId } = req.body;
+    community.channels.push({ name: name.toLowerCase().replace(/\s+/g,'-'), type: type||'text', description: description||'', order: community.channels.length, categoryId: categoryId||null });
     await community.save();
     res.json({ success: true, channels: community.channels });
   } catch(e) { res.status(500).json({ error: e.message }); }
@@ -516,6 +517,92 @@ router.delete('/communities/:id/roles/:roleId', auth, async (req, res) => {
     await community.save();
     res.json({ success: true });
   } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+
+// ── Categories: create ──
+router.post('/communities/:id/categories', auth, async (req, res) => {
+  try {
+    const comm = await Community.findById(req.params.id);
+    if(!comm) return res.status(404).json({error:'Not found'});
+    if(!hasPermission(comm, req.user.id, 'canManageChannels')) return res.status(403).json({error:'No permission'});
+    const { name } = req.body;
+    if(!name) return res.status(400).json({error:'Name required'});
+    comm.categories.push({ name: name.trim(), order: comm.categories.length });
+    await comm.save();
+    res.json({ success:true, categories: comm.categories, channels: comm.channels });
+  } catch(e) { res.status(500).json({error:e.message}); }
+});
+
+// ── Categories: rename ──
+router.patch('/communities/:id/categories/:catId', auth, async (req, res) => {
+  try {
+    const comm = await Community.findById(req.params.id);
+    if(!comm) return res.status(404).json({error:'Not found'});
+    if(!hasPermission(comm, req.user.id, 'canManageChannels')) return res.status(403).json({error:'No permission'});
+    const cat = comm.categories.id(req.params.catId);
+    if(!cat) return res.status(404).json({error:'Category not found'});
+    if(req.body.name !== undefined) cat.name = req.body.name.trim();
+    if(req.body.collapsed !== undefined) cat.collapsed = req.body.collapsed;
+    await comm.save();
+    res.json({ success:true, categories: comm.categories });
+  } catch(e) { res.status(500).json({error:e.message}); }
+});
+
+// ── Categories: delete (moves channels to uncategorized) ──
+router.delete('/communities/:id/categories/:catId', auth, async (req, res) => {
+  try {
+    const comm = await Community.findById(req.params.id);
+    if(!comm) return res.status(404).json({error:'Not found'});
+    if(!hasPermission(comm, req.user.id, 'canManageChannels')) return res.status(403).json({error:'No permission'});
+    comm.channels.forEach(ch => { if(ch.categoryId===req.params.catId) ch.categoryId=null; });
+    comm.categories = comm.categories.filter(c=>c._id.toString()!==req.params.catId);
+    await comm.save();
+    res.json({ success:true, categories: comm.categories, channels: comm.channels });
+  } catch(e) { res.status(500).json({error:e.message}); }
+});
+
+// ── Channel: update category ──
+router.patch('/communities/:id/channels/:channelId/category', auth, async (req, res) => {
+  try {
+    const comm = await Community.findById(req.params.id);
+    if(!comm) return res.status(404).json({error:'Not found'});
+    if(!hasPermission(comm, req.user.id, 'canManageChannels')) return res.status(403).json({error:'No permission'});
+    const ch = comm.channels.id(req.params.channelId);
+    if(!ch) return res.status(404).json({error:'Channel not found'});
+    ch.categoryId = req.body.categoryId||null;
+    await comm.save();
+    res.json({ success:true, channels: comm.channels });
+  } catch(e) { res.status(500).json({error:e.message}); }
+});
+
+// ── Channel: reorder (move up/down within category) ──
+router.patch('/communities/:id/channels/reorder', auth, async (req, res) => {
+  try {
+    const comm = await Community.findById(req.params.id);
+    if(!comm) return res.status(404).json({error:'Not found'});
+    if(!hasPermission(comm, req.user.id, 'canManageChannels')) return res.status(403).json({error:'No permission'});
+    // req.body.order = [{channelId, order}, ...]
+    const orderMap = {};
+    (req.body.order||[]).forEach(({channelId, order}) => orderMap[channelId]=order);
+    comm.channels.forEach(ch => { if(orderMap[ch._id.toString()]!==undefined) ch.order=orderMap[ch._id.toString()]; });
+    await comm.save();
+    res.json({ success:true, channels: comm.channels });
+  } catch(e) { res.status(500).json({error:e.message}); }
+});
+
+// ── Categories: reorder ──
+router.patch('/communities/:id/categories/reorder', auth, async (req, res) => {
+  try {
+    const comm = await Community.findById(req.params.id);
+    if(!comm) return res.status(404).json({error:'Not found'});
+    if(!hasPermission(comm, req.user.id, 'canManageChannels')) return res.status(403).json({error:'No permission'});
+    const orderMap = {};
+    (req.body.order||[]).forEach(({catId, order}) => orderMap[catId]=order);
+    comm.categories.forEach(cat => { if(orderMap[cat._id.toString()]!==undefined) cat.order=orderMap[cat._id.toString()]; });
+    await comm.save();
+    res.json({ success:true, categories: comm.categories });
+  } catch(e) { res.status(500).json({error:e.message}); }
 });
 
 module.exports = router;
