@@ -5030,6 +5030,15 @@ async function openChannel(channel){
         }
       }catch(e){}
     }
+    // If already in community room mode, restore live view (user switched channels and came back)
+    if(_communityRoomMode){
+      const liveEl=document.getElementById('cv-room-live');
+      const idleEl=document.getElementById('cv-room-idle');
+      const activeEl=document.getElementById('cv-room-active-info');
+      if(liveEl){ idleEl&&(idleEl.style.display='none'); activeEl&&(activeEl.style.display='none')&&activeEl.classList.add('hidden'); liveEl.classList.remove('hidden'); liveEl.style.display='flex'; }
+      // Re-init resize handles
+      setTimeout(()=>{ initR2Resize(); initR2ScreenResize(); r2RenderVideoGrid(); },50);
+    }
     updateRoomChannelUI(channel);
   } else {
     messagesEl.style.display='flex';
@@ -5750,6 +5759,7 @@ let socket=null, myId=null, myName='', roomId='', isHost=false;
 let isMuted=false, isSpeaking=false, isLocked=false, isChatLocked=false;
 let micHostLocked=false, isAllMuted=false;
 let isCameraOn=false, isScreenSharing=false, screenShareAllowed=false, screenRequestsEnabled=true;
+let _localCamStream=null; // always mirrors localVideoStream for use in buildR2Tile
 
 let participants=new Map();
 let localStream=null;       // audio only
@@ -6177,7 +6187,7 @@ function applyMute(){
 // ── CAMERA ──
 async function toggleCamera(){
   if(isCameraOn){
-    if(localVideoStream){localVideoStream.getTracks().forEach(t=>t.stop());localVideoStream=null;}
+    if(localVideoStream){localVideoStream.getTracks().forEach(t=>t.stop());localVideoStream=null;} _localCamStream=null;
     removeVideoTile('cam-'+socket.id);
     r2RenderVideoGrid(); // refresh grid after camera off
     peers.forEach(peer=>{
@@ -6190,6 +6200,7 @@ async function toggleCamera(){
   } else {
     try{
       localVideoStream=await navigator.mediaDevices.getUserMedia({video:{width:{ideal:1280},height:{ideal:720}},audio:false});
+      _localCamStream=localVideoStream;
       isCameraOn=true;
       addOrUpdateVideoTile('cam-'+socket.id, localVideoStream, myName+(isHost?' 👑':''), false, true);
       // Force re-render video grid immediately (community mode guard was blocking this)
@@ -7588,8 +7599,8 @@ function buildR2Tile(peerId, p, isFocused, isSpotlight){
   tile.dataset.peerId=peerId;
   // No whole-tile click — use dedicated expand button instead
 
-  // For local user: always use localVideoStream if camera is on
-  const effectiveStream = (isMine && isCameraOn && localVideoStream) ? localVideoStream : (cam && cam.stream ? cam.stream : null);
+  // For local user: use _localCamStream (most stable ref). For peers: use camStreams.
+  const effectiveStream = (isMine && _localCamStream) ? _localCamStream : (cam && cam.stream ? cam.stream : null);
   if(effectiveStream){
     const vid=document.createElement('video');
     vid.autoplay=true; vid.playsInline=true; vid.muted=isMine;
@@ -7845,7 +7856,7 @@ function leaveRoom(forced=false){
   if(socket){socket.disconnect();socket=null;}
   participants.clear(); videoTiles.clear(); camStreams.clear(); screenStreams.clear(); localMutes.clear(); spotlightPeers.clear(); focusedPeer=null;
   isMuted=false;isSpeaking=false;isLocked=false;isChatLocked=false;isHost=false;
-  roomId='';micHostLocked=false;isAllMuted=false;isCameraOn=false;isScreenSharing=false;screenShareAllowed=false;screenRequestsEnabled=true;
+  roomId='';micHostLocked=false;isAllMuted=false;isCameraOn=false;isScreenSharing=false;screenShareAllowed=false;screenRequestsEnabled=true;_localCamStream=null;
   _roomAvatarBase64=null;
   const _rav=document.getElementById('room-avatar-preview'); if(_rav) _rav.innerHTML='🎙️';
   const _hav=document.getElementById('room-header-avatar'); if(_hav) _hav.style.display='none';
