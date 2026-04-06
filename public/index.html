@@ -7514,10 +7514,23 @@ function r2RenderVideoGrid(){
     if(divider) divider.style.display='none';
   }
 
-  // ── Regular participants — fixed small tiles ──
+  // ── Regular participants ──
+  // 1-2 people: fill the grid area. 3+ use fixed small tiles.
+  const n = rest.length;
   rest.forEach(([id,p])=>{
     const tile=buildR2Tile(id,p,false,false);
-    tile.style.cssText='width:'+SMALL_TILE_W+'px;height:'+SMALL_TILE_H+'px;';
+    if(n===0){
+      // nothing
+    } else if(n===1){
+      // Single person fills the full grid
+      tile.style.cssText='flex:1;min-width:200px;min-height:120px;';
+    } else if(n===2){
+      // Two side by side, fill height
+      tile.style.cssText='flex:1;min-width:180px;min-height:120px;';
+    } else {
+      // 3+ fixed small tiles
+      tile.style.cssText='width:'+SMALL_TILE_W+'px;height:'+SMALL_TILE_H+'px;';
+    }
     gridArea.appendChild(tile);
   });
 
@@ -7541,9 +7554,12 @@ function buildR2Tile(peerId, p, isFocused, isSpotlight){
 
   if(cam && cam.stream){
     const vid=document.createElement('video');
-    vid.srcObject=cam.stream; vid.autoplay=true; vid.playsInline=true; vid.muted=isMine;
+    vid.autoplay=true; vid.playsInline=true; vid.muted=isMine;
     vid.style.cssText='width:100%;height:100%;object-fit:cover;position:absolute;inset:0;';
     tile.appendChild(vid);
+    // Set srcObject AFTER appending to DOM for reliable autoplay
+    vid.srcObject=cam.stream;
+    vid.play().catch(()=>{});
   } else {
     const av=document.createElement('div');
     av.className='r2-tile-av';
