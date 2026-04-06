@@ -5879,24 +5879,31 @@ function connectSocket(){
     renderParticipants();
   });
   socket.on('participant_mute_changed',({id,muted})=>{
-    const p=participants.get(id); if(p){p.muted=muted;renderParticipants();}
+    const p=participants.get(id);
+    if(p){
+      p.muted=muted;
+      // Update tile border immediately
+      document.querySelectorAll('.r2-tile').forEach(tile=>{
+        if(tile.dataset.peerId!==id) return;
+        tile.classList.toggle('muted-tile', muted);
+        if(muted) tile.classList.remove('speaking');
+      });
+      renderParticipants();
+    }
   });
   socket.on('participant_speaking',({id,active})=>{
     const p=participants.get(id);
     if(p){
       p.speaking=active;
-      // Update tile border directly for perf (avoid full re-render every frame)
-      if(!_communityRoomMode){
-        document.querySelectorAll('.r2-tile').forEach(tile=>{
-          const pid=tile.dataset.peerId;
-          if(pid!==id) return;
-          const tp=participants.get(pid);
-          if(!tp) return;
-          // muted=red always; speaking=green only when not muted
-          tile.classList.toggle('muted-tile', tp.muted);
-          tile.classList.toggle('speaking', tp.speaking && !tp.muted);
-        });
-      }
+      // Update tile border live — works in both standalone and community room
+      document.querySelectorAll('.r2-tile').forEach(tile=>{
+        const pid=tile.dataset.peerId;
+        if(pid!==id) return;
+        const tp=participants.get(pid);
+        if(!tp) return;
+        tile.classList.toggle('muted-tile', tp.muted);
+        tile.classList.toggle('speaking', tp.speaking && !tp.muted);
+      });
       renderParticipants();
     }
   });
@@ -6181,6 +6188,14 @@ function applyMute(){
   if(isMuted){
     const btn=document.getElementById('mic-btn'); if(btn) btn.classList.remove('speaking-active');
     const vf=roomEl('vol-fill'); if(vf) vf.style.width='0%';
+  }
+  // Update local user's tile border
+  if(myId){
+    document.querySelectorAll('.r2-tile').forEach(tile=>{
+      if(tile.dataset.peerId!==myId) return;
+      tile.classList.toggle('muted-tile', isMuted);
+      if(isMuted) tile.classList.remove('speaking');
+    });
   }
 }
 
@@ -7408,7 +7423,7 @@ function renderParticipants(){
   const pch=roomEl('p-count-header'); if(pch) pch.textContent=count;
   list.innerHTML='';
   participants.forEach((p,id)=>{
-    const isMine=id===socket?.id;
+    const isMine=(myId && id===myId)||(id===socket?.id);
     const color=colorFor(id);
     const lMuted=localMutes.has(id);
     const row=document.createElement('div');
@@ -7588,7 +7603,7 @@ function r2RenderVideoGrid(){
 
 function buildR2Tile(peerId, p, isFocused, isSpotlight){
   if(!p) p={name:'?',muted:false,isHost:false,speaking:false};
-  const isMine=peerId===socket?.id;
+  const isMine=(myId && peerId===myId)||(peerId===socket?.id);
   const cam=camStreams.get(peerId);
   const color=colorFor(peerId);
   const tile=document.createElement('div');
