@@ -4875,11 +4875,13 @@ async function createCommunityRoom(ch){
           if(sock) sock.emit('community_message',{communityId,channelId,message});
         }
       }catch(e){}
-      // Save activeRoomId
+      // Save activeRoomId in DB
       await fetch(`/api/communities/${communityId}/channels/${channelId}/active-room`,{
         method:'PATCH', headers:{'Content-Type':'application/json',Authorization:`Bearer ${authToken}`},
         body:JSON.stringify({roomId:rid})
       }).catch(()=>{});
+      // Track for cleanup on room end
+      window._activeCommunityRoomInfo = { communityId, channelId };
       // Broadcast to community
       const sock=homeSocket||socket;
       if(sock) sock.emit('community_room_update',{communityId, channelId, roomId:rid, members:[currentUser.username]});
@@ -7307,7 +7309,7 @@ function cvToggleCam(){
   toggleCamera(); // reuse existing camera logic
 }
 
-function cvLeaveRoom(){
+async function cvLeaveRoom(){
   _communityRoomMode = false;
   leaveRoom();
   // Restore create room button
@@ -7316,11 +7318,36 @@ function cvLeaveRoom(){
   // Hide host bar
   const hp2=document.getElementById('host-panel');
   if(hp2) hp2.classList.remove('visible');
-  // Return to community channel view after leaving
+  // Clear activeRoomId in DB so new rooms can be created
+  if(window._activeCommunityRoomInfo){
+    const {communityId, channelId} = window._activeCommunityRoomInfo;
+    window._activeCommunityRoomInfo = null;
+    try{
+      await fetch(`/api/communities/${communityId}/channels/${channelId}/active-room`,{
+        method:'PATCH', headers:{'Content-Type':'application/json', Authorization:`Bearer ${authToken}`},
+        body:JSON.stringify({roomId:null})
+      });
+    }catch(e){}
+  }
+  // Return to community channel view — wait for DB clear before re-fetching
   if(window._lastCommunityId){
-    setTimeout(()=>{
-      openCommunityById(window._lastCommunityId);
-    }, 100);
+    setTimeout(async ()=>{
+      // Also force-clear activeRoomId on any channel still marked active (belt+suspenders)
+      if(currentCommunity){
+        currentCommunity.channels?.forEach(ch=>{ ch.activeRoomId=null; });
+      }
+      await openCommunityById(window._lastCommunityId);
+      // After re-fetch, ensure the channel no longer shows active
+      if(currentCommunity && currentChannelId){
+        const _ch=currentCommunity.channels?.find(ch=>ch._id===currentChannelId||ch._id?.toString()===currentChannelId);
+        if(_ch){ _ch.activeRoomId=null; }
+      }
+      renderCVChannels(currentCommunity?.channels||[]);
+      if(currentChannelId){
+        const _ch2=currentCommunity?.channels?.find(ch=>ch._id===currentChannelId||ch._id?.toString()===currentChannelId);
+        if(_ch2) updateRoomChannelUI(_ch2);
+      }
+    }, 300);
   }
 }
 function updateInvite(){
@@ -7871,7 +7898,7 @@ function leaveRoom(forced=false){
   if(socket){socket.disconnect();socket=null;}
   participants.clear(); videoTiles.clear(); camStreams.clear(); screenStreams.clear(); localMutes.clear(); spotlightPeers.clear(); focusedPeer=null;
   isMuted=false;isSpeaking=false;isLocked=false;isChatLocked=false;isHost=false;
-  roomId='';micHostLocked=false;isAllMuted=false;isCameraOn=false;isScreenSharing=false;screenShareAllowed=false;screenRequestsEnabled=true;_localCamStream=null;
+  roomId='';micHostLocked=false;isAllMuted=false;isCameraOn=false;isScreenSharing=false;screenShareAllowed=false;screenRequestsEnabled=true;_localCamStream=null;window._activeCommunityRoomInfo=null;
   _roomAvatarBase64=null;
   const _rav=document.getElementById('room-avatar-preview'); if(_rav) _rav.innerHTML='🎙️';
   const _hav=document.getElementById('room-header-avatar'); if(_hav) _hav.style.display='none';

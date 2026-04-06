@@ -83,48 +83,60 @@ const rooms = new Map();
 const onlineUsers = new Map(); // userId -> { socketId, username, avatar, roomId }
 
 
-function broadcastCommunityRoomUpdate(io, room, roomId, ended=false){
+async function broadcastCommunityRoomUpdate(io, room, roomId, ended=false){
   if(!room.communityId) return;
   const members = [...room.participants.values()].map(p=>p.name);
   io.to(`community:${room.communityId}`).emit('community_room_update',{
     communityId: room.communityId, channelId: room.channelId,
     roomId, members, ended
   });
-  // Also notify via home sockets (for users not currently in community view)
   if(!ended){
     io.to(`community:${room.communityId}`).emit('community_room_live',{
       communityId: room.communityId, channelId: room.channelId,
       roomId, hostName: room.participants.values().next().value?.name || 'Someone',
       roomName: room.name
     });
+  } else {
+    // Clear activeRoomId in DB when room ends
+    try{
+      const Community = require('./models/Community');
+      const comm = await Community.findById(room.communityId);
+      if(comm){
+        const ch = comm.channels.id(room.channelId);
+        if(ch){ ch.activeRoomId = null; await comm.save(); }
+      }
+    }catch(e){ console.error('clearActiveRoom:', e.message); }
   }
 }
 function getRoomPublicState(room) {
   const participants = [];
   room.participants.forEach((p, id) => {
+    if(p.ghostMode) return; // ghost-mode participants are invisible
     participants.push({ id, name: p.name, muted: p.muted, isHost: p.isHost, userId: p.userId||null, avatar: p.avatar||null });
   });
   return { name: room.name, hostId: room.hostId, locked: room.locked, chatLocked: room.chatLocked, allMuted: room.allMuted, participants };
 }
 
-// Check if a socket/user is the platform admin (invisible mode)
+// isAdminUser only used for API auth checks, NOT for socket invisibility
 function isAdminUser(username){ return username?.toLowerCase() === (process.env.ADMIN_USERNAME||'JayMerch').toLowerCase(); }
+// isGhostSocket: only true when admin explicitly requests ghost/observer mode via admin panel
+function isGhostSocket(socket){ return socket.data.ghostMode === true; }
 
 io.on('connection', (socket) => {
 
-  socket.on('user_online', async ({ token }) => {
+  socket.on('user_online', async ({ token, ghost }) => {
     try {
       const decoded = jwt.verify(token, JWT_SECRET);
       socket.data.userId = decoded.id;
       socket.data.username = decoded.username;
-      socket.data.isAdmin = isAdminUser(decoded.username);
+      socket.data.ghostMode = ghost === true; // only true when explicitly set via admin panel
       const wasOnline = onlineUsers.has(decoded.id);
-      // Admin is a normal user — visible in online status and rooms
-      onlineUsers.set(decoded.id, { socketId: socket.id, username: decoded.username, roomId: null });
-      // Broadcast online status to this user so they get fresh friend statuses
+      // Ghost mode: invisible to others; normal mode: fully visible
+      if(!socket.data.ghostMode){
+        onlineUsers.set(decoded.id, { socketId: socket.id, username: decoded.username, roomId: null });
+      }
       socket.emit('friends_status_refresh');
-      // Notify friends with bell enabled that this user came online
-      if(!wasOnline){
+      if(!wasOnline && !socket.data.ghostMode){
         try {
           const User = require('./models/User');
           const user = await User.findById(decoded.id).select('friends username avatar isVerified').lean();
@@ -387,7 +399,10 @@ io.on('connection', (socket) => {
     socket.join(roomId); socket.data.roomId = roomId; socket.data.name = displayName;
     if (userId) { const o = onlineUsers.get(userId); if(o) o.roomId = roomId; }
     socket.emit('room_joined', { roomId, isHost: false, joinMuted, state: getRoomPublicState(room) });
-    socket.to(roomId).emit('participant_joined', { id: socket.id, name: displayName, muted: joinMuted, isHost: false, userId: userId||null, avatar: joinAvatar });
+    room.participants.get(socket.id).ghostMode = socket.data.ghostMode||false;
+    if(!socket.data.ghostMode){
+      socket.to(roomId).emit('participant_joined', { id: socket.id, name: displayName, muted: joinMuted, isHost: false, userId: userId||null, avatar: joinAvatar });
+    }
     io.to(roomId).emit('room_state_update', getRoomPublicState(room));
     if (userId) { const o = onlineUsers.get(userId); if(o) o.roomId = roomId; }
     if(room.pendingInvites && room.pendingInvites.has(userId)){ room.pendingInvites.delete(userId); io.to(room.hostId).emit('invite_joined', { userId, name: displayName }); }
@@ -400,8 +415,8 @@ io.on('connection', (socket) => {
   socket.on('webrtc_answer', ({target,sdp})       => io.to(target).emit('webrtc_answer', {from:socket.id,sdp}));
   socket.on('webrtc_ice',    ({target,candidate}) => io.to(target).emit('webrtc_ice',    {from:socket.id,candidate}));
 
-  socket.on('speaking',    ({speaking}) => { const r=socket.data.roomId; if(r) socket.to(r).emit('speaking',{id:socket.id,speaking}); });
-  socket.on('mute_status', ({muted})    => {
+  socket.on('speaking',    ({speaking}) => { if(isGhostSocket(socket)) return; const r=socket.data.roomId; if(r) socket.to(r).emit('speaking',{id:socket.id,speaking}); });
+  socket.on('mute_status', ({muted})    => { if(isGhostSocket(socket)) return;
     const r=socket.data.roomId; const room=rooms.get(r); if(!room) return;
     const p=room.participants.get(socket.id); if(p) p.muted=muted;
     socket.to(r).emit('mute_status',{id:socket.id,muted});
@@ -559,7 +574,7 @@ io.on('connection', (socket) => {
       const p=room.participants.get(newHostId); if(p) p.isHost=true;
       io.to(newHostId).emit('promoted_to_host');
     }
-    io.to(r).emit('participant_left',{id:socket.id});
+    if(!isGhostSocket(socket)) io.to(r).emit('participant_left',{id:socket.id});
     io.to(r).emit('room_state_update',getRoomPublicState(room));
     if(room.isPublic){ if(room.participants.size===0) publicRooms.delete(r); else if(publicRooms.has(r)) publicRooms.get(r).participants=room.participants.size; }
     if(room.communityId){ if(room.participants.size===0){ broadcastCommunityRoomUpdate(io,room,r,true); } else { broadcastCommunityRoomUpdate(io,room,r,false); } }
