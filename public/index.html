@@ -745,6 +745,12 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 #cv-room-participants 
 /* ── Community inline room participant chips ── */
 .cv-channels-category-header:hover{background:rgba(108,99,255,.05);border-radius:4px;}
+.ch-drag-handle{position:absolute;right:3px;top:50%;transform:translateY(-50%);opacity:0;cursor:grab;color:var(--muted);font-size:.8rem;padding:0 2px;transition:opacity .15s;line-height:1;}
+.cv-channel-wrapper:hover .ch-drag-handle{opacity:.5;}
+.ch-drag-handle:hover{opacity:1!important;}
+[draggable="true"].dragging{opacity:.4;}
+[draggable="true"].drag-over{background:rgba(108,99,255,.12);border-radius:6px;}
+
 .cv-p-chip{
   display:flex;align-items:center;gap:.35rem;padding:.3rem .5rem;
   background:var(--surface2);border:1px solid var(--border);border-radius:8px;
@@ -4493,7 +4499,7 @@ function renderCVChannels(channels){
     const displayName = (ch.name==='voice'||ch.type==='voice')?'rooms':ch.name;
     const hasActiveRoom = (ch.type==='room'||ch.type==='voice') && ch.activeRoomId;
     const wrapper = document.createElement('div');
-    wrapper.style.cssText='position:relative;';
+    wrapper.style.cssText='position:relative;'; wrapper.className='cv-channel-wrapper';
     wrapper.dataset.channelId = ch._id;
 
     const btn=document.createElement('button');
@@ -4511,13 +4517,23 @@ function renderCVChannels(channels){
     }
     wrapper.appendChild(btn);
 
-    // Move up/down arrows (owner/admin only)
+    // Drag handle (owner/admin only) — visible on hover
     if(isOwnerOrAdmin){
-      const arrows=document.createElement('div');
-      arrows.style.cssText='position:absolute;right:2px;top:50%;transform:translateY(-50%);display:none;gap:1px;';
-      arrows.innerHTML=`<button onclick="moveChannelInCategory(event,'${ch._id}','${ch.categoryId||''}','up')" title="Move up" style="width:16px;height:16px;border:none;background:rgba(108,99,255,.2);color:var(--accent);border-radius:3px;cursor:pointer;font-size:.55rem;display:flex;align-items:center;justify-content:center;">▲</button><button onclick="moveChannelInCategory(event,'${ch._id}','${ch.categoryId||''}','down')" title="Move down" style="width:16px;height:16px;border:none;background:rgba(108,99,255,.2);color:var(--accent);border-radius:3px;cursor:pointer;font-size:.55rem;display:flex;align-items:center;justify-content:center;">▼</button>`;
-      arrows.style.display='flex';
-      wrapper.appendChild(arrows);
+      const handle=document.createElement('div');
+      handle.className='ch-drag-handle';
+      handle.title='Drag to reorder';
+      handle.textContent='⠿';
+      handle.setAttribute('draggable','false'); // parent wrapper is draggable
+      wrapper.appendChild(handle);
+      // Make the wrapper draggable
+      wrapper.setAttribute('draggable','true');
+      wrapper.dataset.chId=ch._id;
+      wrapper.dataset.chCatId=ch.categoryId||'';
+      wrapper.addEventListener('dragstart', e=>{ e.dataTransfer.setData('text/plain',ch._id); e.dataTransfer.effectAllowed='move'; wrapper.classList.add('dragging'); });
+      wrapper.addEventListener('dragend', ()=>wrapper.classList.remove('dragging'));
+      wrapper.addEventListener('dragover', e=>{ e.preventDefault(); e.dataTransfer.dropEffect='move'; wrapper.classList.add('drag-over'); });
+      wrapper.addEventListener('dragleave', ()=>wrapper.classList.remove('drag-over'));
+      wrapper.addEventListener('drop', e=>{ e.preventDefault(); wrapper.classList.remove('drag-over'); dropChannelOnto(e.dataTransfer.getData('text/plain'), ch._id, ch.categoryId||''); });
     }
 
     if(hasActiveRoom){
@@ -4603,6 +4619,35 @@ function toggleCategoryCollapse(catId, arrowEl){
 }
 
 // ── Move channel up/down within its group ──
+async function dropChannelOnto(draggedId, targetId, targetCatId){
+  if(draggedId===targetId || !currentCommunity) return;
+  // Move dragged channel to same category as target, order just before target
+  const chs = [...(currentCommunity.channels||[])].sort((a,b)=>(a.order||0)-(b.order||0));
+  const group = chs.filter(ch=>(ch.categoryId||'')===targetCatId);
+  const draggedCh = currentCommunity.channels?.find(ch=>ch._id===draggedId||ch._id?.toString()===draggedId);
+  const targetIdx = group.findIndex(ch=>ch._id===targetId||ch._id?.toString()===targetId);
+  if(!draggedCh || targetIdx<0) return;
+  // Update category of dragged channel if different
+  if((draggedCh.categoryId||'')!==targetCatId){
+    draggedCh.categoryId = targetCatId||null;
+    try{
+      await fetch(`/api/communities/${currentCommunity._id}/channels/${draggedId}/category`,{method:'PATCH',headers:{'Content-Type':'application/json',Authorization:`Bearer ${authToken}`},body:JSON.stringify({categoryId:targetCatId||null})});
+    }catch(ex){}
+  }
+  // Rebuild order for this group: insert dragged before target
+  const newGroup = group.filter(ch=>ch._id!==draggedId&&ch._id?.toString()!==draggedId);
+  newGroup.splice(targetIdx, 0, draggedCh);
+  const orderPayload = newGroup.map((ch,i)=>({channelId:ch._id.toString(),order:i}));
+  orderPayload.forEach(({channelId,order})=>{
+    const ch=currentCommunity.channels?.find(c=>c._id===channelId||c._id?.toString()===channelId);
+    if(ch) ch.order=order;
+  });
+  try{
+    await fetch(`/api/communities/${currentCommunity._id}/channels/reorder`,{method:'PATCH',headers:{'Content-Type':'application/json',Authorization:`Bearer ${authToken}`},body:JSON.stringify({order:orderPayload})});
+  }catch(ex){}
+  renderCVChannels(currentCommunity.channels||[]);
+}
+
 async function moveChannelInCategory(e, channelId, catId, dir){
   e.stopPropagation();
   if(!currentCommunity) return;
@@ -7515,20 +7560,16 @@ function r2RenderVideoGrid(){
   }
 
   // ── Regular participants ──
-  // 1-2 people: fill the grid area. 3+ use fixed small tiles.
   const n = rest.length;
+  // Make gridArea stretch children
+  gridArea.style.alignItems = (n <= 2 && n > 0) ? 'stretch' : 'flex-start';
   rest.forEach(([id,p])=>{
     const tile=buildR2Tile(id,p,false,false);
-    if(n===0){
-      // nothing
-    } else if(n===1){
-      // Single person fills the full grid
-      tile.style.cssText='flex:1;min-width:200px;min-height:120px;';
-    } else if(n===2){
-      // Two side by side, fill height
-      tile.style.cssText='flex:1;min-width:180px;min-height:120px;';
+    if(n === 1){
+      tile.style.cssText='flex:1;min-width:200px;min-height:120px;align-self:stretch;';
+    } else if(n === 2){
+      tile.style.cssText='flex:1;min-width:180px;min-height:120px;align-self:stretch;';
     } else {
-      // 3+ fixed small tiles
       tile.style.cssText='width:'+SMALL_TILE_W+'px;height:'+SMALL_TILE_H+'px;';
     }
     gridArea.appendChild(tile);
@@ -7552,13 +7593,15 @@ function buildR2Tile(peerId, p, isFocused, isSpotlight){
   tile.dataset.peerId=peerId;
   // No whole-tile click — use dedicated expand button instead
 
-  if(cam && cam.stream){
+  // For local user: always use localVideoStream if camera is on
+  const effectiveStream = (isMine && isCameraOn && localVideoStream) ? localVideoStream : (cam && cam.stream ? cam.stream : null);
+  if(effectiveStream){
     const vid=document.createElement('video');
     vid.autoplay=true; vid.playsInline=true; vid.muted=isMine;
-    vid.style.cssText='width:100%;height:100%;object-fit:cover;position:absolute;inset:0;';
+    vid.style.cssText='width:100%;height:100%;object-fit:cover;position:absolute;inset:0;border-radius:8px;';
     tile.appendChild(vid);
     // Set srcObject AFTER appending to DOM for reliable autoplay
-    vid.srcObject=cam.stream;
+    vid.srcObject=effectiveStream;
     vid.play().catch(()=>{});
   } else {
     const av=document.createElement('div');
