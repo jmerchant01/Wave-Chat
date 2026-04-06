@@ -211,7 +211,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .r2-video-resize{height:5px;cursor:ns-resize;background:transparent;flex-shrink:0;transition:background .15s;}
 .r2-video-resize:hover,.r2-video-resize.dragging{background:var(--accent);}
 /* spotlight-row overridden in r2-tile block */
-.r2-grid-area{flex:1;padding:.3rem;display:flex;flex-wrap:wrap;gap:.3rem;overflow-y:auto;align-content:flex-start;align-items:stretch;}
+.r2-grid-area{flex:1;padding:.3rem;display:flex;flex-wrap:wrap;gap:.3rem;overflow-y:auto;align-content:flex-start;}
 /* Participant tile */
 .r2-tile{position:relative;border-radius:8px;overflow:hidden;background:#111;border:2px solid transparent;transition:border-color .2s,box-shadow .2s;flex-shrink:0;}
 .r2-tile.speaking{border-color:var(--accent3);box-shadow:0 0 0 1px var(--accent3);}
@@ -6179,6 +6179,7 @@ async function toggleCamera(){
   if(isCameraOn){
     if(localVideoStream){localVideoStream.getTracks().forEach(t=>t.stop());localVideoStream=null;}
     removeVideoTile('cam-'+socket.id);
+    r2RenderVideoGrid(); // refresh grid after camera off
     peers.forEach(peer=>{
       if(peer.camSender){try{peer.pc.removeTrack(peer.camSender);}catch(e){}peer.camSender=null;}
     });
@@ -6191,6 +6192,8 @@ async function toggleCamera(){
       localVideoStream=await navigator.mediaDevices.getUserMedia({video:{width:{ideal:1280},height:{ideal:720}},audio:false});
       isCameraOn=true;
       addOrUpdateVideoTile('cam-'+socket.id, localVideoStream, myName+(isHost?' 👑':''), false, true);
+      // Force re-render video grid immediately (community mode guard was blocking this)
+      r2RenderVideoGrid();
       // Add track to all peers — onnegotiationneeded fires automatically
       peers.forEach((peer,peerId)=>{
         const track=localVideoStream.getVideoTracks()[0];
@@ -7434,7 +7437,7 @@ function renderParticipants(){
     list.appendChild(row);
   });
   // Also update video grid
-  if(!_communityRoomMode) r2RenderVideoGrid();
+  r2RenderVideoGrid(); // runs for both standalone and community room
 }
 
 // ── R2 video grid ──
@@ -7559,19 +7562,11 @@ function r2RenderVideoGrid(){
     if(divider) divider.style.display='none';
   }
 
-  // ── Regular participants ──
-  const n = rest.length;
-  // Make gridArea stretch children
-  gridArea.style.alignItems = (n <= 2 && n > 0) ? 'stretch' : 'flex-start';
+  // ── Regular participants — same fixed tiles as standalone room ──
+  gridArea.style.alignItems = 'flex-start';
   rest.forEach(([id,p])=>{
     const tile=buildR2Tile(id,p,false,false);
-    if(n === 1){
-      tile.style.cssText='flex:1;min-width:200px;min-height:120px;align-self:stretch;';
-    } else if(n === 2){
-      tile.style.cssText='flex:1;min-width:180px;min-height:120px;align-self:stretch;';
-    } else {
-      tile.style.cssText='width:'+SMALL_TILE_W+'px;height:'+SMALL_TILE_H+'px;';
-    }
+    tile.style.cssText='width:'+SMALL_TILE_W+'px;height:'+SMALL_TILE_H+'px;';
     gridArea.appendChild(tile);
   });
 
